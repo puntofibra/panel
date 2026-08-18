@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Puntofibra · Panel</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Puntofibra">
+
+<style>
+  :root { --bg:#0f172a; --fg:#e2e8f0; --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  html, body {
+    margin:0; padding:0; height:100%; width:100%;
+    background:var(--bg); overflow:hidden; overscroll-behavior:none;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  #app {
+    position:fixed; inset:0; width:100%; height:100%;
+    height:100dvh;              /* evita que la barra del móvil corte la app */
+    border:0; display:block; background:#fff;
+  }
+  /* Pantalla de carga */
+  #splash {
+    position:fixed; inset:0; z-index:10;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
+    background:var(--bg); color:var(--fg);
+    transition:opacity .35s ease; padding:24px; text-align:center;
+  }
+  #splash.hide { opacity:0; pointer-events:none; }
+  #splash img { width:120px; height:auto; border-radius:14px; }
+  .spin {
+    width:34px; height:34px; border-radius:50%;
+    border:3px solid rgba(226,232,240,.22); border-top-color:var(--accent);
+    animation:spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #fallback { display:none; max-width:420px; }
+  #fallback p { font-size:15px; line-height:1.5; color:#94a3b8; margin:0 0 18px; }
+  #fallback a {
+    display:inline-block; background:var(--accent); color:#05202e; font-weight:700;
+    text-decoration:none; padding:12px 22px; border-radius:10px; font-size:15px;
+  }
+</style>
+</head>
+<body>
+
+<iframe id="app" title="Puntofibra" allow="clipboard-read; clipboard-write; camera; geolocation"></iframe>
+
+<div id="splash">
+  <img src="https://i.postimg.cc/vZwLhn6g/descarga.png" alt="Puntofibra" onerror="this.style.display='none'">
+  <div class="spin" id="spin"></div>
+  <div id="fallback">
+    <p>No se ha podido cargar el panel aquí dentro.<br>
+       Suele pasar cuando Google pide iniciar sesión, porque esa pantalla no se deja incrustar.</p>
+    <a id="direct" href="#" target="_blank" rel="noopener">Abrir directamente</a>
+  </div>
+</div>
+
+<script>
+  // ==== ÚNICA LÍNEA QUE HAY QUE TOCAR SI CAMBIAS DE IMPLEMENTACIÓN ====
+  const EXEC_URL = "https://script.google.com/macros/s/AKfycbzecmwGqhsXIxDzgHx27iwrtgrFfHMizRH4iKYWX_EiGaUxLM066soojtD70Bi9b9jZ/exec";
+  // ====================================================================
+
+  const frame  = document.getElementById('app');
+  const splash = document.getElementById('splash');
+  let loaded = false;
+
+  document.getElementById('direct').href = EXEC_URL;
+  frame.src = EXEC_URL;
+
+  frame.addEventListener('load', () => {
+    loaded = true;
+    splash.classList.add('hide');
+    setTimeout(() => splash.remove(), 400);
+  });
+
+  // Si a los 12 s no ha cargado, ofrecemos el enlace directo
+  setTimeout(() => {
+    if (!loaded) {
+      document.getElementById('spin').style.display = 'none';
+      document.getElementById('fallback').style.display = 'block';
+    }
+  }, 12000);
+
+  // Service worker: necesario para que se pueda instalar como app
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>
