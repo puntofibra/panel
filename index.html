@@ -96,9 +96,9 @@
     <div class="sub">GESTIÓN DE CONTRATOS DE TELECOMUNICACIONES</div>
 
     <form id="fLogin" method="post" action="#" autocomplete="on" novalidate>
-      <label for="usuario">Usuario</label>
-      <input id="usuario" name="username" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
-      <label for="password">Contraseña</label>
+      <!-- Oculto: solo para que Google Contraseñas guarde la clave con el nombre "Puntofibra" -->
+      <input id="usuario" name="username" type="text" value="Puntofibra" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+      <label for="password">Contraseña o código de Google Authenticator</label>
       <div class="pw">
         <input id="password" name="password" type="password" autocomplete="current-password" required>
         <button type="button" id="ojo" aria-label="Ver contraseña">👁</button>
@@ -180,7 +180,7 @@
     $('login').classList.remove('hidden');
     ocultarSplash();
     hint(msg || '', !!msg);
-    setTimeout(() => { ($('usuario').value ? $('password') : $('usuario')).focus(); }, 60);
+    setTimeout(() => { $('password').focus(); }, 60);
   }
   function abrirApp(token){
     lsSet(LS_TOKEN, token);
@@ -205,19 +205,19 @@
     }
   });
 
-  // ---------- Login con usuario y contraseña ----------
+  // ---------- Login solo con contraseña (o código de Authenticator) ----------
   $('fLogin').addEventListener('submit', async ev => {
     ev.preventDefault();
-    const usuario = $('usuario').value.trim(), password = $('password').value;
-    if(!usuario || !password){ hint('Escribe usuario y contraseña', true); (usuario ? $('password') : $('usuario')).focus(); return; }
+    const usuario = 'Puntofibra', password = $('password').value.trim();
+    if(!password){ hint('Escribe tu contraseña', true); $('password').focus(); return; }
     const b = $('entrar'); b.disabled = true; hint('Comprobando…');
     try{
-      const r = await api({ accion:'login', usuario, password });
-      if(!r || !r.ok){ hint((r && r.error) || 'Usuario o contraseña incorrectos', true); $('password').select(); return; }
-      // Pide a Google Contraseñas que la guarde (Chrome / Android)
+      const r = await api({ accion:'login', password });
+      if(!r || !r.ok){ hint((r && r.error) || 'Contraseña incorrecta', true); $('password').select(); return; }
+      // Pide a Google Contraseñas que la guarde (no si es un código de Authenticator)
       try{
-        if(window.PasswordCredential && navigator.credentials){
-          await navigator.credentials.store(new PasswordCredential({ id:usuario, password, name:r.nombre || usuario }));
+        if(window.PasswordCredential && navigator.credentials && !/^\d{6}$/.test(password)){
+          await navigator.credentials.store(new PasswordCredential({ id:usuario, password, name:'Puntofibra' }));
         }
       }catch(e){}
       $('password').value = '';
