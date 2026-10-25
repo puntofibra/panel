@@ -98,7 +98,7 @@
     <form id="fLogin" method="post" action="#" autocomplete="on" novalidate>
       <!-- Oculto: solo para que Google Contraseñas guarde la clave con el nombre "Puntofibra" -->
       <input id="usuario" name="username" type="text" value="Puntofibra" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
-      <label for="password">Contraseña o código de Google Authenticator</label>
+      <label for="password">Contraseña</label>
       <div class="pw">
         <input id="password" name="password" type="password" autocomplete="current-password" required>
         <button type="button" id="ojo" aria-label="Ver contraseña">👁</button>
@@ -106,12 +106,7 @@
       <button class="entrar" id="entrar" type="submit"><span class="fill" id="fill"></span><span class="txt" id="entrarTxt">ENTRAR</span></button>
     </form>
     <div class="hint" id="hint"></div>
-    <div class="tip">Mantén pulsado ENTRAR 3 segundos para entrar con tu llave NFC</div>
 
-    <div class="acc">
-      <button type="button" id="bInstalar">📲 Instalar app</button>
-      <button type="button" id="bCompartir">🔗 Compartir</button>
-    </div>
   </div>
 </div>
 
@@ -127,9 +122,6 @@
     <button class="b2" id="llCerrar">Cancelar</button>
   </div>
 </div>
-
-<!-- ===== INSTALAR / COMPARTIR ===== -->
-<div class="velo" id="veloInfo"><div class="box" id="infoBox"></div></div>
 
 <!-- ===== APP (Apps Script) ===== -->
 <iframe id="app" class="hidden" title="Puntofibra" allow="clipboard-read; clipboard-write; camera; geolocation"></iframe>
@@ -294,31 +286,6 @@
   }
   $('llAbrir').addEventListener('click', () => { if(!llUrl) return; try{ if(llVentana && !llVentana.closed) llVentana.close(); }catch(e){} llVentana = window.open(llUrl, 'lectorLlave'); });
   $('llCerrar').addEventListener('click', cerrarLlave);
-
-  // ---------- Instalar y compartir ----------
-  let promptInstalar = null;
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); promptInstalar = e; });
-  const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const instalada = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  if(instalada) $('bInstalar').classList.add('hidden');
-  function info(html){ $('infoBox').innerHTML = html + '<button class="b2" type="button" onclick="document.getElementById(\'veloInfo\').classList.remove(\'on\')">Cerrar</button>'; $('veloInfo').classList.add('on'); }
-  $('veloInfo').addEventListener('click', e => { if(e.target.id === 'veloInfo') $('veloInfo').classList.remove('on'); });
-  $('bInstalar').addEventListener('click', async () => {
-    if(promptInstalar){ promptInstalar.prompt(); try{ await promptInstalar.userChoice; }catch(e){} promptInstalar = null; return; }
-    if(esIOS){ info('<h3>Instalar en iPhone</h3>1. Abre esta página en <b>Safari</b>.<br>2. Pulsa el botón <b>Compartir</b> (cuadrado con flecha ↑).<br>3. Elige <b>«Añadir a pantalla de inicio»</b> y pulsa <b>Añadir</b>.'); return; }
-    info('<h3>Instalar la app</h3>Abre el menú del navegador (⋮) y pulsa <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>.');
-  });
-  $('bCompartir').addEventListener('click', async () => {
-    const url = location.origin + location.pathname, texto = 'Panel Puntofibra';
-    if(navigator.share){ try{ await navigator.share({ title:'Puntofibra', text:texto, url }); return; }catch(e){ if(e && e.name === 'AbortError') return; } }
-    const u = encodeURIComponent(url), t = encodeURIComponent(texto + ': ' + url);
-    info('<h3>Compartir la app</h3><div class="share">' +
-      '<a href="https://wa.me/?text=' + t + '" target="_blank" rel="noopener">WhatsApp</a>' +
-      '<a href="mailto:?subject=' + encodeURIComponent(texto) + '&body=' + t + '">Correo</a>' +
-      '<a href="https://t.me/share/url?url=' + u + '" target="_blank" rel="noopener">Telegram</a>' +
-      '<button type="button" id="bCopiar">Copiar enlace</button></div>');
-    $('bCopiar').onclick = () => { navigator.clipboard.writeText(url).then(() => { $('bCopiar').textContent = '¡Copiado!'; }).catch(() => {}); };
-  });
 
   // ---------- Arranque ----------
   (function(){
