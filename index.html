@@ -259,7 +259,7 @@
   })();
 
   // ---------- Llave NFC (Central de Llaves) ----------
-  let llTimer = null, llCodigo = null, llUrl = '', llVentana = null;
+  let llTimer = null, llCodigo = null, llUrl = '', llVentana = null, llSondeando = false;
   async function abrirLlave(){
     if($('veloLlave').classList.contains('on')) return;
     $('veloLlave').classList.add('on');
@@ -275,7 +275,8 @@
     }catch(e){ cerrarLlave(); hint('Llave: ' + (e.message || e), true); }
   }
   async function sondearLlave(){
-    if(!llCodigo) return;
+    if(!llCodigo || llSondeando) return; // no lanzar otra comprobación hasta que vuelva la anterior
+    llSondeando = true;
     const cod = llCodigo;
     try{
       const r = await api({ accion:'llaveEstado', codigo:cod });
@@ -283,6 +284,7 @@
       if(r.estado === 'ok' && r.token){ cerrarLlave(); abrirApp(r.token); return; }
       if(r.estado === 'denegado' || r.estado === 'caducado'){ cerrarLlave(); hint(r.motivo || 'La llave no es válida', true); }
     }catch(e){}
+    finally{ llSondeando = false; }
   }
   function cerrarLlave(){
     clearInterval(llTimer); llTimer = null; llCodigo = null; llUrl = '';
