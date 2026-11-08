@@ -48,6 +48,8 @@
   input{ width:100%; margin-top:6px; padding:13px 12px; border-radius:12px; border:1px solid #cbd5e1; background:#fff; color:var(--text); font:inherit; font-size:16px; outline:none; }
   input:focus{ border-color:rgba(37,99,235,.55); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
   .pw{ position:relative; }
+  input:-webkit-autofill{ animation-name:pfAutofill; animation-duration:1ms; }
+  @keyframes pfAutofill{ from{ opacity:1; } to{ opacity:1; } }
   .pw input{ padding-right:48px; }
   .pw button{ position:absolute; right:6px; top:50%; transform:translateY(-35%); border:0; background:none; font-size:18px; cursor:pointer; padding:6px; }
 
@@ -103,12 +105,10 @@
     <div class="top"><img id="logo" alt="Puntofibra" src="https://i.postimg.cc/vZwLhn6g/descarga.png"></div>
     <div class="sub">GESTIÓN DE CONTRATOS DE TELECOMUNICACIONES</div>
 
-    <form id="fLogin" method="post" action="#" autocomplete="on" novalidate>
-      <!-- Oculto: solo para que Google Contraseñas guarde la clave con el nombre "Puntofibra" -->
-      <input id="usuario" name="username" type="text" value="Puntofibra" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+    <form id="fLogin" method="post" action="#" autocomplete="off" novalidate>
       <label for="password">Contraseña</label>
       <div class="pw">
-        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <input id="password" name="pf-codigo" type="password" autocomplete="one-time-code" autocapitalize="off" autocorrect="off" spellcheck="false" required>
         <button type="button" id="ojo" aria-label="Ver contraseña">👁</button>
       </div>
       <button class="entrar" id="entrar" type="submit"><span class="fill" id="fill"></span><span class="txt" id="entrarTxt">ENTRAR</span></button>
@@ -183,7 +183,7 @@
     $('login').classList.remove('hidden');
     ocultarSplash();
     hint(msg || '', !!msg);
-    setTimeout(() => { $('password').focus(); }, 60);
+    if(window.pfLimpiarPass) window.pfLimpiarPass(); else setTimeout(() => { $('password').value = ''; $('password').focus(); }, 60);
   }
   function abrirApp(token){
     lsSet(LS_TOKEN, token);
@@ -219,12 +219,6 @@
     try{
       const r = await api({ accion:'login', password });
       if(!r || !r.ok){ hint((r && r.error) || 'Contraseña incorrecta', true); $('password').select(); return; }
-      // Pide a Google Contraseñas que la guarde (no si es un código de Authenticator)
-      try{
-        if(window.PasswordCredential && navigator.credentials && !/^\d{6}$/.test(password)){
-          await navigator.credentials.store(new PasswordCredential({ id:usuario, password, name:'Puntofibra' }));
-        }
-      }catch(e){}
       $('password').value = '';
       hint('');
       abrirApp(r.token);
@@ -235,12 +229,24 @@
 
   $('ojo').addEventListener('click', () => { const p = $('password'); p.type = p.type === 'password' ? 'text' : 'password'; p.focus(); });
 
-  // Código de Google Authenticator: al escribir las 6 cifras entra solo; y Enter siempre envía
+  // Código de Google Authenticator: al escribir las 6 cifras entra solo; y Enter siempre envía.
+  // El campo siempre sale VACÍO y con el foco: lo que rellene el navegador solo (claves/códigos guardados) se borra.
   (function(){
     const p = $('password'), f = $('fLogin'), b = $('entrar');
     const enviar = () => { if(b.disabled) return; if(f.requestSubmit) f.requestSubmit(b); else b.click(); };
-    let tAuto = 0;
-    p.addEventListener('input', () => { clearTimeout(tAuto); if(/^\d{6}$/.test(p.value.trim())) tAuto = setTimeout(enviar, 250); });
+    let tAuto = 0, tecleado = false;
+    const loginVisible = () => !$('login').classList.contains('hidden');
+    const limpiar = () => {
+      if(!loginVisible()) return;
+      if(!tecleado && p.value !== '') p.value = '';
+      if(!tecleado && document.activeElement !== p) p.focus();
+    };
+    window.pfLimpiarPass = () => { tecleado = false; clearTimeout(tAuto); p.value = ''; [0, 60, 200, 500, 1000, 2000].forEach(ms => setTimeout(limpiar, ms)); };
+    p.addEventListener('keydown', () => { tecleado = true; }, true);
+    p.addEventListener('paste', () => { tecleado = true; });
+    p.addEventListener('animationstart', e => { if(e.animationName === 'pfAutofill' && !tecleado){ p.value = ''; } });
+    window.addEventListener('pageshow', () => { if(loginVisible()) window.pfLimpiarPass(); });
+    p.addEventListener('input', () => { clearTimeout(tAuto); if(!tecleado){ p.value = ''; return; } if(/^\d{6}$/.test(p.value.trim())) tAuto = setTimeout(enviar, 250); });
     p.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); clearTimeout(tAuto); enviar(); } });
   })();
 
