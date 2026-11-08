@@ -235,6 +235,15 @@
 
   $('ojo').addEventListener('click', () => { const p = $('password'); p.type = p.type === 'password' ? 'text' : 'password'; p.focus(); });
 
+  // Código de Google Authenticator: al escribir las 6 cifras entra solo; y Enter siempre envía
+  (function(){
+    const p = $('password'), f = $('fLogin'), b = $('entrar');
+    const enviar = () => { if(b.disabled) return; if(f.requestSubmit) f.requestSubmit(b); else b.click(); };
+    let tAuto = 0;
+    p.addEventListener('input', () => { clearTimeout(tAuto); if(/^\d{6}$/.test(p.value.trim())) tAuto = setTimeout(enviar, 250); });
+    p.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); clearTimeout(tAuto); enviar(); } });
+  })();
+
   // ---------- Mantener pulsado ENTRAR 3 s -> llave NFC ----------
   (function(){
     const b = $('entrar'), fill = $('fill'), txt = $('entrarTxt');
