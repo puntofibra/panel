@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Llave · Puntofibra</title>
+<meta name="theme-color" content="#0f172a">
+<link rel="icon" href="icon-192.png">
+<meta name="robots" content="noindex">
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:#0f172a; color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  body{ display:flex; align-items:center; justify-content:center; padding:20px; }
+  .card{ width:min(360px,100%); background:#101a2b; border:1px solid #f5c344; border-radius:16px; padding:28px 22px; text-align:center; }
+  img.logo{ max-width:150px; max-height:70px; margin-bottom:10px; }
+  .ico{ font-size:3.2rem; display:inline-block; margin:6px 0 4px; }
+  .ico.busca{ animation:pulso 1.2s ease-in-out infinite; }
+  .ico.err{ animation:tiembla .35s ease 2; }
+  @keyframes pulso{ 50%{ transform:scale(1.18); filter:drop-shadow(0 0 12px #f5c344); } }
+  @keyframes tiembla{ 25%{ transform:translateX(-7px); } 75%{ transform:translateX(7px); } }
+  h1{ color:#f5c344; font-size:15px; letter-spacing:.06em; text-transform:uppercase; margin:8px 0 6px; }
+  #que{ color:#94a3b8; font-size:13px; margin-bottom:14px; }
+  #msg{ font-size:15px; line-height:1.45; min-height:44px; }
+  #msg.err{ color:#ff8a8a; } #msg.ok{ color:#7dffa8; font-weight:700; }
+  button{ width:100%; margin-top:16px; background:#2f6fed; color:#fff; border:0; border-radius:10px; padding:13px; font:inherit; font-weight:700; font-size:15px; cursor:pointer; }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="logo" src="https://i.postimg.cc/vZwLhn6g/descarga.png" alt="Puntofibra" onerror="this.style.display='none'">
+  <div class="ico" id="ico">🔑</div>
+  <h1>Llave NFC</h1>
+  <div id="que">Puntofibra</div>
+  <div id="msg">Un momento…</div>
+  <button id="btn" class="hidden">📡 Escanear llave</button>
+</div>
+<script>
+  const EXEC_URL = "https://script.google.com/macros/s/AKfycbzecmwGqhsXIxDzgHx27iwrtgrFfHMizRH4iKYWX_EiGaUxLM066soojtD70Bi9b9jZ/exec";
+  const $ = id => document.getElementById(id);
+  const codigo = (new URLSearchParams(location.search).get('k') || '').trim().toUpperCase();
+  let ctrl = null, ocupado = false, hecho = false;
+  function ico(c){ $('ico').className = 'ico ' + (c || ''); }
+  function msg(t, c){ const e = $('msg'); e.textContent = t; e.className = c || ''; }
+  function vib(p){ try{ navigator.vibrate && navigator.vibrate(p); }catch(e){} }
+  async function api(d){
+    const r = await fetch(EXEC_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:JSON.stringify(d), redirect:'follow' });
+    if(!r.ok) throw new Error('El servidor no responde (' + r.status + ')');
+    return r.json();
+  }
+  async function escanear(auto){
+    if(hecho) return;
+    try{
+      if(!ctrl){
+        ctrl = new AbortController();
+        const r = new NDEFReader();
+        await r.scan({ signal:ctrl.signal });
+        r.onreadingerror = () => { if(ocupado || hecho) return; ico('err'); msg('No he podido leer esa llave, vuelve a acercarla', 'err'); };
+        r.onreading = ev => leida(String(ev.serialNumber || ''));
+      }
+      $('btn').classList.add('hidden');
+      ico('busca'); msg('Acerca tu llave NFC a la parte trasera del móvil');
+    }catch(err){
+      if(ctrl){ try{ ctrl.abort(); }catch(e){} ctrl = null; }
+      ico(''); $('btn').classList.remove('hidden');
+      if(auto) msg('Pulsa «Escanear llave» y acerca tu llave NFC');
+      else { ico('err'); msg(err && err.name === 'NotAllowedError' ? 'Necesito permiso para usar el NFC. Acéptalo y vuelve a pulsar.' : 'No se pudo activar el NFC. Comprueba que está encendido.', 'err'); }
+    }
+  }
+  async function leida(sn){
+    if(ocupado || hecho) return;
+    if(!sn){ ico('err'); return msg('La llave no tiene número de serie legible', 'err'); }
+    ocupado = true; ico('busca'); msg('Comprobando llave…');
+    try{
+      const r = await api({ accion:'nfcAutorizar', codigo, llave:sn });
+      if(r && r.ok){
+        hecho = true; vib(80); ico(''); $('ico').textContent = '✅';
+        msg((r.mensaje || 'Hecho') + '. Ya puedes volver al ordenador.', 'ok');
+        if(ctrl){ try{ ctrl.abort(); }catch(e){} ctrl = null; }
+        setTimeout(() => { try{ window.close(); }catch(e){} }, 2500);
+        return;
+      }
+      vib([80,60,80]); ico('err'); msg((r && r.error) || 'Llave no autorizada', 'err');
+    }catch(e){ ico('err'); msg('No se pudo conectar: ' + (e.message || e), 'err'); }
+    ocupado = false;
+  }
+  $('btn').onclick = () => escanear(false);
+  (async function(){
+    if(!/^[A-Z0-9]{6}$/.test(codigo)){ ico('err'); return msg('Enlace no válido. Vuelve a escanear el QR.', 'err'); }
+    if(!('NDEFReader' in window)){ ico('err'); return msg('Este navegador no puede leer NFC. Abre el QR con Chrome en un móvil Android con el NFC encendido.', 'err'); }
+    try{
+      const i = await api({ accion:'nfcInfo', codigo });
+      if(!i || !i.ok){ ico('err'); return msg((i && i.error) || 'El código ha caducado', 'err'); }
+      $('que').textContent = i.texto || 'Puntofibra';
+    }catch(e){ ico('err'); return msg('No se pudo conectar: ' + (e.message || e), 'err'); }
+    escanear(true);
+  })();
+</script>
+</body>
+</html>
