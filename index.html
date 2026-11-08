@@ -75,6 +75,14 @@
   .llave{ background:#101a2b; border:1px solid var(--gold); border-radius:14px; max-width:330px; width:100%; padding:24px 20px; text-align:center; color:#eee; }
   .llave h3{ color:var(--gold); font-size:15px; letter-spacing:.05em; text-transform:uppercase; margin:6px 0 10px; }
   .llave p{ color:#aab3c2; font-size:13.5px; line-height:1.45; margin:0 0 14px; }
+  .nfcIco{ font-size:2.2rem; display:inline-block; }
+  .nfcIco.busca{ animation:nfcPulso 1.2s ease-in-out infinite; }
+  .nfcIco.err{ animation:nfcTiembla .35s ease 2; }
+  .nfcIco.ok{ transform:scale(1.15); }
+  @keyframes nfcPulso{ 50%{ transform:scale(1.18); filter:drop-shadow(0 0 10px #f5c344); } }
+  @keyframes nfcTiembla{ 25%{ transform:translateX(-6px); } 75%{ transform:translateX(6px); } }
+  #llTxt.err{ color:#ff8a8a; }
+  #llTxt.ok{ color:#7dffa8; }
   .qr{ background:#fff; border-radius:8px; padding:10px; display:inline-block; margin-bottom:12px; }
   .qr img{ width:200px; height:200px; display:block; }
   #llCod{ color:var(--gold); font-weight:700; letter-spacing:.25em; margin-bottom:16px; }
@@ -113,12 +121,15 @@
 <!-- ===== LLAVE NFC ===== -->
 <div class="velo" id="veloLlave">
   <div class="llave">
-    <div style="font-size:2rem">🔑</div>
-    <h3>Acceso con llave</h3>
-    <p>Escanea el QR con el móvil que tenga NFC y acerca tu llave. Si ya estás en ese móvil, pulsa el botón de abajo.</p>
-    <div class="qr"><img id="llQr" alt="Código QR"></div>
-    <div id="llCod">······</div>
-    <button class="b1" id="llAbrir">📱 Estoy en este móvil, abrir lector</button>
+    <div class="nfcIco" id="llIco">🔑</div>
+    <h3 id="llTit">Acceso con llave</h3>
+    <p id="llTxt">Acerca tu llave NFC a la parte trasera del móvil</p>
+    <div id="llQrBox" class="hidden">
+      <div class="qr"><img id="llQr" alt="Código QR"></div>
+      <div id="llCod">······</div>
+      <button class="b1" id="llAbrir">📱 Estoy en este móvil, abrir lector</button>
+    </div>
+    <button class="b1 hidden" id="llScan">📡 Escanear llave</button>
     <button class="b2" id="llCerrar">Cancelar</button>
   </div>
 </div>
@@ -190,6 +201,8 @@
   window.addEventListener('message', ev => {
     const d = ev.data || {};
     if(d.pf === 'ready') ocultarSplash();
+    if(d.pf === 'nfc' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) llavePedidaPorPanel(ev, d);
+    if(d.pf === 'nfcCerrar' && llOrigen) { llOrigen = null; cerrarLlave(); }
     if(d.pf === 'logout'){
       lsSet(LS_TOKEN, '');
       try{ if(navigator.credentials && navigator.credentials.preventSilentAccess) navigator.credentials.preventSilentAccess(); }catch(e){}
@@ -250,16 +263,79 @@
     b.addEventListener('contextmenu', e => e.preventDefault());
   })();
 
-  // ---------- Llave NFC (Central de Llaves) ----------
-  let llTimer = null, llCodigo = null, llUrl = '', llVentana = null, llSondeando = false;
+  // ---------- Llave NFC directa (sin Central de Llaves) ----------
+  // Android con NFC: se lee la llave aquí mismo. Ordenador / iPhone: QR para pasarla con el móvil.
+  const hayNfc = 'NDEFReader' in window;
+  let nfcCtrl = null, nfcUso = null;          // nfcUso: función que recibe el número de serie leído
+  let llTimer = null, llCodigo = null, llUrl = '', llVentana = null, llSondeando = false, llOrigen = null, llOcupado = false;
+  function llIco(c){ $('llIco').className = 'nfcIco ' + (c || ''); }
+  function llMsg(t, c){ const e = $('llTxt'); e.textContent = t; e.className = c || ''; }
+  function vib(p){ try{ navigator.vibrate && navigator.vibrate(p); }catch(e){} }
+  function pararNfc(){ if(nfcCtrl){ try{ nfcCtrl.abort(); }catch(e){} nfcCtrl = null; } }
+  // El lector se queda encendido mientras la ventana está abierta (así Android no abre la web grabada en la llave)
+  async function escanearNfc(auto){
+    if(!hayNfc) return false;
+    try{
+      if(!nfcCtrl){
+        nfcCtrl = new AbortController();
+        const r = new NDEFReader();
+        await r.scan({ signal:nfcCtrl.signal });
+        r.onreadingerror = () => { if(llOcupado) return; llIco('err'); llMsg('No he podido leer esa llave, vuelve a acercarla', 'err'); };
+        r.onreading = ev => { if(llOcupado || !nfcUso) return; const sn = String(ev.serialNumber || ''); if(!sn){ llIco('err'); return llMsg('La llave no tiene número de serie legible', 'err'); } nfcUso(sn); };
+      }
+      $('llScan').classList.add('hidden');
+      llIco('busca'); llMsg('Acerca tu llave NFC a la parte trasera del móvil');
+      return true;
+    }catch(err){
+      pararNfc(); llIco('');
+      if(err && err.name === 'NotAllowedError' && auto){ $('llScan').classList.remove('hidden'); llMsg('Pulsa «Escanear llave» y acerca tu llave'); return true; }
+      if(err && err.name === 'NotAllowedError'){ llIco('err'); llMsg('Necesito permiso para usar el NFC. Acéptalo y vuelve a pulsar.', 'err'); $('llScan').classList.remove('hidden'); return true; }
+      return false; // sin NFC de verdad (apagado o no tiene): se usa el QR
+    }
+  }
+  $('llScan').addEventListener('click', () => escanearNfc(false));
+  function abrirVelo(titulo){
+    $('llTit').textContent = titulo || 'Acceso con llave';
+    $('llQrBox').classList.add('hidden'); $('llScan').classList.add('hidden');
+    llIco(''); llMsg('Un momento…'); llOcupado = false;
+    $('veloLlave').classList.add('on');
+  }
+  function cerrarLlave(avisar){
+    pararNfc(); nfcUso = null; llOcupado = false;
+    clearInterval(llTimer); llTimer = null; llCodigo = null; llUrl = '';
+    try{ if(llVentana && !llVentana.closed) llVentana.close(); }catch(e){}
+    llVentana = null;
+    if(avisar && llOrigen){ try{ llOrigen.postMessage({ pf:'nfcCancel' }, '*'); }catch(e){} }
+    llOrigen = null;
+    $('veloLlave').classList.remove('on');
+  }
+  $('llCerrar').addEventListener('click', () => cerrarLlave(true));
+  $('llAbrir').addEventListener('click', () => { if(!llUrl) return; try{ if(llVentana && !llVentana.closed) llVentana.close(); }catch(e){} llVentana = window.open(llUrl, 'lectorLlave'); });
+
+  // ---- Entrar con la llave ----
   async function abrirLlave(){
     if($('veloLlave').classList.contains('on')) return;
-    $('veloLlave').classList.add('on');
-    $('llCod').textContent = '······'; $('llQr').removeAttribute('src');
-    llCodigo = null; llUrl = '';
+    abrirVelo('Acceso con llave');
+    nfcUso = async sn => {
+      llOcupado = true; llIco('busca'); llMsg('Comprobando llave…');
+      try{
+        const r = await api({ accion:'nfcLogin', llave:sn });
+        if(r && r.ok && r.token){ llIco('ok'); llMsg('¡Acceso concedido!', 'ok'); vib(60); setTimeout(() => { cerrarLlave(); abrirApp(r.token); }, 450); return; }
+        llIco('err'); vib([80,60,80]); llMsg((r && r.error) || 'Llave no autorizada', 'err');
+      }catch(e){ llIco('err'); llMsg('No se pudo conectar: ' + (e.message || e), 'err'); }
+      llOcupado = false;
+    };
+    if(await escanearNfc(true)) return;
+    nfcUso = null;
+    llaveQr({ accion:'nfcCrear', tipo:'login' });
+  }
+  // QR para pasar la llave con otro móvil (ordenador / iPhone)
+  async function llaveQr(datos){
+    llMsg('Escanea el QR con un móvil Android con NFC y acerca tu llave');
+    $('llCod').textContent = '······'; $('llQr').removeAttribute('src'); $('llQrBox').classList.remove('hidden');
     try{
-      const r = await api({ accion:'llaveSesion' });
-      if(!r || !r.ok) throw new Error((r && r.error) || 'No se pudo conectar con la central');
+      const r = await api(datos);
+      if(!r || !r.ok) throw new Error((r && r.error) || 'No se pudo preparar el código');
       llCodigo = r.codigo; llUrl = r.url;
       $('llCod').textContent = r.codigo;
       $('llQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=' + encodeURIComponent(r.url);
@@ -267,25 +343,42 @@
     }catch(e){ cerrarLlave(); hint('Llave: ' + (e.message || e), true); }
   }
   async function sondearLlave(){
-    if(!llCodigo || llSondeando) return; // no lanzar otra comprobación hasta que vuelva la anterior
+    if(!llCodigo || llSondeando) return;
     llSondeando = true;
     const cod = llCodigo;
     try{
-      const r = await api({ accion:'llaveEstado', codigo:cod });
+      const r = await api({ accion:'nfcEstado', codigo:cod });
       if(!r || cod !== llCodigo) return;
       if(r.estado === 'ok' && r.token){ cerrarLlave(); abrirApp(r.token); return; }
       if(r.estado === 'denegado' || r.estado === 'caducado'){ cerrarLlave(); hint(r.motivo || 'La llave no es válida', true); }
     }catch(e){}
     finally{ llSondeando = false; }
   }
-  function cerrarLlave(){
-    clearInterval(llTimer); llTimer = null; llCodigo = null; llUrl = '';
-    try{ if(llVentana && !llVentana.closed) llVentana.close(); }catch(e){}
-    llVentana = null;
-    $('veloLlave').classList.remove('on');
+
+  // ---- El panel (dentro del iframe) pide la llave para Ajustes o para añadir una llave ----
+  // En el ordenador el propio panel enseña el QR; aquí solo actuamos si este móvil tiene NFC.
+  async function llavePedidaPorPanel(ev, d){
+    if(!hayNfc || !d.codigo) return;
+    cerrarLlave();
+    abrirVelo(d.titulo || 'Pasa tu llave');
+    llOrigen = ev.source;
+    const codigo = d.codigo;
+    nfcUso = async sn => {
+      llOcupado = true; llIco('busca'); llMsg('Comprobando llave…');
+      try{
+        const r = await api({ accion:'nfcAutorizar', codigo, llave:sn });
+        if(r && r.ok){
+          llIco('ok'); vib(60); llMsg(r.mensaje || 'Hecho', 'ok');
+          const o = llOrigen;
+          setTimeout(() => { llOrigen = null; cerrarLlave(); try{ o && o.postMessage({ pf:'nfcHecho' }, '*'); }catch(e){} }, 500);
+          return;
+        }
+        llIco('err'); vib([80,60,80]); llMsg((r && r.error) || 'Llave no autorizada', 'err');
+      }catch(e){ llIco('err'); llMsg('No se pudo conectar: ' + (e.message || e), 'err'); }
+      llOcupado = false;
+    };
+    if(!(await escanearNfc(true))){ llOrigen = null; cerrarLlave(); } // sin NFC: el panel ya enseña su QR
   }
-  $('llAbrir').addEventListener('click', () => { if(!llUrl) return; try{ if(llVentana && !llVentana.closed) llVentana.close(); }catch(e){} llVentana = window.open(llUrl, 'lectorLlave'); });
-  $('llCerrar').addEventListener('click', cerrarLlave);
 
   // ---------- Arranque ----------
   (function(){
