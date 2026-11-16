@@ -70,7 +70,8 @@
     if(m){ var nm=toNum(m[1])||3; return {from:d0(y,mo-(nm-1),1), to:new Date(y,mo,now.getDate(),23,59,59,999), label:'de los últimos '+nm+' meses'}; }
     if(/\b(mes pasado|ultimo mes|mes anterior|pasado mes)\b/.test(t)){ var rp=monthRange(y,mo-1); rp.label='del mes pasado ('+rp.label+')'; return rp; }
     if(/\b(este mes|mes actual|en el mes|del mes|lo que va de mes)\b/.test(t)){ var rc=monthRange(y,mo); rc.label='de este mes'; return rc; }
-    if(/\b(semana pasada|ultima semana|pasada semana)\b/.test(t)){ var wd=(now.getDay()+6)%7; var mon=d0(y,mo,now.getDate()-wd-7); return {from:mon, to:new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+6,23,59,59,999), label:'de la semana pasada'}; }
+    if(/\b(ultima semana|esta ultima semana|ultimos siete dias|ultimos 7 dias)\b/.test(t)){ var f7=new Date(now); f7.setDate(f7.getDate()-6); return {from:d0(f7.getFullYear(),f7.getMonth(),f7.getDate()), to:new Date(y,mo,now.getDate(),23,59,59,999), label:'de la última semana (últimos 7 días)'}; }
+    if(/\b(semana pasada|pasada semana|semana anterior)\b/.test(t)){ var wd=(now.getDay()+6)%7; var mon=d0(y,mo,now.getDate()-wd-7); return {from:mon, to:new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+6,23,59,59,999), label:'de la semana pasada'}; }
     if(/\b(esta semana|semana actual)\b/.test(t)){ var wd2=(now.getDay()+6)%7; return {from:d0(y,mo,now.getDate()-wd2), to:new Date(y,mo,now.getDate(),23,59,59,999), label:'de esta semana'}; }
     // mes con nombre (+ año)
     m = t.match(new RegExp('\\b'+MRE+'\\b'));
