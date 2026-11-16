@@ -339,6 +339,45 @@
   // + refuerzos a las 13:15 y 19:15, que se acerca la hora de cerrar.
   var AVISOS = ['10:30','11:00','11:30','12:00','12:30','13:00','13:15','13:30','17:30','18:00','18:30','19:00','19:15','19:30'];
   var REFUERZO = { '13:15':1, '19:15':1 };
+  // avisa a la música de otras pestañas (YouTube/Spotify, con el script de Tampermonkey) para que baje mientras habla Lucas
+  function duckPost(st){ var m={pfDuck:st, t:Date.now()}; try{ window.top.postMessage(m,'*'); }catch(e){} try{ if(window.parent && window.parent!==window.top) window.parent.postMessage(m,'*'); }catch(e){} }
+  B.duckSay = function(msg){
+    duckPost('down');                                            // 2 s antes: la música empieza a bajar
+    setTimeout(function(){
+      // abre el asistente (aunque Lucas esté dormido) para que el aviso quede también por escrito, por si el sonido está apagado
+      try{ var dk=document.getElementById('lucasDock'), pk=document.getElementById('lucasPeek'); if(dk && pk && dk.classList.contains('on') && !dk.classList.contains('open')) pk.click(); }catch(e){}
+      if(window.__lucasSay) window.__lucasSay(msg);
+      var t0=Date.now(), saw=false;
+      var iv=setInterval(function(){
+        var ss=window.speechSynthesis, busy=!!(ss && (ss.speaking||ss.pending));
+        if(busy) saw=true;
+        var el=Date.now()-t0;
+        if((saw && !busy) || (!saw && el>6000) || el>60000){ clearInterval(iv); setTimeout(function(){ duckPost('up'); }, 2000); }   // 2 s después: vuelve a subir
+      }, 200);
+    }, 2000);
+  };
+  // construye y dice el aviso (force = prueba desde la consola, ignora el horario)
+  B.remind = function(force, slot){
+    var now=new Date(), p=blinkCount();
+    var at = slot ? (function(){ var hm=slot.split(':'); return new Date(now.getFullYear(),now.getMonth(),now.getDate(),+hm[0],+hm[1]); })() : now;
+    var o={h:horaTxt(at),p:p,c:plural(p,'contrato','contratos')}, msg;
+    if(p<=0){
+      if(!force) return;
+      msg=fill(pick('remind0',['Prueba de aviso: son {h} y ahora mismo no te queda ningún contrato pendiente. ¡Todo al día!','Esto es una prueba. Son {h} y no hay contratos pendientes para hoy.']),o);
+    } else if(slot && REFUERZO[slot]) msg=fill(pick('remindR',[
+        'Atención: son {h} y se acerca la hora de cerrar. Aún te quedan {p} {c} pendientes por hacer.',
+        'Ojo, que son {h} y queda poco para cerrar. Tienes {p} {c} sin hacer todavía.',
+        'Último empujón: son {h}, casi la hora de cerrar, y quedan {p} {c} pendientes.',
+        'Son {h}. Antes de cerrar, recuerda que te quedan {p} {c} por hacer.'
+      ]),o);
+    else msg=fill(pick('remind',[
+        'Recuerda que son {h} y aún te quedan pendientes {p} {c} por hacer.',
+        'Aviso: son {h}. Todavía tienes {p} {c} pendientes para hoy.',
+        'Son {h}. Te quedan {p} {c} por hacer, ¡vamos!',
+        'Un recordatorio rápido: {h}, y quedan {p} {c} pendientes.'
+      ]),o);
+    B.duckSay(msg);
+  };
   var lastSlot='';
   setInterval(function(){
     try{
@@ -351,22 +390,7 @@
       if(key===lastSlot) return;
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
       lastSlot=key;
-      var p=blinkCount(); if(p<=0) return;
-      var hm2=slot.split(':'), at=new Date(now.getFullYear(),now.getMonth(),now.getDate(),+hm2[0],+hm2[1]);
-      var o={h:horaTxt(at),p:p,c:plural(p,'contrato','contratos')}, msg;
-      if(REFUERZO[slot]) msg=fill(pick('remindR',[
-        'Atención: son {h} y se acerca la hora de cerrar. Aún te quedan {p} {c} pendientes por hacer.',
-        'Ojo, que son {h} y queda poco para cerrar. Tienes {p} {c} sin hacer todavía.',
-        'Último empujón: son {h}, casi la hora de cerrar, y quedan {p} {c} pendientes.',
-        'Son {h}. Antes de cerrar, recuerda que te quedan {p} {c} por hacer.'
-      ]),o);
-      else msg=fill(pick('remind',[
-        'Recuerda que son {h} y aún te quedan pendientes {p} {c} por hacer.',
-        'Aviso: son {h}. Todavía tienes {p} {c} pendientes para hoy.',
-        'Son {h}. Te quedan {p} {c} por hacer, ¡vamos!',
-        'Un recordatorio rápido: {h}, y quedan {p} {c} pendientes.'
-      ]),o);
-      if(window.__lucasSay) window.__lucasSay(msg);
+      B.remind(false, slot);
     }catch(e){}
   }, 15000);
 })();

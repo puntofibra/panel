@@ -23,7 +23,18 @@
      ===================================================================== */
   var CON = { on:false, q:[], typing:false, busy:false, pend:[], dir:'PANEL', skip:false };
   // Comandos que hacen cosas (de momento ninguno). Formato: ['NOMBRE','DESCRIPCIÓN', function(arg){...}]
-  var COMANDOS = [];
+  var testTimer = null;
+  var COMANDOS = [
+    ['TEST', 'PRUEBA EL AVISO DE CONTRATOS PENDIENTES DENTRO DE 60 SEGUNDOS', function(arg, say){
+      clearTimeout(testTimer);
+      var at = new Date(Date.now() + 60000), p = function(n){ return ('0'+n).slice(-2); };
+      say('>> TEST PROGRAMADO ⏱️', 'g big', 22);
+      say('   EL AVISO SONARÁ A LAS ' + p(at.getHours()) + ':' + p(at.getMinutes()) + ':' + p(at.getSeconds()) + ' (DENTRO DE 60 s), CON LA CONSOLA ABIERTA O CERRADA.', '', 10);
+      say('   LA MÚSICA DE YOUTUBE / SPOTIFY BAJARÁ 2 s ANTES Y SUBIRÁ 2 s DESPUÉS.', 'd', 0, true);
+      tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+      testTimer = setTimeout(function(){ if(window.LucasBrain && window.LucasBrain.remind) window.LucasBrain.remind(true); }, 60000);
+    }]
+  ];
 
   var st = document.createElement('style');
   st.textContent =
