@@ -281,7 +281,7 @@
     if(/\bque hora es\b|\bhora es\b|\bdime la hora\b/.test(t)) return 'Son '+horaTxt(now)+'.';
     if(/\bque dia es\b|\ba que (dia )?estamos\b|\bque fecha es\b|\bfecha de hoy\b/.test(t)) return 'Hoy es '+DIAS[now.getDay()]+', '+now.getDate()+' de '+MESES[now.getMonth()]+' de '+now.getFullYear()+'.';
     if(/\b(chiste|algo gracioso|hazme reir)\b/.test(t)) return pick('joke',['¿Por qué el router fue al médico? Porque tenía mala conexión.','Mi fibra favorita es la óptica: nunca me deja colgado.','Le pedí a la nube que me guardara un secreto… y lo compartió con todo el mundo.','¿Qué le dice un cable a otro? Somos los mejores conductores.']);
-    if(/\b(ayuda|que sabes hacer|que puedes hacer|que haces|como funcionas|comandos|instrucciones)\b/.test(t)) return 'Puedo hacer cosas como estas:\n• «Muéstrame los contratos de enero» (o de enero de 2025, de hace 3 meses, del mes pasado…)\n• «Contratos de Raquel» o por DNI\n• «Contratos con la cuenta que termina en 1234»\n• «¿Cuántos contratos llevo este mes de Simyo?»\n• «¿Qué contratos tengo para cambiar?» o «para dar de baja»\n• «¿Cuántos borradores tengo?»\n• «Quita los filtros»\nY cada media hora te recuerdo los pendientes de hoy.';
+    if(/\b(ayuda|que sabes hacer|que puedes hacer|que haces|como funcionas|comandos|instrucciones)\b/.test(t)) return 'Puedo hacer cosas como estas:\n• «Muéstrame los contratos de enero» (o de enero de 2025, de hace 3 meses, del mes pasado…)\n• «Contratos de Raquel» o por DNI\n• «Contratos con la cuenta que termina en 1234»\n• «¿Cuántos contratos llevo este mes de Simyo?»\n• «¿Qué contratos tengo para cambiar?» o «para dar de baja»\n• «¿Cuántos borradores tengo?»\n• «Quita los filtros»\nY de lunes a viernes, en horario de tienda, te recuerdo los pendientes de hoy.';
     if(/\b(quita|quitame|limpia|limpiame|borra|resetea|elimina)\b.*\bfiltros?\b|\bsin filtros\b/.test(t)) return '__CLEAR__';
     return null;
   }
@@ -334,25 +334,38 @@
     done({ say: fill(pick('pickc',['Aquí tienes {todos}los contratos de {n}.','Perfecto, {n}: {k} {c}.','Te muestro los de {n}: {k} {c}.']),{n:titleCase(c.nombre), k:list.length, c:plural(list.length,'contrato','contratos'), todos: list.length>1?'todos ':''}) });
   };
 
-  // ---------- recordatorio cada media hora ----------
+  // ---------- recordatorio de pendientes ----------
+  // Solo de lunes a viernes, de 10:25 a 13:35 y de 17:25 a 19:35 (a en punto y a y media)
+  // + refuerzos a las 13:15 y 19:15, que se acerca la hora de cerrar.
+  var AVISOS = ['10:30','11:00','11:30','12:00','12:30','13:00','13:15','13:30','17:30','18:00','18:30','19:00','19:15','19:30'];
+  var REFUERZO = { '13:15':1, '19:15':1 };
   var lastSlot='';
   setInterval(function(){
     try{
-      var now=new Date(), mi=now.getMinutes();
-      if(!(mi<=3 || (mi>=30 && mi<=33))) return;   // margen por si el navegador está en segundo plano (Chrome solo despierta 1 vez/min)
-      var slot=now.toDateString()+' '+now.getHours()+':'+(mi<30?'00':'30');
-      now=new Date(now.getFullYear(),now.getMonth(),now.getDate(),now.getHours(),mi<30?0:30);
-      if(slot===lastSlot) return;
+      var now=new Date(), dow=now.getDay();
+      if(dow===0 || dow===6) return;                       // fines de semana, nada
+      var mins=now.getHours()*60+now.getMinutes(), slot=null;
+      for(var i=0;i<AVISOS.length;i++){ var hm=AVISOS[i].split(':'), s0=(+hm[0])*60+(+hm[1]); if(mins>=s0 && mins<=s0+3){ slot=AVISOS[i]; break; } }  // margen de 3 min por si la pestaña está en segundo plano
+      if(!slot) return;
+      var key=now.toDateString()+' '+slot;
+      if(key===lastSlot) return;
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
-      lastSlot=slot;
+      lastSlot=key;
       var p=blinkCount(); if(p<=0) return;
-      var hTxt=horaTxt(now);
-      var msg=fill(pick('remind',[
+      var hm2=slot.split(':'), at=new Date(now.getFullYear(),now.getMonth(),now.getDate(),+hm2[0],+hm2[1]);
+      var o={h:horaTxt(at),p:p,c:plural(p,'contrato','contratos')}, msg;
+      if(REFUERZO[slot]) msg=fill(pick('remindR',[
+        'Atención: son {h} y se acerca la hora de cerrar. Aún te quedan {p} {c} pendientes por hacer.',
+        'Ojo, que son {h} y queda poco para cerrar. Tienes {p} {c} sin hacer todavía.',
+        'Último empujón: son {h}, casi la hora de cerrar, y quedan {p} {c} pendientes.',
+        'Son {h}. Antes de cerrar, recuerda que te quedan {p} {c} por hacer.'
+      ]),o);
+      else msg=fill(pick('remind',[
         'Recuerda que son {h} y aún te quedan pendientes {p} {c} por hacer.',
         'Aviso: son {h}. Todavía tienes {p} {c} pendientes para hoy.',
         'Son {h}. Te quedan {p} {c} por hacer, ¡vamos!',
         'Un recordatorio rápido: {h}, y quedan {p} {c} pendientes.'
-      ]),{h:hTxt,p:p,c:plural(p,'contrato','contratos')});
+      ]),o);
       if(window.__lucasSay) window.__lucasSay(msg);
     }catch(e){}
   }, 15000);
