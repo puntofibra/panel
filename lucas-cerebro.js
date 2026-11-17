@@ -345,6 +345,29 @@
   var REFUERZO = { '13:15':1, '19:15':1 };
   // avisa a la música de otras pestañas (YouTube/Spotify, con el script de Tampermonkey) para que baje mientras habla Lucas
   function duckPost(st){ var m={pfDuck:st, t:Date.now()}; try{ window.top.postMessage(m,'*'); }catch(e){} try{ if(window.parent && window.parent!==window.top) window.parent.postMessage(m,'*'); }catch(e){} }
+  // ---- timbre de teléfono antiguo (campana con martillo), sintetizado: sin archivos de sonido ----
+  var BELL_AC=null;
+  function ringBell(){
+    try{
+      if(!BELL_AC) BELL_AC=new (window.AudioContext||window.webkitAudioContext)();
+      var a=BELL_AC; if(a.state==='suspended') a.resume();
+      var out=a.createGain(); out.gain.value=0.35; out.connect(a.destination);
+      var t0=a.currentTime+0.05, RING=1.0, GAP=0.45, HZ=24;     // 2 timbrazos de 1 s, martillo a 24 golpes/s
+      for(var r=0;r<2;r++){
+        var rs=t0+r*(RING+GAP);
+        for(var k=0;k<RING*HZ;k++){
+          var t=rs+k/HZ, f=(k%2)?1320:1180;                     // dos campanas alternas
+          [[1,0.5],[2.76,0.22],[5.4,0.1]].forEach(function(pt){
+            var o=a.createOscillator(), g=a.createGain();
+            o.type='sine'; o.frequency.value=f*pt[0];
+            g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(pt[1],t+0.003); g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);
+            o.connect(g); g.connect(out); o.start(t); o.stop(t+0.25);
+          });
+        }
+      }
+    }catch(e){}
+  }
+  B.ringBell = ringBell;
   var sayQ=[], sayBusy=false;
   B.duckSay = function(msg, buttons){ sayQ.push({ m:msg, b:buttons||null }); if(!sayBusy) nextSay(); };
   // botones en el chat del asistente (para los avisos que no vienen de una pregunta)
@@ -370,7 +393,8 @@
   B._apagaFichBtns = apagaFichBtns;
   function nextSay(){
     var it=sayQ.shift(); if(it==null){ sayBusy=false; return; } sayBusy=true; var msg=it.m;
-    duckPost('down');                                            // 2 s antes: la música empieza a bajar
+    duckPost('down');                                            // la música empieza a bajar
+    setTimeout(ringBell, 350);                                   // 🔔 timbre de teléfono antiguo, 2 veces, antes de que hable Lucas
     setTimeout(function(){
       // abre el asistente (aunque Lucas esté dormido) para que el aviso quede también por escrito, por si el sonido está apagado
       try{ var dk=document.getElementById('lucasDock'), pk=document.getElementById('lucasPeek'); if(dk && pk && dk.classList.contains('on') && !dk.classList.contains('open')) pk.click(); }catch(e){}
@@ -383,7 +407,7 @@
         var el=Date.now()-t0;
         if((saw && !busy) || (!saw && el>6000) || el>60000){ clearInterval(iv); setTimeout(function(){ duckPost('up'); setTimeout(nextSay, 1600); }, 2000); }   // 2 s después: vuelve a subir
       }, 200);
-    }, 2000);
+    }, 3300);
   };
   // construye y dice el aviso (force = prueba desde la consola, ignora el horario)
   B.remind = function(force, slot){
