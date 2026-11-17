@@ -158,7 +158,12 @@ var lastPicks = {};
      ===================================================================== */
   // 1) DICCIONARIO: frase que entiende Lucas  <=  otras formas de decirlo (todo sin tildes y en minúsculas)
   B.DICCIONARIO = {
-    'contratos':            ['ventas','venta','operaciones','operacion','contrataciones','contratacion','altas nuevas'],
+    'contratos':            ['ventas','venta','operaciones','operacion','contrataciones','contratacion','altas nuevas','portas','porta','portabilidades','portabilidad',
+                             'lo que entro','lo que entraron','lo que ha entrado','lo que firmamos','lo que firme','lo que hicimos','lo que hice','lo que vendimos','lo que cerramos','lo que metimos'],
+    'contratos para dar de baja': ['a quien le toca baja','a quien le toca la baja','a quien le toca dar de baja','a quien hay que dar de baja','que hay que cancelar','que toca cancelar','que hay que tramitar','que toca tramitar','que bajas tengo que hacer','que bajas hay que hacer'],
+    'contratos para pausar':['a quien hay que pausar','a quien le toca pausa','a quien le toca la pausa','que toca congelar','que hay que congelar','que hay que pausar','que toca pausar'],
+    'contratos pendientes de instalar': ['que me falta por instalar','que falta por instalar','que me queda por instalar','que esta sin router','que estan sin router','sin router','pendiente de tecnico','pendientes de tecnico','pendientes del tecnico','esperando al tecnico','falta el tecnico'],
+    'borradores de hoy':    ['que me queda por hacer hoy','que me queda por hacer','que me falta por hacer hoy','que me falta por hacer','tengo algo pendiente','tengo algo pendiente hoy','que tengo pendiente','que tengo pendiente hoy','que me queda pendiente'],
     'cuantos':              ['que cantidad de','cantidad de','cuantas veces','que numero de'],
     'anteayer':             ['antes de ayer','antier','antesdeayer'],
     'mes pasado':           ['mes previo','el otro mes','mes ultimo'],
@@ -179,7 +184,10 @@ var lastPicks = {};
    'pasame pasa dejame deja ensenarme mostrarme sacarme decirme dimelo listar salen sale aparecen aparece tienes son eran fueron estan queda quedan cantidad '+
    'mostrame porfi plis please oye venga totales resumen nuevos nuevas otra otro otros otras tambien ahora mismo bien vale entonces pues '+
    'ensenamelos ensenamelas muestramelos muestramelas sacamelos sacamelas damelos damelas pasamelos pasamelas ponmelos ponmelas listamelos '+
-   'quincena quincenas semanas lunes martes miercoles jueves viernes sabado domingo').split(' ').forEach(function(w){ STOPSET[w]=1; });
+   'quincena quincenas semanas lunes martes miercoles jueves viernes sabado domingo '+
+   'compania companias operadora operadoras operador vende venden vendemos vendio ranking mejor peor mas menos comparado comparar comparacion cuando fue '+
+   'esta estado entrado entro llegado llego venido vino salido salio fichado fichaje fichajes hora horas ordena ordename ordenar orden recientes antiguos antiguas viejos primero primeros '+
+   'vuelve volver atras antes busqueda tramitar cancelar congelar tecnico router portas porta portabilidad portabilidades firmamos firme alturas vamos llevamos movil').split(' ').forEach(function(w){ STOPSET[w]=1; });
 
   // 3) números escritos con letra -> cifras («del uno al quince de enero», «hace tres semanas»)
   var NUMW = { 'treinta y uno':31, dieciseis:16, diecisiete:17, dieciocho:18, diecinueve:19, veintiuno:21, veintidos:22, veintitres:23, veinticuatro:24, veinticinco:25, veintiseis:26, veintisiete:27, veintiocho:28, veintinueve:29, trece:13, catorce:14, quince:15, veinte:20, treinta:30, once:11, doce:12, diez:10, nueve:9, ocho:8, siete:7, seis:6, cinco:5, cuatro:4, tres:3, dos:2 };
@@ -288,7 +296,7 @@ var lastPicks = {};
     var c=B._ctx; if(!c || Date.now()-c.at > 10*60000) return null;
     var esMostrar = /^(muestrame|ensename|sacame|dame|pasame)( todos| todas)?$/.test(t);
     var esCuantos = /^(cuantos|cuantas|y cuantos|y cuantas)( son| hay| salen| serian| tengo| llevo)?$/.test(t);
-    var m = t.match(/^(?:y|e|y que tal|que tal|y si|y ahora|ahora|tambien|y tambien|solo|y solo)\s+(.*)$/);
+    var m = t.match(/^(?:y|e|y que tal|y si|y ahora|ahora|tambien|y tambien|solo|y solo)\s+(.*)$/);
     if(!esMostrar && !esCuantos && !m) return null;
     var L=c.t;
     if(esMostrar) return L.replace(/\b(cuant[oa]s|numero de|total de)\b/g,' ').replace(/\s+/g,' ').trim();
@@ -611,11 +619,170 @@ var lastPicks = {};
   function isGreeting(t){ return /^(hola|holi|holaa+|buenas|buenos dias|buenas tardes|buenas noches|hey|ey|saludos|que tal|que pasa|buen dia)\b/.test(t); }
   var CONTRACT_WORDS = /\b(contratos?|solicitud(es)?|altas?|clientes?|muestra\w*|ensena\w*|filtra\w*|busca\w*|saca\w*|dame|lista\w*|ver|ensenar|trae\w*|pon\w*|cuant[oa]s|llevo|llevamos|hicieron|hecho|hechos|cuenta|iban|dni|nie|telefono|cambiar|baja)\b/;
 
+  /* =====================================================================
+     PREGUNTAS NUEVAS: resumen, comparar, ranking, mejor día, datos de un cliente,
+     fichajes de hoy, ordenar, solo fibra en pantalla, volver atrás
+     ===================================================================== */
+  function enRango(r){ var f=r.from.getTime(), to=r.to.getTime(); return contratos().filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to && enMeses(k, r); }); }
+  function rangoODefecto(t, now){ var r=parseDates(t, now); if(r) return r; var m=monthRange(now.getFullYear(), now.getMonth()); m.label='de este mes'; return m; }
+  function porCompania(list){ var g={}, o=[]; list.forEach(function(it){ var c=String(it['2']||'').trim()||'Sin compañía'; var k=c.toUpperCase(); if(!g[k]){ g[k]={c:c,n:0}; o.push(k); } g[k].n++; }); return o.map(function(k){ return g[k]; }).sort(function(a,b){ return b.n-a.n; }); }
+  function listaTxt(arr){ return arr.length<2 ? (arr[0]||'') : arr.slice(0,-1).join(', ')+' y '+arr[arr.length-1]; }
+  function sinDe(l){ l=String(l||''); if(/^del /.test(l)) return 'el '+l.slice(4); return l.replace(/^de /,''); }
+  function pct(a,b){ return b ? Math.round((a-b)*100/b) : null; }
+
+  // ---- fichajes de hoy (Sebastián, Jorge, Maicol) ----
+  var FICH_NOMBRES = { sebastian:'Sebastián', sebas:'Sebastián', jorge:'Jorge', maicol:'Maicol', michael:'Maicol', maikol:'Maicol' };
+  function esPreguntaFichaje(t){
+    return /\bquien (ha )?(fichado|venido|entrado|llegado|salido|trabajado)\b|\bquien (ficho|vino|entro|llego|salio)\b|\bfichajes? de (hoy|ayer)\b|\ba que hora (ha )?(fichado|entrado|llegado|venido|salido|ficho|entro|llego|vino|salio|se (ha )?ido|se fue)\b|\bha (fichado|entrado|llegado|venido|salido)\s+(sebastian|sebas|jorge|maicol|michael|maikol)\b|\b(sebastian|sebas|jorge|maicol|michael|maikol)\s+ha (fichado|entrado|llegado|venido|salido)\b|\bcuando (ha )?(entrado|llegado|salido|fichado|entro|llego|salio|ficho)\b/.test(t);
+  }
+  function fichajesHoy(t, done){
+    var now=new Date(), dia=now, lbl='hoy';
+    if(/\bayer\b/.test(t)){ dia=new Date(now); dia.setDate(dia.getDate()-1); lbl='ayer'; }
+    var quien=null; Object.keys(FICH_NOMBRES).forEach(function(k){ if(new RegExp('\\b'+k+'\\b').test(t)) quien=FICH_NOMBRES[k]; });
+    var soloSalida = /\b(salido|salio|se (ha )?ido|se fue)\b/.test(t);
+    var fin=function(items){
+      if(items==null) return done({ say: pick('fhErr',['No he podido leer los fichajes ahora mismo. Prueba en un momento.','Se me ha atascado la hoja de fichajes, vuelve a preguntarme ahora.']) });
+      items = items.slice().sort(function(a,b){ return a.hora<b.hora?-1:a.hora>b.hora?1:0; });
+      if(quien){
+        var mi=items.filter(function(x){ return fold(x.empleado||'')===fold(quien); });
+        if(!mi.length) return done({ say: fill(pick('fh0',['{q} no ha fichado {d}.','No tengo ningún fichaje de {q} {d}.','{q} todavía no ha fichado {d}.']),{q:quien,d:lbl}) });
+        var ent=mi.filter(function(x){ return x.tipo==='ENTRADA'; }).map(function(x){ return x.hora; });
+        var sal=mi.filter(function(x){ return x.tipo==='SALIDA'; }).map(function(x){ return x.hora; });
+        var partes=[];
+        if(soloSalida){ if(!sal.length) return done({ say: fill(pick('fhs0',['{q} aún no ha fichado la salida {d}.','{q} no ha salido todavía, según los fichajes de {d}.']),{q:quien,d:lbl}) }); partes.push('ha salido a las '+listaTxt(sal)); }
+        else { if(ent.length) partes.push((ent.length>1?'ha entrado a las ':'ha entrado a las ')+listaTxt(ent)); if(sal.length) partes.push('ha salido a las '+listaTxt(sal)); }
+        var abierta = mi[mi.length-1].tipo==='ENTRADA';
+        var txt = cap(lbl)+' '+quien+' '+partes.join(' y ')+'.';
+        if(abierta && lbl==='hoy' && !soloSalida) txt += ' '+pick('fhA',['Ahora mismo está trabajando.','Sigue dentro.','Todavía no ha salido.']);
+        return done({ say: txt });
+      }
+      if(!items.length) return done({ say: fill(pick('fhN',['{D} no ha fichado nadie.','No hay ningún fichaje {d}.','Nadie ha fichado {d} todavía.']),{d:lbl,D:cap(lbl)}) });
+      var g={}, o=[]; items.forEach(function(x){ var e=x.empleado||'?'; if(!g[e]){ g[e]=[]; o.push(e); } g[e].push((x.tipo==='ENTRADA'?'entrada ':'salida ')+x.hora); });
+      return done({ say: cap(lbl)+' han fichado: '+o.map(function(e){ return e+' ('+g[e].join(', ')+')'; }).join('; ')+'.' });
+    };
+    try{ google.script.run.withSuccessHandler(function(res){ fin(res && res.items ? res.items : []); }).withFailureHandler(function(){ fin(null); }).apiFichajeLucasDia(iso(dia)); }catch(e){ fin(null); }
+  }
+  B._esPreguntaFichaje = esPreguntaFichaje; B._fichajesHoy = fichajesHoy;
+
+  // ---- historial para «vuelve atrás» ----
+  B._hist = [];
+  function guardarHist(q){ var h=B._hist; if(h[h.length-1]!==q) h.push(q); if(h.length>20) h.shift(); }
+
+  function extras(t, now, done){
+    // volver atrás
+    if(/^(vuelve atras|volver atras|atras|lo de antes|lo anterior|la anterior|la busqueda anterior|busqueda anterior|deshaz|deshacer|vuelve a lo de antes|lo que tenia antes)$/.test(t)){
+      var h=B._hist; if(h.length<2) return done({ say: pick('atr0',['No tengo ninguna búsqueda anterior a la que volver.','Esta es la primera búsqueda que me has pedido, no hay nada antes.']) }), true;
+      h.pop(); var prev=h.pop();
+      B.handle(prev, function(r){ if(r && r.say) r.say = pick('atrP',['Vuelvo a lo de antes. ','Ahí tienes lo anterior. ','Deshecho. '])+r.say; done(r); });
+      return true;
+    }
+    // ordenar la tabla
+    var ord = /\b(ordena\w*|ordenar)\b.*\bfecha\b|\b(mas nuevos|mas recientes|ultimos) primero\b|\bordena\w* (de )?(nuevo|reciente)|\b(mas antiguos|mas viejos) primero\b|\bordena\w* (de )?(antiguo|viejo)/.test(t);
+    if(ord){
+      var asc = /\b(antiguos|viejos|antiguo|viejo)\b/.test(t);
+      ensureContratos(function(){
+        try{ FILTERED.sort(function(a,b){ var x=ts(a['14']), y=ts(b['14']); return asc ? x-y : y-x; }); PAGE=1; renderContratosPage(); }catch(e){}
+        done({ say: asc ? pick('ordA',['Ordenados: los más antiguos primero.','Listo, de más viejo a más nuevo.']) : pick('ordN',['Ordenados: los más nuevos primero.','Hecho, de más reciente a más antiguo.','Listo, arriba los últimos que entraron.']) });
+      });
+      return true;
+    }
+    // solo los de fibra (sobre lo que hay en pantalla)
+    if(/^(y )?(solo|solamente|nada mas)?\s*(los |las )?(que tienen |de |con )fibras?$/.test(t) || /^(quita|quitame) (los|las) (que no tienen|sin) fibras?$/.test(t)){
+      ensureContratos(function(){
+        try{ var base=(typeof FILTERED!=='undefined' && FILTERED && FILTERED.length) ? FILTERED : contratos(); FILTERED = base.filter(tieneFibra); PAGE=1; renderContratosPage(); var n=FILTERED.length; done({ say: fill(pick('solF',['De lo que tenías en pantalla, {n} {c} con fibra.','Listo, solo los de fibra: {n} {c}.','Filtrado: quedan {n} {c} con fibra.']),{n:numU(n),c:plural(n,'contrato','contratos')}) }); }catch(e){ done({ say:'No he podido filtrar la tabla ahora mismo.' }); }
+      });
+      return true;
+    }
+    // comparar con el mes / año pasado
+    if(/\b(mas|menos|mejor|peor)\s+que\s+(el|la)?\s*(mes|ano|semana)?\s*(pasad[oa]|anterior)\b|\bcompar\w*\b.*\b(pasad[oa]|anterior)\b|\bvamos (mejor|peor)\b|\bvoy (mejor|peor)\b|\bllevo (mas|menos)\b/.test(t)){
+      ensureContratos(function(){
+        var y=now.getFullYear(), mo=now.getMonth(), d=now.getDate(), esAno=/\bano\b/.test(t), esSem=/\bsemana\b/.test(t);
+        var cuenta=function(a,b){ var f=a.getTime(), to=b.getTime(); return contratos().filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to; }).length; };
+        var A, P, Ptot, nomA, nomP;
+        if(esAno){ A=cuenta(d0(y,0,1), now); P=cuenta(d0(y-1,0,1), new Date(y-1,mo,d,23,59,59)); Ptot=cuenta(d0(y-1,0,1), endOfMonth(y-1,11)); nomA='Este año'; nomP='el año pasado'; }
+        else if(esSem){ var wd=(now.getDay()+6)%7, lun=d0(y,mo,d-wd), lunP=d0(y,mo,d-wd-7); A=cuenta(lun, now); P=cuenta(lunP, new Date(lunP.getFullYear(),lunP.getMonth(),lunP.getDate()+wd,23,59,59)); Ptot=cuenta(lunP, new Date(lunP.getFullYear(),lunP.getMonth(),lunP.getDate()+6,23,59,59)); nomA='Esta semana'; nomP='la semana pasada'; }
+        else { var pm=monthRange(y,mo-1); A=cuenta(d0(y,mo,1), now); P=cuenta(pm.from, new Date(pm.y,pm.m,Math.min(d,pm.to.getDate()),23,59,59)); Ptot=cuenta(pm.from, pm.to); nomA='Este mes'; nomP='el mes pasado'; }
+        var dif=A-P, p=pct(A,P);
+        var veredicto = dif>0 ? fill(pick('cmpM',['Vas mejor: {x} más{p}.','¡Vas ganando! {x} más{p}.','Buen ritmo: {x} por encima{p}.']),{x:dif,p:p!=null?' ('+p+'% más)':''})
+                      : dif<0 ? fill(pick('cmpP',['Vas algo por detrás: {x} menos{p}.','De momento vas {x} por debajo{p}, ¡a por ello!','Te faltan {x} para igualarlo{p}.']),{x:-dif,p:p!=null?' ('+(-p)+'% menos)':''})
+                      : pick('cmpI',['Vas exactamente igual.','Empate técnico.','Mismo ritmo, ni uno más ni uno menos.']);
+        done({ say: nomA+' llevas '+numU(A)+' '+plural(A,'contrato','contratos')+'. '+cap(nomP)+', a estas alturas, llevabas '+P+' (y lo cerraste con '+Ptot+'). '+veredicto });
+      });
+      return true;
+    }
+    // ranking de compañías
+    if(/\b(compania|companias|operadora|operadoras|operador)\b.*\b(mas|ranking|vende|venden|vendemos|vendio|top|mejor)\b|\b(mas|ranking|top)\b.*\b(compania|companias|operadora|operadoras)\b|^ranking\b/.test(t)){
+      ensureContratos(function(){
+        var r=rangoODefecto(t, now), l=enRango(r), g=porCompania(l);
+        render(l, r);
+        if(!g.length) return done({ say:'No hay contratos '+r.label+', así que no puedo hacer el ranking.' });
+        var top=g.slice(0,5).map(function(x,i){ return (i+1)+'. '+compName(x.c)+' ('+x.n+')'; }).join(', ');
+        done({ say: fill(pick('rk',['La que más vende es {c1} ({ds}), con {n1} {k}. Ranking: {t}.','Gana {C1} con {n1} {k} ({ds}). Así queda: {t}.','Ranking {d}: {t}.']),{d:r.label,ds:sinDe(r.label),c1:compName(g[0].c),C1:compName(g[0].c),n1:g[0].n,k:plural(g[0].n,'contrato','contratos'),t:top}) });
+      });
+      return true;
+    }
+    // datos de un cliente: último contrato / compañía / teléfono / documento
+    var qUlt = /\b(cuando|que dia|que fecha)\b.*\bultim[oa]\b|^(el )?ultimo contrato\b|\bultimo contrato de\b/.test(t);
+    var qComp = /\b(compania|operadora|operador)\b/.test(t) && /\b(tiene|esta|lleva|es|usa)\b/.test(t);
+    var qTel = /\b(telefono|movil|numero de telefono|numero)\s+(de|del)\b/.test(t);
+    var qDoc = /\b(documento|dni|nie)\s+(de|del)\b/.test(t);
+    if(qUlt || qComp || qTel || qDoc){
+      var tk=nombreTokens(t);
+      if(tk.length){
+        ensureContratos(function(){
+          var l=contratos().filter(function(it){ var n=' '+fold(it['21'])+' '; return tk.every(function(w){ return n.indexOf(' '+w)>=0; }); });
+          if(!l.length) return done({ say: fill(pick('cl0',['No encuentro a ningún cliente que se llame {n}.','No me sale nadie con el nombre {n}.']),{n:titleCase(tk.join(' '))}) });
+          var g={}, o=[]; l.forEach(function(it){ var k=alnum(it['20'])||fold(it['21']); if(!g[k]){ g[k]=[]; o.push(k); } g[k].push(it); });
+          var frases=o.slice(0,3).map(function(k){
+            var cs=g[k].slice().sort(function(a,b){ return ts(b['14'])-ts(a['14']); }), u=cs[0], nom=titleCase(String(u['21']||'').trim());
+            if(qTel){ var tels=[]; cs.forEach(function(it){ var x=String(it['22']||'').trim(); if(x && tels.indexOf(x)<0) tels.push(x); }); return tels.length ? 'El teléfono de '+nom+' es '+listaTxt(tels.slice(0,3))+'.' : 'No tengo ningún teléfono apuntado de '+nom+'.'; }
+            if(qDoc){ var dc=String(u['20']||'').trim(); return dc ? 'El documento de '+nom+' es '+dc+'.' : 'No tengo el documento de '+nom+'.'; }
+            if(qComp){ var cps=porCompania(cs).map(function(x){ return compName(x.c); }); return nom+' tiene '+(cps.length>1 ? 'contratos con '+listaTxt(cps)+'; el último, con '+compName(u['2']) : 'su contrato con '+compName(u['2']))+'.'; }
+            var f=ts(u['14']); return 'El último contrato de '+nom+' es del '+(f?fmtD(new Date(f)):'(sin fecha)')+', con '+compName(u['2'])+(cs.length>1?' (tiene '+cs.length+' en total)':'')+'.';
+          });
+          render(l, null);
+          var extra = o.length>3 ? ' Hay '+o.length+' clientes con ese nombre; te los dejo en la tabla.' : (o.length>1 ? ' Ojo, hay '+o.length+' clientes con ese nombre.' : '');
+          done({ say: frases.join(' ')+extra });
+        });
+        return true;
+      }
+    }
+    // qué día se hicieron más contratos
+    if(/\b(que dia|mejor dia|dia que mas|dia con mas|dia de mas)\b/.test(t) && /\b(mas|mejor)\b/.test(t)){
+      ensureContratos(function(){
+        var r=rangoODefecto(t, now), l=enRango(r), g={};
+        l.forEach(function(it){ var k=ts(it['14']); if(!k) return; var dd=new Date(k), key=iso(dd); if(!g[key]) g[key]={d:dd,n:0}; g[key].n++; });
+        var arr=Object.keys(g).map(function(k){ return g[k]; }).sort(function(a,b){ return b.n-a.n; });
+        if(!arr.length) return done({ say:'No hay contratos '+r.label+'.' });
+        var b=arr[0], emp=arr.filter(function(x){ return x.n===b.n; });
+        var dtxt=function(x){ return DIAS[x.d.getDay()]+' '+x.d.getDate()+' de '+MESES[x.d.getMonth()]; };
+        var lb=r.from, le=r.to; render(l.filter(function(it){ return iso(new Date(ts(it['14'])))===iso(b.d); }), {from:d0(b.d.getFullYear(),b.d.getMonth(),b.d.getDate()), to:new Date(b.d.getFullYear(),b.d.getMonth(),b.d.getDate(),23,59,59,999)});
+        done({ say: emp.length>1 ? 'Empate ('+sinDe(r.label)+'): '+listaTxt(emp.slice(0,4).map(dtxt))+', con '+numU(b.n)+' '+plural(b.n,'contrato','contratos')+' cada uno.' : fill(pick('bd',['El mejor día {d} fue el {x}, con {n} {c}.','{X}: {n} {c}, el récord {d}.','Ganó el {x}: {n} {c}.']),{d:r.label,x:dtxt(b),X:cap(dtxt(b)),n:b.n,c:plural(b.n,'contrato','contratos')}) });
+      });
+      return true;
+    }
+    // resumen / ¿cómo vamos?
+    var esRes = /^(resumen|haz(me)? (un )?resumen|como vamos|como va|como van|como llevamos|como lo llevamos|como ha ido|como fue|como ha ido)\b/.test(t) || (/^que tal\b/.test(t) && !!parseDates(t, now));
+    if(esRes){
+      ensureContratos(function(){
+        var r=rangoODefecto(t, now), l=enRango(r), g=porCompania(l);
+        render(l, r);
+        if(!l.length) return done({ say: fill(pick('rs0',['{D} todavía no hay ningún contrato.','Nada {d}: cero contratos.','{D} no ha entrado ningún contrato.']),{d:r.label,D:cap(sinDe(r.label))}) });
+        var det=g.slice(0,5).map(function(x){ return x.n+' de '+compName(x.c); }); if(g.length>5) det.push('y '+(g.length-5)+' compañías más');
+        var fib=l.filter(tieneFibra).length;
+        done({ say: fill(pick('rs',['{D} llevas {n} {c}: {det}. {f}','Resumen {d}: {n} {c} ({det}). {f}','{D}: {n} {c}. Por compañías: {det}. {f}']),{D:cap(sinDe(r.label)),d:r.label,n:numU(l.length),c:plural(l.length,'contrato','contratos'),det:listaTxt(det),f:(fib?(fib===1?'Uno lleva fibra.':fib+' llevan fibra.'):'')}).trim() });
+      });
+      return true;
+    }
+    return false;
+  }
+
   // ---------- entrada principal ----------
   B.handle = function(raw, done){
     var now = new Date();
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
+    if(esPreguntaFichaje(fold(raw))) return fichajesHoy(fold(raw), done);   // «¿a qué hora ha entrado Sebastián?», «¿quién ha fichado hoy?»
     if(B._fichFlow && B._fichFlow(fold(raw), done)) return;
     if(B._fibAsk){ if(Date.now()-B._fibAsk.at > 5*60000) B._fibAsk=null; else { var fa=fold(raw).trim(); if(/\bfibras?\b/.test(fa)) return B._fibAnswer('fibra', done); if(/^(todos|todas|todo|los dos|ambos|todos los contratos|da igual)\b/.test(fa)) return B._fibAnswer('todos', done); B._fibAsk=null; } }
     if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
@@ -632,6 +799,7 @@ var lastPicks = {};
     if(st) return done({ say: st });
 
     if(/\bborrador/.test(rest||t)) return borradores(rest||t, done);
+    if(extras(rest||t, now, done)) return;
 
     var hasDate = !!parseDates(rest||t, now);
     var hasComp = findCompanies(rest||t).length>0;
@@ -640,7 +808,7 @@ var lastPicks = {};
 
     ensureContratos(function(){
       var r = contratoQuery(rest||t, raw, now, ctx);
-      if(!r.notUnderstood && (r.say || r.clients)) B._ctx = { t: rest||t, at: Date.now() };   // memoria para «¿y en noviembre?»
+      if(!r.notUnderstood && (r.say || r.clients)){ B._ctx = { t: rest||t, at: Date.now() }; guardarHist(rest||t); }   // memoria para «¿y en noviembre?» y «vuelve atrás»
       if(r.notUnderstood){
         if(greet) return done({ say: B.greetReply(t, now) });
         return done({ say: pick('noentiendo',NO_ENTIENDO) });
@@ -653,7 +821,11 @@ var lastPicks = {};
   // accesos rápidos de «ayuda» (añadir aquí más botones: t = texto del botón, v = 'q:' + la frase que entiende Lucas)
   B.AYUDA_BTNS = [
     { t:'📉 Contratos para dar de baja', v:'q:muestrame los contratos para dar de baja' },
-    { t:'⏸️ Contratos para pausar',      v:'q:muestrame los contratos para pausar' }
+    { t:'⏸️ Contratos para pausar',      v:'q:muestrame los contratos para pausar' },
+    { t:'📊 ¿Cómo vamos este mes?',      v:'q:como vamos este mes' },
+    { t:'📈 ¿Más que el mes pasado?',    v:'q:este mes llevo mas que el pasado' },
+    { t:'🏆 Ranking de compañías',        v:'q:que compania vende mas' },
+    { t:'🛠️ Pendientes de instalar',      v:'q:contratos pendientes de instalar' }
   ];
   // respuesta a «¿solo con fibra o todos?»
   B._fibAsk = null; B._fibChoice = null;
