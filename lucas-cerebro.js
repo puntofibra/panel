@@ -191,6 +191,7 @@ var lastPicks = {};
     return done({ say: fill(pick('b2pV',['Ahí los tienes otra vez: {n} {c}, con los pausados por segunda vez.','Vueltos a mostrar. Ves {n} {c}.','Listo, otra vez todos: {n} {c}.']),{n:numU(l.length),c:c}), buttons:[{t:'🗑️ Borrar de nuevo', v:'baja2P:quitar'}] });
   };
   function render(list, range){
+    try{ B._filtroAviso(); }catch(e){}
     try{
       var df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo'), q=document.getElementById('q');
       if(q) q.value='';
@@ -819,6 +820,8 @@ var lastPicks = {};
   // botones del chat
   B.pick = function(v, done){
     v = String(v||'');
+    if(v==='clearF:si' || v==='clearF:no') return B._clearF(v==='clearF:si', done);
+    if(v==='dp:ver') return B._dpVer(done);
     if(v.indexOf('q:')===0) return B.handle(v.slice(2), done);
     if(v.indexOf('fib2:')===0) return B._fibSwitch(v.slice(5)==='fibra' ? 'fibra' : 'todos', done);
     if(v.indexOf('fib:')===0) return B._fibAnswer(v.slice(4)==='fibra' ? 'fibra' : 'todos', done);
@@ -918,6 +921,66 @@ var lastPicks = {};
     }catch(e){}
   }
   setInterval(vigilaContratos, 30000);
+
+  /* =====================================================================
+     FILTRO ACTIVO: 15 s después de que Lucas filtre, si sigue el filtro, pregunta si lo limpia
+     ===================================================================== */
+  var filtroT = null;
+  function filtroActivo(){
+    try{ if(typeof FILTERED!=='undefined' && FILTERED && contratos().length && FILTERED.length !== contratos().length) return true; }catch(e){}
+    try{ if(typeof hayFiltro==='function' && hayFiltro()) return true; }catch(e){}
+    return false;
+  }
+  B._filtroAviso = function(){
+    if(filtroT) clearTimeout(filtroT);
+    filtroT = setTimeout(function(){
+      filtroT = null;
+      if(!filtroActivo()) return;
+      B.duckSay(pick('filtQ',['Tienes un filtro activado. ¿Limpiamos los filtros?','Ojo, sigue puesto un filtro. ¿Lo quito?','Hay un filtro activo en la tabla. ¿Limpiamos los filtros?','Todavía tienes la tabla filtrada. ¿Quitamos el filtro?']), [{ t:'✅ Sí', v:'clearF:si' },{ t:'❌ No', v:'clearF:no' }]);
+    }, 15000);
+  };
+  B._clearF = function(si, done){
+    if(!si) return done({ say: pick('filtN',['Vale, lo dejo como está.','Perfecto, el filtro se queda.','De acuerdo, no toco nada.']) });
+    ensureContratos(function(){ try{ clearSearch(); }catch(e){ try{ var df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo'); if(df) df.value=''; if(dt) dt.value=''; FILTERED = contratos().slice(); PAGE=1; renderContratosPage(); }catch(e2){} } if(filtroT){ clearTimeout(filtroT); filtroT=null; } done({ say: pick('filtS',['Hecho, filtros quitados. Ya ves todos los contratos.','Listo, tabla limpia.','Fuera filtros, todo a la vista.']) }); });
+  };
+
+  /* =====================================================================
+     DOBLE PAUSA ⏸️⏸️: avisa (solo con la semilla «doblePausa») de los contratos que ya toca dar de baja
+     y lo recuerda cada hora hasta que se les cambia el estado a ❌
+     ===================================================================== */
+  var DP_KEY = 'pfDoblePausaUltAviso';
+  B._dpLast = [];
+  function vigilaDobleP(force){
+    try{
+      if(!semilla('doblePausa')) return;
+      var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+      var ult=0; try{ ult=parseInt(localStorage.getItem(DP_KEY)||'0',10)||0; }catch(e){}
+      if(!force && Date.now()-ult < 3600000) return;
+      google.script.run.withSuccessHandler(function(res){
+        if(!res || !res.ok || !res.items || !res.items.length) return;
+        try{ localStorage.setItem(DP_KEY, String(Date.now())); }catch(e){}
+        B._dpLast = res.items;
+        var n=res.items.length, it0=res.items[0];
+        var quien = titleCase(it0.nombre||''), comp = it0.compania ? ' ('+compName(it0.compania)+')' : '';
+        var msg = n===1
+          ? fill(pick('dp1',['Ojo: el contrato de {q}{c} ya está para dar de baja. Lleva en doble pausa desde hace mucho. Dalo de baja y ponle la ❌.','Recordatorio: toca dar de baja el contrato de {q}{c}, que sigue en doble pausa. Cuando lo hagas, cámbiale el estado a ❌.','Tienes pendiente dar de baja a {q}{c}: ya ha cumplido el tiempo en doble pausa.']),{q:quien||'un cliente',c:comp})
+          : fill(pick('dpN',['Ojo: tienes {n} contratos en doble pausa que ya toca dar de baja. El más antiguo es el de {q}{c}. Cuando los des de baja, ponles la ❌.','Recordatorio: {n} contratos en doble pausa están ya para dar de baja. Empieza por {q}{c}.','Tienes {n} contratos en doble pausa pendientes de dar de baja. ¿Te los enseño?']),{n:n,q:quien||'un cliente',c:comp});
+        B.duckSay(msg, [{ t:'👀 Ver contratos', v:'dp:ver' }]);
+      }).withFailureHandler(function(){}).apiGetDoblePausaVencidos(90);
+    }catch(e){}
+  }
+  setInterval(vigilaDobleP, 60000);
+  setTimeout(vigilaDobleP, 25000);
+  B.testDobleP = function(){ vigilaDobleP(true); };
+  B._dpVer = function(done){
+    ensureContratos(function(){
+      var rows={}; (B._dpLast||[]).forEach(function(x){ rows[x.row]=1; });
+      var l=contratos().filter(function(it){ return rows[it.__row] && esDoblePausa(it); });
+      if(!l.length) return done({ say: pick('dpV0',['Ya no queda ninguno pendiente. ¡Bien hecho!','Parece que ya los has dado todos de baja.']) });
+      render(l, null);
+      done({ say: fill(pick('dpV',['Aquí los tienes: {n} {c} en doble pausa para dar de baja.','Te enseño los {n} {c} que toca dar de baja.']),{n:numU(l.length),c:plural(l.length,'contrato','contratos')}) });
+    });
+  };
   B._refreshC = function(done){
     var antes = {}; contratosHoyLocal().forEach(function(it){ antes[firmaB(it)] = 1; });
     try{ if(typeof goView==='function') goView('contratos'); }catch(e){}
