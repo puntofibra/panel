@@ -1336,9 +1336,9 @@ var lastPicks = {};
       'tengo algo apuntado','qué avisos tengo pendientes','qué tengo agendado','tengo alguna cita pendiente','qué tenía que hacer' ]},
     { id:'fichajes', fn:function(t){ return 'quien ha fichado '+(/\bayer\b/.test(t)?'ayer':'hoy'); }, ej:[
       'quién ha venido hoy a trabajar','ha llegado ya todo el mundo','quién está en la oficina','quién ha marcado la entrada',
-      'quién ha empezado a trabajar hoy','vino alguien ayer a trabajar' ]},
+      'quién ha empezado a trabajar hoy','vino alguien ayer a trabajar','quién anda hoy por la tienda','quién está hoy en la tienda','quién hay hoy trabajando','quién ha abierto la tienda' ]},
     { id:'ayuda', q:'ayuda', ej:[
-      'qué sabes hacer','en qué me puedes ayudar','qué cosas puedo preguntarte','para qué sirves','qué funciones tienes','no sé qué preguntarte' ]},
+      'qué sabes hacer','en qué me puedes ayudar','qué cosas puedo preguntarte','para qué sirves','qué funciones tienes','no sé qué preguntarte','en qué me puedes echar una mano','qué puedes hacer por mí' ]},
     { id:'limpiar', q:'quita los filtros', ej:[
       'enséñame todo otra vez','deja la tabla como estaba','resetea la tabla','quiero ver todos los contratos sin filtrar','borra la búsqueda' ]},
     { id:'borradores', q:'borradores', ej:[
@@ -1413,6 +1413,7 @@ var lastPicks = {};
   // ---------- entrada principal ----------
   B.handle = function(raw, done){
     var now = new Date();
+    var raw0 = String(raw||'');
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
     if(B._pinAsk && pinRespuesta(raw, done)) return;                         // esperando el PIN de 4 cifras
@@ -1446,12 +1447,12 @@ var lastPicks = {};
     if(greet && !rest) return done({ say: B.greetReply(t, now) });
 
     var debil = !/\bcontratos?\b/.test(rest||t) && !hasComp;
-    ensureContratos(function(){ iaAntes(rest||t, raw, now, debil, function(){
+    ensureContratos(function(){ iaAntes(rest||t, raw0, now, debil, function(){
       var r = contratoQuery(rest||t, raw, now, ctx);
       if(!r.notUnderstood && (r.say || r.clients)){ B._ctx = { t: rest||t, at: Date.now() }; guardarHist(rest||t); }   // memoria para «¿y en noviembre?» y «vuelve atrás»
       if(r.notUnderstood){
         if(greet) return done({ say: B.greetReply(t, now) });
-        return iaPlanB(rest||t, raw, now, done);
+        return iaPlanB(rest||t, raw0, now, done);
       }
       if(greet && r.say){ var gp=B.greetPrefix(t, now); r.say = gp+(/[!.]$/.test(gp)?' ':'. ')+r.say; }
       done(r);
