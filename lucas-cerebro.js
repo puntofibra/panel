@@ -953,6 +953,7 @@ var lastPicks = {};
   B._dpLast = [];
   // fecha en que toca dar de baja un ⏸️⏸️: fecha de doble pausa (ID 52) + 90 días; si no la tiene, instalación (ID 15) + 270 días
   function tsOK(v){ var k=ts(v); if(!k) return 0; var y=new Date(k).getFullYear(); return (y>=2000 && y<=2100) ? k : 0; }   // fuera fechas vacías tipo 00-00-0000
+  function instCeros(it){ return /^0{1,2}[\/\-]0{1,2}[\/\-]0{2,4}$/.test(String(it['15']||'').trim()); }
   function dpVence(it){
     var f=tsOK(it['52']); if(f) return f + 90*86400000;
     var fi=tsOK(it['15']); if(fi) return fi + 270*86400000;
@@ -978,7 +979,7 @@ var lastPicks = {};
     }catch(e){}
   }
   function dpPendientes(comps, count){
-    var l = contratos().filter(function(it){ return esDoblePausa(it); });
+    var l = contratos().filter(function(it){ return esDoblePausa(it) && !(instCeros(it) && !tsOK(it['52'])); });   // fuera los 00-00-0000 puestos a propósito
     if(comps && comps.length){ var cs=comps.map(function(c){ return c.toUpperCase().trim(); }); l = l.filter(function(it){ return cs.indexOf(String(it['2']||'').toUpperCase().trim())>=0; }); }
     l.sort(function(a,b){ var va=dpVence(a)||9e15, vb=dpVence(b)||9e15; return va-vb; });
     var n=l.length;
