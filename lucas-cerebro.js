@@ -125,7 +125,7 @@ var lastPicks = {};
   }
 
   // ---------- vocabulario ----------
-  var STOP = ('vip vips ciclo fibra fibras pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
+  var STOP = ('vip vips ciclo fibra fibras doble segunda vez veces pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
     'necesito mira mirame consulta busqueda encuentra encuentrame nombre nombres llamado llamada llama persona personas gente hola buenas buenos noches tardes dias gracias anterior actual va como quien donde cuando hacia trimestre primer segundo tercer cuarto').split(' ');
   var STOPSET={}; STOP.forEach(function(w){ STOPSET[w]=1; }); MESES.concat(['setiembre']).forEach(function(w){ STOPSET[w]=1; }); Object.keys(NUM).forEach(function(w){ STOPSET[w]=1; });
 
@@ -211,6 +211,7 @@ var lastPicks = {};
     var cM = t.match(/\bciclo (de )?(\d{1,2}|uno|veinte)\b/);
     if(cM){ ciclo = cM[2]==='uno' ? '1' : (cM[2]==='veinte' ? '20' : String(parseInt(cM[2],10))); t = t.replace(cM[0],' ').replace(/\s+/g,' ').trim(); }
     var vip = /\bvips?\b/.test(t);
+    var dobleP = /\bdoble(s)? pausas?\b|\bsegunda pausa\b|\bpausad[oa]s? (por )?(la )?(segunda vez|dos veces|2 veces|doble)\b|\bpausad[oa]s? 2\b|\bdos pausas\b|\b2 pausas\b|⏸\s*\ufe0f?\s*⏸/.test(t);
     var range = parseDates(t, now);
     var comps = findCompanies(t);
     var mode = null;   // 'cambiar' | 'pausa' | 'baja' | 'instalar'
@@ -218,6 +219,7 @@ var lastPicks = {};
     if(/\bpausar(los|las|les)?\b|\b(pendientes?|para|sin|falta\w*|toca\w*|hay que|tengo que)( de)? (poner (en )?)?pausa\b|\bponer(los|las|les)? (en )?pausa\b|\bdar(les)? (la )?pausa\b/.test(t)) mode='pausa';
     if(/\bdar(los|las)? de baja\b|\bbajas?\b|\bdar baja\b/.test(t)) mode='baja';
     if(/\b(pendientes?|sin|por|falta\w*|queda\w*)( de)? instal\w*|\bno (estan |esta )?instalad[oa]s?\b/.test(t)) mode='instalar';
+    if(typeof dobleP!=='undefined' && dobleP && mode==='pausa') mode=null;
     var count = /\bcuant[oa]s\b|\bnumero de\b|\btotal de\b|\bcuenta(me)? cuantos\b/.test(t);
 
     // documento / cuenta / telefono
@@ -269,6 +271,7 @@ var lastPicks = {};
       base.forEach(function(it){ var doc=alnum(it['20']); var key=doc||('__'+fold(it['21'])+'_'+Math.random()); var k=ts(it['14']); if(!best[key]){ best[key]=it; ordenV.push(key); } else if(k>=ts(best[key]['14'])) best[key]=it; });
       base = ordenV.map(function(k){ return best[k]; });
     }
+    if(dobleP){ base = base.filter(function(it){ return esDoblePausa(it); }); }
     if(ciclo){ base = base.filter(function(it){ return String(it['29']==null?'':it['29']).trim()===ciclo; }); }
     // pausa / baja: preguntar si solo los que tienen fibra o todos
     var fibChoice = B._fibChoice || (/\bfibras?\b/.test(t) ? 'fibra' : null); B._fibChoice = null;
@@ -291,7 +294,7 @@ var lastPicks = {};
       else {
         // ¿quizá alguna palabra si es nombre?
         var some = base.filter(function(it){ var n=fold(it['21']); return nameTokens.some(function(tk){ return (' '+n+' ').indexOf(' '+tk)>=0; }); });
-        var hasOther = range||comps.length||mode||vip||ciclo||dniM||ibanFull||ibanEnd||tel;
+        var hasOther = range||comps.length||mode||vip||ciclo||dobleP||dniM||ibanFull||ibanEnd||tel;
         if(!hasOther && !ctx.contractWords){
           return { notUnderstood:true };
         }
@@ -308,6 +311,7 @@ var lastPicks = {};
     else if(mode==='pausa') d.push('pendientes de pausar hasta la fecha (solicitados '+range.label+')');
     else if(mode==='instalar'){ d.push('pendientes de instalar'); if(range) d.push(range.label); }
     else if(range) d.push(range.label);
+    if(dobleP) d.push('pausados por segunda vez');
     if(fibChoice==='fibra' && mode!=='instalar') d.push('con fibra');
     if(vip) d.push('de clientes VIP'+(ciclo?' de ciclo '+ciclo:''));
     else if(ciclo) d.push('de ciclo '+ciclo);
