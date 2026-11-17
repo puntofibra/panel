@@ -357,7 +357,7 @@
     if(/^CD\s*\\?\s*PANEL$/.test(cmd)){ CON.dir = 'PANEL'; say('', '', 0, true); return; }
     if(/^CD\b/.test(cmd)){ var d = cmd.replace(/^CD\s*/, ''); if(!d){ say('C:\\' + CON.dir, '', 0, true); return; } say('RUTA NO ENCONTRADA: ' + d.slice(0, 20), 'r', 12); errTone(); return; }
     if(cmd === 'DIR' || cmd === 'LS'){ say(CON.dir ? ' DIRECTORIO DE C:\\PANEL\n\n   <DIR>  .\n   <DIR>  ..\n          0 ARCHIVOS' : ' DIRECTORIO DE C:\\\n\n   <DIR>  PANEL\n          0 ARCHIVOS', 'd', 0, true); return; }
-    if(cmd === 'CLS' || cmd === 'LIMPIAR' || cmd === 'ERASE'){ conOut.innerHTML = ''; say('', '', 0, true); return; }
+    if(cmd === 'CLS' || cmd === 'CLEAR' || cmd === 'LIMPIAR' || cmd === 'ERASE'){ conOut.innerHTML = ''; say('', '', 0, true); return; }
     if(cmd === 'SALIR' || cmd === 'EXIT'){ closeConsole(); return; }
     for(var i=0;i<COMANDOS.length;i++){ var c = COMANDOS[i]; if(cmd === c[0] || cmd.indexOf(c[0]+' ')===0){ try{ c[2](cmd.slice(c[0].length).trim(), say); }catch(e){ say('ERROR · ' + e.message, 'r', 12); errTone(); } return; } }
     say('ERROR 0x' + rh(4) + ' · COMANDO "' + cmd.slice(0, 20) + '" NO RECONOCIDO', 'r', 12); errTone();
