@@ -424,6 +424,7 @@ var lastPicks = {};
 
     var st = smallTalk(rest||t, now);
     if(st==='__CLEAR__'){ ensureContratos(function(){ try{ clearSearch(); }catch(e){ render(contratos(),null); } done({ say: pick('clear',['Filtros quitados. Ya ves todos los contratos.','Listo, tabla limpia.','Hecho, sin filtros.']) }); }); return; }
+    if(st && typeof st==='string' && st.indexOf('Puedo hacer cosas como estas')===0) return done({ say: pick('ayudaQ',['Aquí tienes los accesos rápidos. Pulsa uno y te lo saco:','Atajos rápidos, pulsa el que quieras:','Toma, accesos directos. Dale a uno:']), buttons: B.AYUDA_BTNS });
     if(st) return done({ say: st });
 
     if(/\bborrador/.test(rest||t)) return borradores(rest||t, done);
@@ -444,6 +445,11 @@ var lastPicks = {};
     });
   };
 
+  // accesos rápidos de «ayuda» (añadir aquí más botones: t = texto del botón, v = 'q:' + la frase que entiende Lucas)
+  B.AYUDA_BTNS = [
+    { t:'📉 Contratos para dar de baja', v:'q:muestrame los contratos para dar de baja' },
+    { t:'⏸️ Contratos para pausar',      v:'q:muestrame los contratos para pausar' }
+  ];
   // respuesta a «¿solo con fibra o todos?»
   B._fibAsk = null; B._fibChoice = null;
   B._fibAnswer = function(ch, done){
@@ -779,6 +785,7 @@ var lastPicks = {};
   // botones del chat
   B.pick = function(v, done){
     v = String(v||'');
+    if(v.indexOf('q:')===0) return B.handle(v.slice(2), done);
     if(v.indexOf('fib:')===0) return B._fibAnswer(v.slice(4)==='fibra' ? 'fibra' : 'todos', done);
     if(v==='baja2P:ver') return B._bajaToggle(false, done);
     if(v==='baja2P:quitar') return B._bajaToggle(true, done);
