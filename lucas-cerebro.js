@@ -1195,11 +1195,76 @@ var lastPicks = {};
   B.recTest = function(){ var yo=misPersonas(); var p=yo[0]||'Manu'; recAvisar({ id:'TEST', texto:'Esto es una prueba de recordatorio', cuando:Date.now()+3600000, personas:[p], avisos:[60] }, p, true); };
   B._recParse = recParse; B._recTexto = recTexto;
 
+  /* =====================================================================
+     PIN DE EMPLEADO: «pin» -> Lucas pide el PIN -> filtros personalizados en botones.
+     Los PIN se guardan cifrados (SHA-256 de «lucasPin:<pin>»), nunca en claro.
+     Para añadir un filtro a un empleado: nuevo botón en su lista + su caso en pinFiltro().
+     ===================================================================== */
+  var PINES = {};
+  PINES['3931a03ef66fe44020668adffd61b7f10c3d2f163c0f553cf636a998fc895b72'] = { nombre:'Maicol', filtros:[
+    { t:'📉 Bajar líneas a 1€', id:'maicol_bajar1' }
+  ]};
+  B._pinAsk = null; B._pinUser = null;
+  function pinHash(pin, cb){
+    try{ crypto.subtle.digest('SHA-256', new TextEncoder().encode('lucasPin:'+pin)).then(function(buf){ var h=''; new Uint8Array(buf).forEach(function(b){ h+=('0'+b.toString(16)).slice(-2); }); cb(h); }).catch(function(){ cb(''); }); }catch(e){ cb(''); }
+  }
+  function pinPedir(done){
+    B._pinAsk = { at: Date.now(), n: 0 };
+    done({ say: pick('pinQ',['🔐 Claro. ¿Cuál es tu PIN?','Modo seguro activado. Escribe tu PIN de 4 cifras.','Perfecto, identifícate: ¿cuál es tu PIN?','🔑 Dime tu PIN y te enseño tus filtros.','Acceso personal. Introduce tu PIN, por favor.','Vale, necesito tu PIN para continuar.','¡Entendido! ¿Me dices tu PIN?']) });
+  }
+  function pinOcultar(txt){
+    // tapa el PIN en la burbuja del chat para que no se quede a la vista
+    setTimeout(function(){ try{ var box=document.getElementById('iaChatMsgs'); if(!box) return; var els=box.querySelectorAll('*'); for(var i=els.length-1;i>=0;i--){ var e=els[i]; if(e.children.length===0 && String(e.textContent).trim()===txt){ e.textContent='••••'; break; } } }catch(e){} }, 30);
+  }
+  function pinRespuesta(raw, done){
+    var a=B._pinAsk; if(!a || Date.now()-a.at > 3*60000){ B._pinAsk=null; return false; }
+    var t=String(raw||'').trim();
+    if(/^(cancelar|cancela|nada|da igual|dejalo|déjalo|olvidalo|olvídalo|no)$/i.test(t)){ B._pinAsk=null; done({ say: pick('pinC',['Vale, lo dejamos.','Cancelado. Cuando quieras, escribe «pin».']) }); return true; }
+    if(!/^\d{4}$/.test(t)){ done({ say: pick('pinF',['El PIN son 4 cifras. Escríbelo, por favor.','Necesito solo los 4 números de tu PIN.','Escribe tu PIN de 4 cifras (o «cancelar»).']) }); return true; }
+    pinOcultar(t);
+    pinHash(t, function(h){
+      var u=PINES[h];
+      if(!u){
+        a.n++;
+        if(a.n>=3){ B._pinAsk=null; return done({ say: pick('pinX',['⛔ Demasiados intentos. Vuelve a escribir «pin» para probar otra vez.','⛔ PIN incorrecto tres veces. Empieza de nuevo con «pin».']) }); }
+        return done({ say: pick('pinE',['❌ Ese PIN no es correcto. Prueba otra vez.','Mmm, ese PIN no me suena. ¿Lo repites?','PIN incorrecto. Inténtalo de nuevo.']) });
+      }
+      B._pinAsk=null; B._pinUser={ u:u, at:Date.now() };
+      done({ say: fill(pick('pinOK',['✅ Hola, {n}. ¿Qué filtro quieres usar?','Bienvenido, {n}. Elige tu filtro:','🔓 Acceso concedido, {n}. ¿Cuál te aplico?','¡Hey, {n}! Aquí tienes tus filtros personalizados:','Identificado: {n}. ¿Qué te muestro?']),{n:u.nombre}),
+             buttons: u.filtros.map(function(f){ return { t:f.t, v:'pinf:'+f.id }; }) });
+    });
+    return true;
+  }
+  function pinFiltro(id, done){
+    var s=B._pinUser;
+    if(!s || Date.now()-s.at > 30*60000){ B._pinUser=null; return done({ say: pick('pinCad',['Tu sesión de PIN ha caducado. Escribe «pin» otra vez.','Por seguridad, vuelve a escribir «pin» para usar tus filtros.']) }); }
+    s.at=Date.now();
+    var now=new Date();
+    ensureContratos(function(){
+      if(id==='maicol_bajar1'){
+        // últimos 60 días (por fecha de solicitud) con estado «-» (vacío o guion) o 😓
+        var desde=d0(now.getFullYear(), now.getMonth(), now.getDate()-60), hasta=new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59,999);
+        var l=contratos().filter(function(it){
+          var k=ts(it['14']); if(!k || k<desde.getTime() || k>hasta.getTime()) return false;
+          var e=String(it['44']==null?'':it['44']).replace(/\uFE0F/g,'').trim();
+          return e==='' || e==='-' || e==='—' || e.indexOf('\u{1F613}')>=0;
+        });
+        render(l, { from:desde, to:hasta, label:'de los últimos 60 días' });
+        var n=l.length;
+        return done({ say: n ? fill(pick('mb1',['Listo, {u}: {n} {c} para bajar líneas a 1 € (últimos 60 días, estado «-» o 😓).','Ahí tienes, {u}: {n} {c} de los últimos 60 días con estado «-» o 😓.','Filtro aplicado: {n} {c} para bajar a 1 €.']),{u:s.u.nombre,n:numU(n),c:plural(n,'contrato','contratos')})
+                                : 'No hay ningún contrato de los últimos 60 días con estado «-» o 😓. ¡Todo al día!' });
+      }
+      done({ say: 'Ese filtro todavía no está preparado.' });
+    });
+  }
+
   // ---------- entrada principal ----------
   B.handle = function(raw, done){
     var now = new Date();
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
+    if(B._pinAsk && pinRespuesta(raw, done)) return;                         // esperando el PIN de 4 cifras
+    if(/^\s*(?:oye\s+|lucas\s+)?(?:mi\s+|el\s+|meter\s+(?:el\s+)?|poner\s+(?:el\s+)?|introducir\s+(?:el\s+)?)?pin\s*[.!?]*\s*$/i.test(String(raw))) return pinPedir(done);
     try{ raw = recErratas(raw); }catch(e){}                                    // «recodatorios», «recuedame»… -> bien escrito
     if(B._recPend && recPendiente(raw, done)) return;                         // esperando el día/hora de un recordatorio
     var mtR = plano(raw).match(REC_TRIG); if(mtR) return recNuevo(raw, mtR, done);   // «recuérdame el día 21 que tengo reunión…»
@@ -1597,6 +1662,7 @@ var lastPicks = {};
     v = String(v||'');
     if(v==='clearF:si' || v==='clearF:no') return B._clearF(v==='clearF:si', done);
     if(v==='dp:ver') return B._dpVer(done);
+    if(v.indexOf('pinf:')===0) return pinFiltro(v.slice(5), done);
     if(v.indexOf('q:')===0) return B.handle(v.slice(2), done);
     if(v.indexOf('rec:ok:')===0){ var pz=v.split(':'); return recEnterado(pz[2], pz[3], pz[4]==='test', function(t){ done({ say:t }); }); }
     if(v.indexOf('rec:del:')===0) return recBorrar(v.slice(8), done);
@@ -1895,6 +1961,12 @@ var lastPicks = {};
   var ICO_BASE=null;
   function estadoIconos(){ var a=[]; try{ document.querySelectorAll('.searchHead .active').forEach(function(b){ a.push(b.id || b.getAttribute('data-ico') || b.textContent.trim()); }); }catch(e){} return a.sort().join('|'); }
   function fijarBase(){ ICO_BASE=estadoIconos(); }
+  // el LIMPIAR del panel no reinicia FIBRA ni VIP: se hace aquí (estado + colores de los botones)
+  function resetFibraVip(){
+    try{ if(typeof FIBRA_MODE!=='undefined') FIBRA_MODE=0; }catch(e){}
+    try{ if(typeof VIP_MODE!=='undefined') VIP_MODE=0; }catch(e){}
+    ['btnFibraSi','btnFibraNo','btnVip'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.classList.remove('active'); el.style.borderColor=''; el.style.background=''; if(id!=='btnVip') el.style.color=''; } });
+  }
   function pintarBtnIA(){
     try{
       var b=document.getElementById('btnLimpiarIA');
@@ -1915,7 +1987,7 @@ var lastPicks = {};
         // si tocas tú los filtros a mano, el filtro de Lucas deja de estar activo
         ['q','companyFilter','dateFrom','dateTo'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.addEventListener('input', function(){ setTimeout(pintarBtnIA, 300); }); el.addEventListener('change', function(){ setTimeout(pintarBtnIA, 300); }); } });
       }
-      if(typeof window.clearSearch==='function' && !window.clearSearch.__ia){ var cs=window.clearSearch; window.clearSearch=function(){ var r=cs.apply(this, arguments); FIA=false; setTimeout(function(){ fijarBase(); pintarBtnIA(); }, 150); return r; }; window.clearSearch.__ia=true; }
+      if(typeof window.clearSearch==='function' && !window.clearSearch.__ia){ var cs=window.clearSearch; window.clearSearch=function(){ resetFibraVip(); var r=cs.apply(this, arguments); FIA=false; setTimeout(function(){ fijarBase(); pintarBtnIA(); }, 150); return r; }; window.clearSearch.__ia=true; }
       var act = FIA || hayAlgunFiltro();
       b.classList.toggle('iaOn', act); b.disabled=!act;
     }catch(e){}
