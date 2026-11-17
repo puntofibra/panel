@@ -16,6 +16,30 @@ var lastPicks = {};
   function numU(n){ return n===1?'un':String(n); }     // «un contrato», nunca «1 contrato» ni «uno contratos»
   function compName(c){ c=String(c||'').trim(); return c.length<=3 ? c.toUpperCase() : titleCase(c); }
 
+  /* ---------- PRONUNCIACIÓN: lo que se escribe en el chat se queda igual, pero la voz dice esto ----------
+     (para enseñarle una palabra nueva: añadir [palabra, cómo decirla]) */
+  B.PRONUNCIA = [
+    ['ups','uy'], ['ok','okey'], ['vip','bip'], ['vips','bips'], ['iban','íban'], ['hey','ey'], ['ciao','chao'], ['xao','chao'], ['bye','bai'],
+    ['holaa','hola'], ['holaaa','hola'], ['holaaaa','hola'], ['zzz',''], ['o2','o dos'], ['min','minutos'], ['hrs','horas'], ['ia','i a'],
+    ['wifi','güifi'], ['router','rúter'], ['whatsapp','guasap']
+  ];
+  function pronunciar(t){
+    t = String(t||'');
+    t = t.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu, ' ');     // fuera emojis (la voz los lee en voz alta)
+    B.PRONUNCIA.forEach(function(p){ t = t.replace(new RegExp('(^|[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9])'+p[0].replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9])','gi'), function(m, a){ return a + p[1]; }); });
+    t = t.replace(/(\d+)\s*h\b/g, '$1 horas').replace(/\s*[•·]\s*/g, '. ');
+    return t.replace(/\s{2,}/g,' ').trim();
+  }
+  B.pronunciar = pronunciar;                                         // para probar: LucasBrain.pronunciar('Ups, eso…')
+  try{
+    var SS = window.speechSynthesis;
+    if(SS && !SS.__lucasPron){
+      var speakOrig = SS.speak.bind(SS);
+      SS.speak = function(u){ try{ if(u && typeof u.text==='string') u.text = pronunciar(u.text); }catch(e){} return speakOrig(u); };
+      SS.__lucasPron = true;
+    }
+  }catch(e){}
+
   var MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   var MES_IDX={enero:0,febrero:1,marzo:2,abril:3,mayo:4,junio:5,julio:6,agosto:7,septiembre:8,setiembre:8,octubre:9,noviembre:10,diciembre:11};
   var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -331,7 +355,7 @@ var lastPicks = {};
     if(first) txt += ' ' + pick('greet1',['Puedes pedirme, por ejemplo, «muéstrame los contratos de enero».','Prueba con algo como «contratos para cambiar este mes».','Por ejemplo: «cuántos contratos llevo este mes de Simyo».']);
     return txt;
   };
-  var NO_ENTIENDO=[ 'Mmm, esa no la he pillado. ¿Me lo dices de otra forma?', 'Perdona, no he entendido la pregunta. Prueba con algo como «contratos de enero».', 'Ups, eso todavía no lo sé hacer. ¿Lo reformulas?', 'No estoy seguro de qué me pides. Puedo buscar contratos por fechas, clientes, cuentas o compañías.', 'Esa se me escapa. Dímelo con otras palabras y lo intento.', 'Me he quedado pensando… y no lo entiendo. ¿Me das una pista?', 'Todavía estoy aprendiendo y esa no me la sé. Escribe «ayuda» y te digo lo que sé hacer.', 'No te he entendido bien. ¿Quieres que busque contratos, clientes o borradores?' ];
+  var NO_ENTIENDO=[ 'Mmm, esa no la he pillado. ¿Me lo dices de otra forma?', 'Perdona, no he entendido la pregunta. Prueba con algo como «contratos de enero».', 'Uy, eso todavía no lo sé hacer. ¿Lo reformulas?', 'No estoy seguro de qué me pides. Puedo buscar contratos por fechas, clientes, cuentas o compañías.', 'Esa se me escapa. Dímelo con otras palabras y lo intento.', 'Me he quedado pensando… y no lo entiendo. ¿Me das una pista?', 'Todavía estoy aprendiendo y esa no me la sé. Escribe «ayuda» y te digo lo que sé hacer.', 'No te he entendido bien. ¿Quieres que busque contratos, clientes o borradores?' ];
   var AQUI=[ 'Aquí tienes {n} {c} {d}.', 'Listo: {n} {c} {d}.', 'He encontrado {n} {c} {d}.', 'Ahí tienes: {n} {c} {d}.', 'Te muestro {n} {c} {d}.', 'Hecho. {N} {c} {d}.' ];
   var NADA=[ 'No he encontrado ningún contrato {d}.', 'No hay contratos {d}.', 'Nada por aquí: cero contratos {d}.', 'He buscado bien y no aparece ningún contrato {d}.' ];
   var CUANTOS=[ 'Llevas {n} {c} {d}.', 'En total hay {n} {c} {d}.', 'Te cuento: {n} {c} {d}.', 'La cuenta sale así: {n} {c} {d}.', 'He contado {n} {c} {d}.' ];
