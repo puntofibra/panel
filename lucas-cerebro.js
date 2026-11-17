@@ -1060,6 +1060,17 @@ var lastPicks = {};
     if(o.when.getTime()<Date.now()){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: 'Esa hora ya ha pasado. ¿Para cuándo lo pongo?' }); }
     recPreguntarPersonas(o, done);
   }
+  // corrige erratas en las palabras clave de los recordatorios (sin tocar el resto de la frase)
+  var REC_CLAVES = ['recordatorios','recordatorio','recuerdame','recuerdamelo','recuerdale','recuerdales','acuerdame','avisame','avisale','apuntame','anotame'];
+  function recErratas(raw){
+    return String(raw||'').replace(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{6,}/g, function(w){
+      var p=plano(w); if(REC_CLAVES.indexOf(p)>=0) return w;
+      if(!/^(re|ac|av|ap|an)/.test(p)) return w;
+      var best=null, bd=3;
+      REC_CLAVES.forEach(function(k){ var d=dist(p,k,2); if(d<bd){ bd=d; best=k; } });
+      return (best && bd<=(p.length>=9?2:1)) ? best : w;
+    });
+  }
   function recPendiente(raw, done){
     var rp=B._recPend; if(!rp || Date.now()-rp.at > 10*60000){ B._recPend=null; return false; }
     var t=plano(raw).trim();
@@ -1075,7 +1086,7 @@ var lastPicks = {};
     if(!fuerza && REC_CACHE && Date.now()-REC_CACHE_T<50000) return cb(REC_CACHE);
     try{ google.script.run.withSuccessHandler(function(res){ REC_CACHE=(res&&res.items)||[]; REC_CACHE_T=Date.now(); cb(REC_CACHE); }).withFailureHandler(function(){ cb(REC_CACHE); }).apiRecListar(); }catch(e){ cb(REC_CACHE); }
   }
-  function esListaRec(t){ return /\b(mis recordatorios|que recordatorios|recordatorios (pendientes|que hay|que tengo|tengo|guardados|apuntados)|lista de recordatorios|ver (los )?recordatorios|(ensename|muestrame|dime|sacame|dame) (los |mis )?recordatorios|(borra|borrar|quita|quitar|elimina|eliminar) (un |el |algun )?recordatorio)\b|^recordatorios$/.test(t); }
+  function esListaRec(t){ if(/\brecordatorios?\b/.test(t) && !/\b(pon|ponme|crea|creame|haz|hazme|nuevo|añade|anade|mete)\b/.test(t)) return true; return /\b(mis recordatorios|que recordatorios|recordatorios (pendientes|que hay|que tengo|tengo|guardados|apuntados)|lista de recordatorios|ver (los )?recordatorios|(ensename|muestrame|dime|sacame|dame) (los |mis )?recordatorios|(borra|borrar|quita|quitar|elimina|eliminar) (un |el |algun )?recordatorio)\b|^recordatorios$/.test(t); }
   function recListar(done){
     recCargar(function(l){
       if(l==null) return done({ say:'No he podido leer los recordatorios ahora mismo.' });
@@ -1146,7 +1157,8 @@ var lastPicks = {};
         if(now > r.cuando + 12*3600000) return;                               // 12 h después ya no insiste
         (r.personas||[]).forEach(function(p){
           if(yo.indexOf(p)<0) return;
-          var dues=(r.avisos||[]).map(function(m){ return r.cuando-m*60000; }).filter(function(d){ return d<=now; });
+          var avs=(r.avisos && r.avisos.length) ? r.avisos : [0];          // sin avisos guardados = a la misma hora
+          var dues=avs.map(function(m){ return r.cuando-m*60000; }).filter(function(d){ return d<=now; });
           if(!dues.length) return;
           var activo=Math.max.apply(null,dues), ack=(r.ack&&r.ack[p])||0, key=r.id+'|'+p;
           if(ack>=activo) return;                                              // ya aceptado este aviso (o uno posterior)
@@ -1166,6 +1178,7 @@ var lastPicks = {};
     var now = new Date();
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
+    try{ raw = recErratas(raw); }catch(e){}                                    // «recodatorios», «recuedame»… -> bien escrito
     if(B._recPend && recPendiente(raw, done)) return;                         // esperando el día/hora de un recordatorio
     var mtR = plano(raw).match(REC_TRIG); if(mtR) return recNuevo(raw, mtR, done);   // «recuérdame el día 21 que tengo reunión…»
     if(esListaRec(fold(raw))) return recListar(done);
