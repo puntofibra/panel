@@ -105,7 +105,7 @@
   }
 
   // ---------- vocabulario ----------
-  var STOP = ('a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
+  var STOP = ('pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
     'necesito mira mirame consulta busqueda encuentra encuentrame nombre nombres llamado llamada llama persona personas gente hola buenas buenos noches tardes dias gracias anterior actual va como quien donde cuando hacia trimestre primer segundo tercer cuarto').split(' ');
   var STOPSET={}; STOP.forEach(function(w){ STOPSET[w]=1; }); MESES.concat(['setiembre']).forEach(function(w){ STOPSET[w]=1; }); Object.keys(NUM).forEach(function(w){ STOPSET[w]=1; });
 
@@ -140,6 +140,25 @@
     if(typeof loadContratos==='function'){ try{ loadContratos(function(){ cb(); }); return; }catch(e){} }
     cb();
   }
+  // filtros por estado (col 44) y fibra/instalacion
+  function esDoblePausa(it){ return (String(it['44']||'').match(/⏸/g)||[]).length>=2; }
+  function tieneFibra(it){ var n=parseFloat(String(it['16']==null?'':it['16']).trim().replace(',','.')); return !isNaN(n) && n>=1; }
+  function tieneFechaInst(it){ var v=it['15']; if(v instanceof Date) return !isNaN(v.getTime()); var s=String(v==null?'':v); return /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(s) || /\b\d{4}-\d{1,2}-\d{1,2}/.test(s); }
+  function modoOK(it, mode){
+    var s=String(it['44']||'');
+    if(mode==='instalar') return tieneFibra(it) && !tieneFechaInst(it);
+    if(mode==='baja') return s.indexOf('❌')<0;                         // todos menos los ❌ (los ⏸️⏸️ se preguntan)
+    return s.indexOf('❌')<0 && s.indexOf('⏸')<0;                      // pausa / cambiar: fuera ❌, ⏸️ y ⏸️⏸️
+  }
+  B._bajaAsk = null;
+  B._baja2P = function(si, done){
+    var a=B._bajaAsk; B._bajaAsk=null;
+    if(!a) return done({ say: pick('b2pX',['Esa pregunta ya ha caducado. Pídeme otra vez los contratos para dar de baja.','Ya no tengo esa lista a mano, vuelve a pedírmela.']) });
+    if(!si) return done({ say: pick('b2pN',['Vale, los dejo todos en pantalla.','Perfecto, no quito ninguno.','De acuerdo, se quedan también los pausados por segunda vez.']) });
+    var l=a.list.filter(function(it){ return !esDoblePausa(it); });
+    render(l, a.range);
+    return done({ say: fill(pick('b2pS',['Hecho. Quedan {n} {c} pendientes de dar de baja, sin los pausados por segunda vez.','Listo, quitados. Ahora ves {n} {c}.','Fuera los de segunda pausa: te quedan {n} {c} por dar de baja.']),{n:numU(l.length),c:plural(l.length,'contrato','contratos')}) });
+  };
   function render(list, range){
     try{
       var df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo'), q=document.getElementById('q');
@@ -158,9 +177,11 @@
   function contratoQuery(t, raw, now, ctx){
     var range = parseDates(t, now);
     var comps = findCompanies(t);
-    var mode = null;   // 'cambiar' | 'baja'
+    var mode = null;   // 'cambiar' | 'pausa' | 'baja' | 'instalar'
     if(/\bcambi(ar|o|os)\b|\bcambio de (titular|nombre)\b/.test(t)) mode='cambiar';
+    if(/\bpausar(los|las|les)?\b|\b(pendientes?|para|sin|falta\w*|toca\w*|hay que|tengo que)( de)? (poner (en )?)?pausa\b|\bponer(los|las|les)? (en )?pausa\b|\bdar(les)? (la )?pausa\b/.test(t)) mode='pausa';
     if(/\bdar(los|las)? de baja\b|\bbajas?\b|\bdar baja\b/.test(t)) mode='baja';
+    if(/\b(pendientes?|sin|por|falta\w*|queda\w*)( de)? instal\w*|\bno (estan |esta )?instalad[oa]s?\b/.test(t)) mode='instalar';
     var count = /\bcuant[oa]s\b|\bnumero de\b|\btotal de\b|\bcuenta(me)? cuantos\b/.test(t);
 
     // documento / cuenta / telefono
@@ -176,8 +197,18 @@
     if(telM && !ibanFull && !ibanEnd) tel = telM[0];
 
     // modos especiales: rango por meses atras
-    if(mode){
-      var back = mode==='cambiar'?3:6;
+    if(mode==='pausa' || mode==='baja'){
+      var backM = mode==='pausa'?3:6;
+      var refD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if(range && range.m!=null && !(range.m===now.getMonth() && range.y===now.getFullYear())) refD = new Date(range.y, range.m+1, 0); // hasta final de ese mes
+      var tY = refD.getFullYear(), tM = refD.getMonth()-backM; while(tM<0){ tM+=12; tY--; }
+      var tD = Math.min(refD.getDate(), new Date(tY, tM+1, 0).getDate());
+      var hastaD = new Date(tY, tM, tD, 23,59,59,999);
+      var minK = 0; contratos().forEach(function(it){ var k=ts(it['14']); if(k && (!minK || k<minK)) minK=k; });
+      range = { from: minK ? new Date(minK) : d0(2000,0,1), to: hastaD, label: 'hasta el '+fmtD(hastaD) };
+    }
+    else if(mode==='cambiar'){
+      var back = 3;
       var baseM = now.getMonth(), baseY=now.getFullYear();
       var targetTxt = 'este mes';
       if(range && range.m!=null){ baseM = range.m; baseY = range.y; if(!(range.m===now.getMonth() && range.y===now.getFullYear())) targetTxt = 'en '+MESES[range.m]; } // mes en el que toca cambiar / dar de baja
@@ -195,7 +226,8 @@
     var base = contratos().slice();
     if(range){ var f=range.from.getTime(), to=range.to.getTime(); base = base.filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to; }); }
     if(comps.length){ var cs=comps.map(function(c){ return c.toUpperCase().trim(); }); base = base.filter(function(it){ return cs.indexOf(String(it['2']||'').toUpperCase().trim())>=0; }); }
-    if(mode){ base = base.filter(function(it){ var s=String(it['44']||''); return s.indexOf('❌')<0 && s.indexOf('⏸')<0; }); }
+    if(mode){ base = base.filter(function(it){ return modoOK(it, mode); }); }
+    var doblePausa = (mode==='baja') ? base.filter(function(it){ return esDoblePausa(it); }).length : 0;
     if(dniM){ var dn=dniM[1]; base = base.filter(function(it){ return alnum(it['20'])===dn; }); }
     if(ibanFull){ base = base.filter(function(it){ var a=alnum(it['24']); return a && (a===ibanFull || a.indexOf(ibanFull)>=0 || digits(a).indexOf(digits(ibanFull))>=0); }); }
     if(ibanEnd){ base = base.filter(function(it){ var a=digits(it['24']); return a && a.slice(-ibanEnd.length)===ibanEnd; }); }
@@ -221,7 +253,9 @@
     var d=[];
     if(comps.length) d.push('de '+comps.map(compName).join(' y '));
     if(mode==='cambiar') d.push('para cambiar '+range.target+' (solicitados en '+range.label+')');
-    else if(mode==='baja') d.push('para dar de baja '+range.target+' (solicitados en '+range.label+')');
+    else if(mode==='baja') d.push('pendientes de dar de baja hasta la fecha (solicitados '+range.label+')');
+    else if(mode==='pausa') d.push('pendientes de pausar hasta la fecha (solicitados '+range.label+')');
+    else if(mode==='instalar'){ d.push('pendientes de instalar'); if(range) d.push(range.label); }
     else if(range) d.push(range.label);
     if(nameUsed) d.push('de '+titleCase(nameUsed));
     if(dniM) d.push('del documento '+dniM[1]);
@@ -248,6 +282,11 @@
     if(count){
       var D = desc ? cap(desc) : 'Ahora mismo';
       return { say: fill(pick('cuantos',CUANTOS),{n:numU(n),c:cword,d:desc||'en total',D:D}) };
+    }
+    if(mode==='baja' && doblePausa){
+      B._bajaAsk = { list: base, range: range, t: Date.now() };
+      var preg = fill(pick('bajaQ',['Estos son los contratos pendientes de dar de baja hasta la fecha: {n} {c}. De ellos, {k} siguen pausados por segunda vez. ¿Quieres que los quite de la lista?','Te enseño los pendientes de dar de baja hasta hoy: {n} {c}. Hay {k} que aún están pausados por segunda vez, ¿los quito de la pantalla?','Pendientes de baja hasta la fecha: {n} {c}. Ojo, {k} están todavía en segunda pausa. ¿Quieres que no te los muestre?']),{n:numU(n),c:cword,k:numU(doblePausa)});
+      return { say: preg, buttons:[{t:'✅ Sí',v:'baja2P:si'},{t:'❌ No',v:'baja2P:no'}] };
     }
     if(!desc) return { say: pick('todos',['Aquí tienes todos los contratos.','Te enseño todos los contratos.','Listo, todos los contratos a la vista.']) };
     return { say: fill(pick('aqui',AQUI),{n:numU(n),N:(n===1?'Un':n),c:cword,d:desc}) };
@@ -295,7 +334,8 @@
     var now = new Date();
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
-    if(B._fichFlow && B._fichFlow(fold(raw), done)) return;   // fichaje manual (Jorge / Maicol)
+    if(B._fichFlow && B._fichFlow(fold(raw), done)) return;
+    if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
     if(!t){ return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
     var greet = isGreeting(t) || /^lucas$/.test(t);
@@ -331,7 +371,7 @@
       if(doc ? alnum(it['20'])!==doc : fold(it['21'])!==fold(c.nombre)) return false;
       if(lc.range){ var k=ts(it['14']); if(!k||k<lc.range.from.getTime()||k>lc.range.to.getTime()) return false; }
       if(lc.comps && lc.comps.length && lc.comps.map(function(x){return x.toUpperCase().trim();}).indexOf(String(it['2']||'').toUpperCase().trim())<0) return false;
-      if(lc.mode){ var s=String(it['44']||''); if(s.indexOf('❌')>=0||s.indexOf('⏸')>=0) return false; }
+      if(lc.mode && !modoOK(it, lc.mode)) return false;
       return true;
     });
     render(list, lc.range);
@@ -651,6 +691,7 @@
   // botones del chat
   B.pick = function(v, done){
     v = String(v||'');
+    if(v.indexOf('baja2P:')===0) return B._baja2P(v.slice(7)==='si', done);
     if(v==='refreshB') return B._refreshB(done);
     if(v==='refreshC') return B._refreshC(done);
     if(v==='fichOK'){ if(B.fichPending()) return B._fichAnswer(done); return done({ say: pick('fpas',['Ese aviso ya ha caducado, pero no pasa nada: el próximo te llegará a su hora.','Ya no hay ningún fichaje esperando confirmación ahora mismo.']) }); }
