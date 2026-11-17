@@ -1090,7 +1090,9 @@ var lastPicks = {};
   function recListar(done){
     recCargar(function(l){
       if(l==null) return done({ say:'No he podido leer los recordatorios ahora mismo.' });
-      var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000; }).sort(function(a,b){ return a.cuando-b.cuando; });
+      // con la semilla de Manu se ven los de todos; si no, solo los de las personas con semilla en este ordenador
+      var yo=misPersonas(), todos=yo.indexOf('Manu')>=0;
+      var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000 && (todos || (r.personas||[]).some(function(p){ return yo.indexOf(p)>=0; })); }).sort(function(a,b){ return a.cuando-b.cuando; });
       if(!fut.length) return done({ say: pick('recL0',['No hay ningún recordatorio pendiente.','No tienes recordatorios apuntados.','Nada apuntado por ahora.']) });
       var txt=fut.slice(0,8).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'» ('+listaTxt(r.personas)+')'; }).join('\n');
       done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+'\nSi quieres borrar alguno, púlsalo:', buttons: fut.slice(0,8).map(function(r){ return { t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }; }) });
