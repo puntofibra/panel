@@ -1708,7 +1708,7 @@ var lastPicks = {};
     try{ if(typeof hayFiltro==='function' && hayFiltro()) return true; }catch(e){}
     return false;
   }
-  B._filtroAviso = function(){
+  B._filtroAviso = function(){ return;   // ya no avisa de filtros activos (lo indica el botón LIMPIAR FILTROS)
     if(filtroT) clearTimeout(filtroT);
     filtroT = setTimeout(function(){
       filtroT = null;
@@ -1878,6 +1878,13 @@ var lastPicks = {};
   var FIA=false;
   function filtroIA(on){ FIA=!!on; pintarBtnIA(); }
   B._setFiltroIA = filtroIA;
+  // cualquier filtro puesto (por Lucas o a mano): buscador, compañía, fechas, iconos o tabla recortada
+  function hayAlgunFiltro(){
+    try{ var q=document.getElementById('q'), cf=document.getElementById('companyFilter'), df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo');
+      if((q && q.value.trim()) || (cf && cf.value) || (df && df.value) || (dt && dt.value)) return true; }catch(e){}
+    try{ if(document.querySelector('.searchHead .active')) return true; }catch(e){}
+    return filtroActivo();
+  }
   function pintarBtnIA(){
     try{
       var b=document.getElementById('btnLimpiarIA');
@@ -1889,16 +1896,18 @@ var lastPicks = {};
             '#btnLimpiarIA.iaOn{color:#04140a!important;background:#17ff5f!important;border-color:#17ff5f!important;cursor:pointer;animation:iaBlink 1.1s ease-in-out infinite}'+
             '@keyframes iaBlink{0%,100%{box-shadow:0 0 6px rgba(23,255,95,.5);filter:brightness(1)}50%{box-shadow:0 0 22px rgba(23,255,95,1),0 0 42px rgba(23,255,95,.55);filter:brightness(1.15)}}';
           document.head.appendChild(st); }
-        b=document.createElement('button'); b.id='btnLimpiarIA'; b.type='button'; b.className=lim.className; b.textContent='LIMPIAR IA';
-        b.title='Quitar los filtros que ha puesto el asistente Lucas';
-        b.onclick=function(){ if(!FIA) return; try{ clearSearch(); }catch(e){} filtroIA(false); };
+        b=document.createElement('button'); b.id='btnLimpiarIA'; b.type='button'; b.className=lim.className; b.textContent='LIMPIAR FILTROS';
+        b.title='Quitar todos los filtros de la tabla';
+        b.onclick=function(){ if(b.disabled) return; try{ clearSearch(); }catch(e){} filtroIA(false); };
         lim.parentNode.insertBefore(b, lim.nextSibling);
+        lim.style.display='none';                                   // el LIMPIAR antiguo ya no hace falta
         // si tocas tú los filtros a mano, el filtro de Lucas deja de estar activo
-        ['q','companyFilter','dateFrom','dateTo'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.addEventListener('input', function(){ filtroIA(false); }); el.addEventListener('change', function(){ filtroIA(false); }); } });
+        ['q','companyFilter','dateFrom','dateTo'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.addEventListener('input', function(){ setTimeout(pintarBtnIA, 300); }); el.addEventListener('change', function(){ setTimeout(pintarBtnIA, 300); }); } });
       }
       if(typeof window.clearSearch==='function' && !window.clearSearch.__ia){ var cs=window.clearSearch; window.clearSearch=function(){ var r=cs.apply(this, arguments); FIA=false; pintarBtnIA(); return r; }; window.clearSearch.__ia=true; }
-      b.classList.toggle('iaOn', FIA); b.disabled=!FIA;
+      var act = FIA || hayAlgunFiltro();
+      b.classList.toggle('iaOn', act); b.disabled=!act;
     }catch(e){}
   }
-  setTimeout(pintarBtnIA, 1000); setInterval(pintarBtnIA, 1500);
+  setTimeout(pintarBtnIA, 1000); setInterval(pintarBtnIA, 800);
 })();
