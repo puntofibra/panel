@@ -924,7 +924,7 @@ var lastPicks = {};
   setInterval(vigilaContratos, 30000);
 
   /* =====================================================================
-     FILTRO ACTIVO: 15 s después de que Lucas filtre, si sigue el filtro, pregunta si lo limpia
+     FILTRO ACTIVO: 2 minutos después de que Lucas filtre, si sigue el filtro, pregunta si lo limpia
      ===================================================================== */
   var filtroT = null;
   function filtroActivo(){
@@ -938,7 +938,7 @@ var lastPicks = {};
       filtroT = null;
       if(!filtroActivo()) return;
       B.duckSay(pick('filtQ',['Tienes un filtro activado. ¿Limpiamos los filtros?','Ojo, sigue puesto un filtro. ¿Lo quito?','Hay un filtro activo en la tabla. ¿Limpiamos los filtros?','Todavía tienes la tabla filtrada. ¿Quitamos el filtro?']), [{ t:'✅ Sí', v:'clearF:si' },{ t:'❌ No', v:'clearF:no' }]);
-    }, 15000);
+    }, 120000);   // 2 minutos
   };
   B._clearF = function(si, done){
     if(!si) return done({ say: pick('filtN',['Vale, lo dejo como está.','Perfecto, el filtro se queda.','De acuerdo, no toco nada.']) });
