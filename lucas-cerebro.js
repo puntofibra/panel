@@ -105,7 +105,7 @@
   }
 
   // ---------- vocabulario ----------
-  var STOP = ('pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
+  var STOP = ('vip vips ciclo pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
     'necesito mira mirame consulta busqueda encuentra encuentrame nombre nombres llamado llamada llama persona personas gente hola buenas buenos noches tardes dias gracias anterior actual va como quien donde cuando hacia trimestre primer segundo tercer cuarto').split(' ');
   var STOPSET={}; STOP.forEach(function(w){ STOPSET[w]=1; }); MESES.concat(['setiembre']).forEach(function(w){ STOPSET[w]=1; }); Object.keys(NUM).forEach(function(w){ STOPSET[w]=1; });
 
@@ -175,6 +175,11 @@
 
   // ---------- motor de contratos ----------
   function contratoQuery(t, raw, now, ctx){
+    // ciclo (ID 29): se quita del texto para que el número no se lea como fecha
+    var ciclo = null;
+    var cM = t.match(/\bciclo (de )?(\d{1,2}|uno|veinte)\b/);
+    if(cM){ ciclo = cM[2]==='uno' ? '1' : (cM[2]==='veinte' ? '20' : String(parseInt(cM[2],10))); t = t.replace(cM[0],' ').replace(/\s+/g,' ').trim(); }
+    var vip = /\bvips?\b/.test(t);
     var range = parseDates(t, now);
     var comps = findCompanies(t);
     var mode = null;   // 'cambiar' | 'pausa' | 'baja' | 'instalar'
@@ -227,6 +232,13 @@
     if(range){ var f=range.from.getTime(), to=range.to.getTime(); base = base.filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to; }); }
     if(comps.length){ var cs=comps.map(function(c){ return c.toUpperCase().trim(); }); base = base.filter(function(it){ return cs.indexOf(String(it['2']||'').toUpperCase().trim())>=0; }); }
     if(mode){ base = base.filter(function(it){ return modoOK(it, mode); }); }
+    if(vip){
+      base = base.filter(function(it){ return String(it['50']||'').trim()==='1'; });
+      var best={}, ordenV=[];
+      base.forEach(function(it){ var doc=alnum(it['20']); var key=doc||('__'+fold(it['21'])+'_'+Math.random()); var k=ts(it['14']); if(!best[key]){ best[key]=it; ordenV.push(key); } else if(k>=ts(best[key]['14'])) best[key]=it; });
+      base = ordenV.map(function(k){ return best[k]; });
+    }
+    if(ciclo){ base = base.filter(function(it){ return String(it['29']==null?'':it['29']).trim()===ciclo; }); }
     var doblePausa = (mode==='baja') ? base.filter(function(it){ return esDoblePausa(it); }).length : 0;
     if(dniM){ var dn=dniM[1]; base = base.filter(function(it){ return alnum(it['20'])===dn; }); }
     if(ibanFull){ base = base.filter(function(it){ var a=alnum(it['24']); return a && (a===ibanFull || a.indexOf(ibanFull)>=0 || digits(a).indexOf(digits(ibanFull))>=0); }); }
@@ -240,7 +252,7 @@
       else {
         // ¿quizá alguna palabra si es nombre?
         var some = base.filter(function(it){ var n=fold(it['21']); return nameTokens.some(function(tk){ return (' '+n+' ').indexOf(' '+tk)>=0; }); });
-        var hasOther = range||comps.length||mode||dniM||ibanFull||ibanEnd||tel;
+        var hasOther = range||comps.length||mode||vip||ciclo||dniM||ibanFull||ibanEnd||tel;
         if(!hasOther && !ctx.contractWords){
           return { notUnderstood:true };
         }
@@ -257,6 +269,8 @@
     else if(mode==='pausa') d.push('pendientes de pausar hasta la fecha (solicitados '+range.label+')');
     else if(mode==='instalar'){ d.push('pendientes de instalar'); if(range) d.push(range.label); }
     else if(range) d.push(range.label);
+    if(vip) d.push('de clientes VIP'+(ciclo?' de ciclo '+ciclo:''));
+    else if(ciclo) d.push('de ciclo '+ciclo);
     if(nameUsed) d.push('de '+titleCase(nameUsed));
     if(dniM) d.push('del documento '+dniM[1]);
     if(ibanFull) d.push('con ese número de cuenta');
@@ -282,6 +296,12 @@
     if(count){
       var D = desc ? cap(desc) : 'Ahora mismo';
       return { say: fill(pick('cuantos',CUANTOS),{n:numU(n),c:cword,d:desc||'en total',D:D}) };
+    }
+    if(vip && !count){
+      var dv = ciclo ? ' de ciclo '+ciclo : '';
+      if(!n){ render(base, range); return { say: fill(pick('vip0',['No tienes ningún cliente VIP{d}.','No me sale ningún VIP{d}.','Cero clientes VIP{d}, por ahora.']),{d:dv}) }; }
+      render(base, range);
+      return { say: fill(pick('vipL',['Aquí tienes tus {n} clientes VIP{d}, con su contrato más reciente.','Te enseño {n} clientes VIP{d}: uno por cliente, el último que hicieron.','Listo: {n} VIP{d}, un contrato por documento, el más nuevo.','Ahí van tus {n} clientes VIP{d}, solo el contrato más reciente de cada uno.']),{n:numU(n),d:dv}) };
     }
     if(mode==='baja' && doblePausa){
       B._bajaAsk = { list: base, range: range, t: Date.now() };
