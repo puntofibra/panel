@@ -531,7 +531,7 @@
     try{
       var now=new Date(), dow=now.getDay();
       if(dow===0 || dow===6) return;
-      if(B.semilla && B.semilla('fichaje')) return;   // semilla: en este ordenador no se ficha
+      if(!(B.semilla && B.semilla('fichajeSeb'))) return;   // solo pregunta a Sebastián en el ordenador que tenga la semilla «FICHAJE DE SEBASTIÁN»
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
       var mins=now.getHours()*60+now.getMinutes(), st=loadF();
       FICH.forEach(function(f){
