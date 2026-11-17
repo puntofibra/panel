@@ -1300,6 +1300,102 @@ var lastPicks = {};
     });
   }
 
+  /* =====================================================================
+     PLAN B: IA LOCAL (Transformers.js, gratis, dentro del navegador)
+     Solo entra cuando las reglas no entienden la frase: busca a qué
+     pregunta conocida se parece más y la responde como esa.
+     ===================================================================== */
+  var IA = { st:'off', ex:null, vecs:null, idx:null, p:null };
+  var IA_LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.1';
+  var IA_MODELO = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+  var IA_INTENTS = [
+    { id:'contar', q:'cuantos contratos hay', ctx:true, def:'este mes', ej:[
+      'cuántas ventas hemos hecho','qué tal fueron las altas','cuántos clientes nuevos han entrado','número de contratos firmados',
+      'cuánto hemos vendido','cuántos papeles se han hecho','cuántas líneas se han vendido','cuántas altas llevamos',
+      'cuántos contratos se han hecho','cuántas operaciones hemos cerrado','qué cantidad de contratos tenemos' ]},
+    { id:'resumen', q:'como vamos', ctx:true, def:'este mes', ej:[
+      'cómo va la cosa','qué tal vamos','cómo pinta el mes','dame un resumen','cómo andamos de ventas',
+      'cómo va el negocio','qué tal va todo','hazme un balance','cómo está yendo el mes','ponme al día' ]},
+    { id:'comparar', q:'este mes llevo mas que el pasado', ej:[
+      'vamos mejor o peor que el mes pasado','hemos mejorado respecto al mes anterior','comparado con el mes pasado cómo vamos',
+      'estamos vendiendo más que antes','superamos al mes pasado','hemos bajado respecto al mes anterior' ]},
+    { id:'ranking', q:'que compania vende mas', ctx:true, ej:[
+      'qué operadora funciona mejor','con quién vendemos más','cuál es la compañía top','qué marca vende más',
+      'qué compañía va primera','con qué operador hacemos más contratos','la compañía que más contratos tiene' ]},
+    { id:'mejordia', q:'que dia se hicieron mas contratos', ctx:true, ej:[
+      'cuál fue el día más fuerte','qué día vendimos más','el día récord de ventas','qué jornada fue la mejor','cuándo hicimos más contratos' ]},
+    { id:'bajas', q:'muestrame los contratos para dar de baja', ej:[
+      'qué líneas hay que quitar','qué clientes tengo que dar de baja','cancelaciones pendientes','qué contratos hay que cancelar',
+      'líneas para eliminar','qué hay que dar de baja' ]},
+    { id:'pausar', q:'muestrame los contratos para pausar', ej:[
+      'qué líneas hay que parar','qué tengo que congelar','líneas para dejar en pausa','qué contratos hay que suspender','qué hay que pausar' ]},
+    { id:'instalar', q:'contratos pendientes de instalar', ej:[
+      'qué falta por instalar','instalaciones pendientes','a quién no le han puesto aún la fibra','qué clientes esperan al técnico',
+      'qué está sin instalar','fibras sin montar todavía' ]},
+    { id:'recordatorios', q:'que recordatorios tengo', ej:[
+      'tengo algo apuntado','qué avisos tengo pendientes','qué tengo agendado','tengo alguna cita pendiente','qué tenía que hacer' ]},
+    { id:'fichajes', fn:function(t){ return 'quien ha fichado '+(/\bayer\b/.test(t)?'ayer':'hoy'); }, ej:[
+      'quién ha venido hoy a trabajar','ha llegado ya todo el mundo','quién está en la oficina','quién ha marcado la entrada',
+      'quién ha empezado a trabajar hoy','vino alguien ayer a trabajar' ]},
+    { id:'ayuda', q:'ayuda', ej:[
+      'qué sabes hacer','en qué me puedes ayudar','qué cosas puedo preguntarte','para qué sirves','qué funciones tienes','no sé qué preguntarte' ]},
+    { id:'limpiar', q:'quita los filtros', ej:[
+      'enséñame todo otra vez','deja la tabla como estaba','resetea la tabla','quiero ver todos los contratos sin filtrar','borra la búsqueda' ]},
+    { id:'borradores', q:'borradores', ej:[
+      'contratos a medio hacer','los que están sin terminar','contratos sin acabar','los que se quedaron a medias' ]},
+    { id:'grafica', q:'grafica de contratos', ctx:true, def:'de los ultimos 6 meses', ej:[
+      'enséñame un dibujo de las ventas','quiero verlo en barras','píntame la evolución de los contratos','hazme un diagrama de ventas','quiero ver un gráfico' ]},
+    { id:'fibra', q:'contratos con fibra', ctx:true, def:'este mes', ej:[
+      'los que llevan internet de casa','los que tienen router','clientes con internet en casa','contratos con conexión de casa' ]}
+  ];
+  function iaImport(u){ return (new Function('u','return import(u)'))(u); }
+  function iaCargar(){
+    if(IA.p) return IA.p;
+    if(typeof WebAssembly!=='object') return Promise.reject(new Error('sin wasm'));
+    IA.st='cargando';
+    IA.p = iaImport(IA_LIB).then(function(T){
+      try{ T.env.allowLocalModels=false; }catch(e){}
+      return T.pipeline('feature-extraction', IA_MODELO, { dtype:'q8' });
+    }).then(function(ex){
+      IA.ex=ex; var frases=[], idx=[];
+      IA_INTENTS.forEach(function(it,i){ it.ej.forEach(function(f){ frases.push(f); idx.push(i); }); });
+      return ex(frases, { pooling:'mean', normalize:true }).then(function(o){ IA.vecs=o.tolist(); IA.idx=idx; IA.st='lista'; console.log('[Lucas IA] lista ('+frases.length+' ejemplos)'); });
+    }).catch(function(e){ IA.st='error'; IA.p=null; console.warn('[Lucas IA] no se ha podido cargar', e); throw e; });
+    return IA.p;
+  }
+  B._ia = IA; B._iaCargar = iaCargar;
+  // la descarga empieza sola un rato después de abrir el panel (la primera vez ~118 MB; luego queda guardado en el PC)
+  setTimeout(function(){ try{ iaCargar().catch(function(){}); }catch(e){} }, 15000);
+  function iaDot(a,b){ var s=0; for(var i=0;i<a.length;i++) s+=a[i]*b[i]; return s; }
+  function iaAlt(it, t, now){
+    if(it.fn) return it.fn(t);
+    if(!it.ctx) return it.q;
+    var hayF=false, hayC=false; try{ hayF=!!parseDates(t, now); }catch(e){} try{ hayC=findCompanies(t).length>0; }catch(e){}
+    return (it.q+' '+(hayF||hayC ? t : '')+' '+(hayF ? '' : (it.def||''))).replace(/\s+/g,' ').trim();
+  }
+  var handleCore = null;
+  function iaPlanB(t, raw, now, done){
+    var no=function(){ done({ say: pick('noentiendo',NO_ENTIENDO) }); };
+    if(B._iaRetry || !handleCore || IA.st==='error' && IA.p===null && B._iaFallos>2) return no();
+    var fin=false, timer=setTimeout(function(){ if(!fin){ fin=true; no(); } }, IA.st==='lista' ? 5000 : 30000);
+    iaCargar().then(function(){ return IA.ex([String(raw||t)], { pooling:'mean', normalize:true }); }).then(function(o){
+      if(fin) return; fin=true; clearTimeout(timer);
+      var v=o.tolist()[0], best={};
+      IA.vecs.forEach(function(e,j){ var s=iaDot(v,e), i=IA.idx[j]; if(best[i]==null || s>best[i]) best[i]=s; });
+      var orden=Object.keys(best).sort(function(a,b){ return best[b]-best[a]; });
+      var i1=+orden[0], s1=best[orden[0]], s2=orden.length>1 ? best[orden[1]] : 0;
+      console.log('[Lucas IA]', JSON.stringify(raw), '→', IA_INTENTS[i1].id, s1.toFixed(2), '(2º '+(orden[1]!=null?IA_INTENTS[+orden[1]].id:'-')+' '+s2.toFixed(2)+')');
+      if(s1 < 0.55 || s1-s2 < 0.03) return no();
+      var alt=iaAlt(IA_INTENTS[i1], t, now);
+      B._iaRetry=true; var lim=setTimeout(function(){ B._iaRetry=false; }, 20000);
+      handleCore(alt, function(r){
+        B._iaRetry=false; clearTimeout(lim);
+        if(r && r.say && !r.notUnderstood) r.say = pick('iaP',['🧠 Creo que te refieres a esto: ','🧠 Si te he entendido bien: ','🧠 Entiendo que me preguntas esto: ']) + r.say;
+        done(r);
+      });
+    }).catch(function(){ B._iaFallos=(B._iaFallos||0)+1; if(!fin){ fin=true; clearTimeout(timer); no(); } });
+  }
+
   // ---------- entrada principal ----------
   B.handle = function(raw, done){
     var now = new Date();
@@ -1340,12 +1436,13 @@ var lastPicks = {};
       if(!r.notUnderstood && (r.say || r.clients)){ B._ctx = { t: rest||t, at: Date.now() }; guardarHist(rest||t); }   // memoria para «¿y en noviembre?» y «vuelve atrás»
       if(r.notUnderstood){
         if(greet) return done({ say: B.greetReply(t, now) });
-        return done({ say: pick('noentiendo',NO_ENTIENDO) });
+        return iaPlanB(rest||t, raw, now, done);
       }
       if(greet && r.say){ var gp=B.greetPrefix(t, now); r.say = gp+(/[!.]$/.test(gp)?' ':'. ')+r.say; }
       done(r);
     });
   };
+  handleCore = B.handle;
 
   // accesos rápidos de «ayuda» (añadir aquí más botones: t = texto del botón, v = 'q:' + la frase que entiende Lucas)
   B.AYUDA_BTNS = [
@@ -2089,4 +2186,38 @@ var lastPicks = {};
     }catch(e){}
   }
   setTimeout(pintarBtnIA, 1000); setInterval(pintarBtnIA, 800);
+
+  /* =====================================================================
+     DICTADO POR VOZ: el botón 🎤 del chat escucha y envía la pregunta.
+     Si el navegador no deja usar el micro, explica cómo dictar con Windows + H.
+     ===================================================================== */
+  (function(){
+    var REC = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var rec=null, oyendo=false, final='';
+    function aviso(txt){ try{ if(typeof window.addMsg==='function') return window.addMsg(txt,'ia'); }catch(e){} try{ var box=document.getElementById('iaChatMsgs'); if(!box) return; var d=document.createElement('div'); d.style.cssText='margin:6px 0;padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #eee;max-width:85%'; d.textContent=txt; box.appendChild(d); box.scrollTop=box.scrollHeight; }catch(e){} }
+    function planB(){ aviso('No he podido usar el micrófono aquí. Para dictar, pulsa Windows + H (o el micrófono del teclado si estás en el móvil) y habla dentro de la caja de texto.'); }
+    function pinta(b, on){ b.textContent = on ? '⏺' : '🎤'; b.style.background = on ? '#e53935' : '#eee'; b.style.color = on ? '#fff' : ''; b.style.animation = on ? 'lucasMicPulso 1s infinite' : ''; b.title = on ? 'Escuchando… pulsa para parar' : 'Hablar con Lucas'; }
+    function montar(){
+      var old=document.getElementById('iaChatMic'), input=document.getElementById('iaChatInput'), send=document.getElementById('iaChatSend');
+      if(!old || !input || old.getAttribute('data-voz')) return !!(old && old.getAttribute('data-voz'));
+      if(!document.getElementById('lucasMicCss')){ var st=document.createElement('style'); st.id='lucasMicCss'; st.textContent='@keyframes lucasMicPulso{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,.6)}50%{box-shadow:0 0 0 6px rgba(229,57,53,0)}}'; document.head.appendChild(st); }
+      var b=old.cloneNode(true); b.setAttribute('data-voz','1'); old.parentNode.replaceChild(b, old); pinta(b,false);
+      b.addEventListener('click', function(){
+        if(!REC) return planB();
+        if(oyendo){ try{ rec.stop(); }catch(e){} return; }
+        try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+        rec=new REC(); rec.lang='es-ES'; rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=1;
+        final=''; var antes=input.value, fallo=false;
+        rec.onstart=function(){ oyendo=true; pinta(b,true); input.placeholder='Te escucho…'; };
+        rec.onresult=function(ev){ var tmp=''; for(var i=ev.resultIndex;i<ev.results.length;i++){ var tx=ev.results[i][0].transcript; if(ev.results[i].isFinal) final+=tx; else tmp+=tx; } input.value=(final+tmp).trim(); };
+        rec.onerror=function(ev){ fallo=true; var e=ev && ev.error; if(e==='not-allowed' || e==='service-not-allowed' || e==='audio-capture') planB(); else if(e==='no-speech') aviso('No te he oído. Pulsa 🎤 y habla cuando se ponga en rojo.'); else if(e!=='aborted') aviso('El dictado ha fallado ('+e+'). Prueba otra vez.'); };
+        rec.onend=function(){ oyendo=false; pinta(b,false); input.placeholder='Escribe tu pregunta...'; var t=final.trim();
+          if(t){ input.value=t; try{ if(send) send.click(); else input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',keyCode:13,which:13,bubbles:true})); }catch(e){} }
+          else if(!fallo){ input.value=antes; } };
+        try{ rec.start(); }catch(e){ planB(); }
+      });
+      return true;
+    }
+    var n=0, iv=setInterval(function(){ if(montar() || ++n>120) clearInterval(iv); }, 1000);
+  })();
 })();
