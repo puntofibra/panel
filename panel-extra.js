@@ -25,7 +25,12 @@
   // Comandos que hacen cosas (de momento ninguno). Formato: ['NOMBRE','DESCRIPCIÓN', function(arg){...}]
   var testTimer = null;
   var COMANDOS = [
-    ['TEST', 'PRUEBA EL AVISO DE CONTRATOS PENDIENTES DENTRO DE 60 SEGUNDOS', function(arg, say){
+    ['TEST', 'MUESTRA TODAS LAS PRUEBAS DISPONIBLES', function(arg, say){
+      say('>> PRUEBAS DISPONIBLES 🧪', 'g big', 20);
+      COMANDOS.filter(function(c){ return /^TEST\d+$/.test(c[0]); }).sort(function(x,y){ return x[0]<y[0]?-1:1; }).forEach(function(c){ say('   ' + c[0] + '  -  ' + c[1], 'y', 0, true); });
+      say('   TODAS SE LANZAN 1 MINUTO DESPUÉS Y NO GUARDAN NADA.', 'd', 0, true);
+    }],
+    ['TEST5', 'PRUEBA EL AVISO DE CONTRATOS PENDIENTES EN 1 MINUTO', function(arg, say){
       clearTimeout(testTimer);
       var at = new Date(Date.now() + 60000), p = function(n){ return ('0'+n).slice(-2); };
       say('>> TEST PROGRAMADO ⏱️', 'g big', 22);
@@ -33,8 +38,126 @@
       say('   LA MÚSICA DE YOUTUBE / SPOTIFY BAJARÁ 2 s ANTES Y SUBIRÁ 2 s DESPUÉS.', 'd', 0, true);
       tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
       testTimer = setTimeout(function(){ if(window.LucasBrain && window.LucasBrain.remind) window.LucasBrain.remind(true); }, 60000);
-    }]
+    }],
+    ['TEST1', 'PRUEBA EL FICHAJE DE ENTRADA DE LA MAÑANA (10:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('M-E', 'ENTRADA DE LA MAÑANA', say); }],
+    ['TEST2', 'PRUEBA EL FICHAJE DE SALIDA DE LA MAÑANA (13:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('M-S', 'SALIDA DE LA MAÑANA', say); }],
+    ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
+    ['TEST4', 'PRUEBA EL FICHAJE DE SALIDA DE LA TARDE (19:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-S', 'SALIDA DE LA TARDE', say); }],
+    ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS DE SEBASTIÁN', function(a, say){ fichMenu(say); }],
+    ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }]
   ];
+  // ---------- SEMILLAS: marcas guardadas solo en este ordenador ----------
+  var SEMILLAS = [
+    ['fichaje', 'SIN FICHAJES', 'LUCAS NO PREGUNTA A SEBASTIÁN POR SU ENTRADA NI SU SALIDA EN ESTE ORDENADOR'],
+    ['avisos',  'SIN AVISOS DE PENDIENTES', 'LUCAS NO RECUERDA LOS CONTRATOS PENDIENTES EN ESTE ORDENADOR']
+  ];
+  function semOn(k){ try{ return localStorage.getItem('pfSemilla_' + k) === '1'; }catch(e){ return false; } }
+  function semSet(k, on){ try{ if(on) localStorage.setItem('pfSemilla_' + k, '1'); else localStorage.removeItem('pfSemilla_' + k); }catch(e){} }
+  var semModo = null;
+  function semMenu(say){
+    CON.ask = 'sem1';
+    say('>> GESTOR DE SEMILLAS 🌱', 'g big', 20);
+    say('   LAS SEMILLAS SOLO AFECTAN A ESTE ORDENADOR. ESTADO ACTUAL:', 'w', 10);
+    SEMILLAS.forEach(function(sm){ say('   ' + (semOn(sm[0]) ? '[✔] ' : '[ ] ') + sm[1] + '  -  ' + sm[2], semOn(sm[0]) ? 'g' : 'd', 0, true); });
+    say('', '', 0, true);
+    say('   ¿QUÉ QUIERES HACER?', 'w', 12);
+    say('   1 - INSTALAR UNA SEMILLA', 'y', 0, true);
+    say('   2 - BORRAR UNA SEMILLA', 'y', 0, true);
+    say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
+  }
+  function semPaso2(n){
+    if(n !== 1 && n !== 2){ say('OPCIÓN NO VÁLIDA · ESCRIBE 1 O 2.', 'r', 12); errTone(); CON.ask = 'sem1'; return; }
+    semModo = n === 1 ? 'instalar' : 'borrar'; CON.ask = 'sem2';
+    say('>> ¿QUÉ SEMILLA QUIERES ' + (n === 1 ? 'INSTALAR' : 'BORRAR') + '?', 'g', 16);
+    SEMILLAS.forEach(function(sm, i){ say('   ' + (i+1) + ' - ' + sm[1] + (semOn(sm[0]) ? '   (INSTALADA)' : ''), 'y', 0, true); });
+    say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
+  }
+  function semPaso3(n){
+    var sm = SEMILLAS[n-1]; if(!sm){ say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL ' + SEMILLAS.length + '.', 'r', 12); errTone(); CON.ask = 'sem2'; return; }
+    var inst = semModo === 'instalar';
+    if(inst === semOn(sm[0])){ say('   ESA SEMILLA YA ESTABA ' + (inst ? 'INSTALADA' : 'BORRADA') + ' EN ESTE ORDENADOR.', 'y', 10); return; }
+    say(inst ? 'SEMBRANDO "' + sm[1] + '"…' : 'ARRANCANDO "' + sm[1] + '"…', 'd', 14);
+    [20, 55, 85, 100].forEach(function(pc){ say('[' + '█'.repeat(pc/5) + ' '.repeat(20 - pc/5) + '] ' + pc + '%', pc === 100 ? 'g' : '', 0, true); });
+    semSet(sm[0], inst);
+    say(inst ? '>> SEMILLA INSTALADA 🌱' : '>> SEMILLA BORRADA 🗑️', inst ? 'g big' : 'r big', 22);
+    say('   ' + (inst ? sm[2] + '.' : 'ESTE ORDENADOR VUELVE A FUNCIONAR CON NORMALIDAD PARA "' + sm[1] + '".'), '', 10);
+    tone(inst ? 900 : 1400, inst ? 1600 : 700, 0.25, 'square', 0.05);
+  }
+  var fichTimers = {};
+  function fichTest(id, nombre, say){
+    clearTimeout(fichTimers[id]);
+    var at = new Date(Date.now() + 60000), p = function(n){ return ('0'+n).slice(-2); };
+    say('>> PRUEBA DE FICHAJE · ' + nombre + ' ⏱️', 'g big', 22);
+    say('   LUCAS PREGUNTARÁ A LAS ' + p(at.getHours()) + ':' + p(at.getMinutes()) + ':' + p(at.getSeconds()) + '. CONTESTA POR EL CHAT DEL ASISTENTE.', '', 10);
+    say('   ES UNA PRUEBA: LA RESPUESTA NO SE GUARDA EN EL REGISTRO.', 'd', 0, true);
+    tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+    fichTimers[id] = setTimeout(function(){ if(window.LucasBrain && window.LucasBrain.fichTest) window.LucasBrain.fichTest(id); }, 60000);
+  }
+  var FICH_OPC = [null, 'HOY', 'AYER', 'ÚLTIMOS 7 DÍAS', 'MES ACTUAL', 'MES PASADO', 'ÚLTIMOS 3 MESES', 'ESTE AÑO', 'AÑO PASADO'];
+  function fichMenu(say){
+    CON.ask = 'fich';
+    say('>> REGISTRO DE FICHAJES · SEBASTIÁN', 'g big', 20);
+    say('   ¿QUÉ PERIODO QUIERES CONSULTAR?', 'w', 12);
+    for(var i=1;i<FICH_OPC.length;i++) say('   ' + i + ' - ' + FICH_OPC[i], 'y', 0, true);
+    say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
+  }
+  function d0(y,m,d){ return new Date(y,m,d); }
+  function isoD(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function fichRango(n){
+    var t = new Date(), y = t.getFullYear(), m = t.getMonth(), d = t.getDate(), hoy = d0(y,m,d);
+    switch(n){
+      case 1: return [hoy, hoy];
+      case 2: return [d0(y,m,d-1), d0(y,m,d-1)];
+      case 3: return [d0(y,m,d-6), hoy];
+      case 4: return [d0(y,m,1), hoy];
+      case 5: return [d0(y,m-1,1), d0(y,m,0)];
+      case 6: return [d0(y,m-2,1), hoy];
+      case 7: return [d0(y,0,1), hoy];
+      case 8: return [d0(y-1,0,1), d0(y-1,11,31)];
+    }
+    return null;
+  }
+  var DIAS3 = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+  var TURNOS = [ ['MAÑANA','ENTRADA','10:30'], ['MAÑANA','SALIDA','13:28'], ['TARDE','ENTRADA','17:30'], ['TARDE','SALIDA','19:28'] ];
+  function minsOf(h){ var p = String(h||'').split(':'); return (+p[0])*60 + (+p[1]||0); }
+  function fichListar(n){
+    var r = fichRango(n); if(!r){ say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 8.', 'r', 12); errTone(); CON.ask = 'fich'; return; }
+    say('>> ' + FICH_OPC[n] + ' · CONSULTANDO EL REGISTRO…', 'g', 16);
+    var fin = function(items, err){
+      if(err){ say('ERROR AL LEER EL REGISTRO: ' + err, 'r', 10); errTone(); return; }
+      var map = {}; (items||[]).forEach(function(x){ map[x.fecha+'|'+x.turno+'|'+x.tipo] = x.hora; });
+      var now = new Date(), nowM = now.getHours()*60 + now.getMinutes(), hoyIso = isoD(now);
+      var ok = 0, falta = 0, tarde = 0, dias = 0, p2 = function(v){ return ('0'+v).slice(-2); };
+      for(var d = new Date(r[1]); d >= r[0]; d.setDate(d.getDate()-1)){
+        var dow = d.getDay(); if(dow === 0 || dow === 6) continue;
+        var fi = isoD(d), fTxt = DIAS3[dow] + ' ' + p2(d.getDate()) + '/' + p2(d.getMonth()+1) + '/' + d.getFullYear();
+        dias++;
+        say('', '', 0, true);
+        TURNOS.forEach(function(t){
+          var h = map[fi+'|'+t[0]+'|'+t[1]];
+          var etq = (t[1] === 'ENTRADA' ? 'ENTRADA ' : 'SALIDA  ') + (t[0] === 'MAÑANA' ? 'MAÑANA' : 'TARDE ');
+          if(h){
+            ok++;
+            var extra = '';
+            if(t[1] === 'ENTRADA'){ var dif = minsOf(h) - minsOf(t[2]); if(dif > 5){ tarde++; extra = '   ⚠ +' + dif + ' MIN'; } }
+            say(fTxt + '  ·  ' + etq + '  ·  ' + h + extra, extra ? 'y' : 'g', 0, true);
+          } else if(fi === hoyIso && nowM < minsOf(t[2]) + 60){
+            say(fTxt + '  ·  ' + etq + '  ·  — PENDIENTE', 'd', 0, true);
+          } else { falta++; say(fTxt + '  ·  ' + etq + '  ·  ✖ NO HA FICHADO', 'r', 0, true); }
+        });
+      }
+      say('', '', 0, true);
+      if(!dias){ say('NO HAY DÍAS LABORABLES EN ESTE PERIODO.', 'd', 0, true); return; }
+      say('------------------------------------------', 'd', 0, true);
+      say('RESUMEN · ' + dias + ' ' + (dias === 1 ? 'DÍA LABORABLE' : 'DÍAS LABORABLES') + ' · ' + ok + ' ' + (ok === 1 ? 'FICHAJE' : 'FICHAJES') + ' · ' + falta + ' SIN FICHAR' + (tarde ? ' · ' + tarde + (tarde === 1 ? ' ENTRADA CON RETRASO' : ' ENTRADAS CON RETRASO') : ''), 'w', 0, true);
+      tone(1500, 2200, 0.12, 'square', 0.04);
+    };
+    try{
+      google.script.run.withSuccessHandler(function(res){ if(res && res.ok) fin(res.items); else fin(null, (res && res.error) || 'sin respuesta'); })
+        .withFailureHandler(function(e){ fin(null, (e && e.message) || String(e)); })
+        .apiFichajeLucasLista(isoD(r[0]), isoD(r[1]));
+    }catch(e){ fin(null, e.message); }
+  }
 
   var st = document.createElement('style');
   st.textContent =
@@ -132,6 +255,9 @@
     if(conLine){ var cu = conLine.querySelector('.cur'); if(cu) cu.remove(); var tx = conLine.querySelector('#pfconTx'); if(tx){ tx.textContent = raw.toUpperCase(); tx.removeAttribute('id'); } }
     conIn.value = ''; CON.busy = true; conScroll(true);
     if(!cmd){ say('', '', 0, true); return; }
+    if(CON.ask === 'fich'){ CON.ask = null; if(/^[1-8]$/.test(cmd)){ fichListar(+cmd); return; } }
+    if(CON.ask === 'sem1'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso2(+cmd); return; } }
+    if(CON.ask === 'sem2'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso3(+cmd); return; } }
     if(cmd === 'LIST' || cmd === 'LISTA' || cmd === 'HELP' || cmd === 'AYUDA'){
       say('>> LISTA DE COMANDOS', 'g big', 20);
       if(!COMANDOS.length){ say('   (VACÍA) · TODAVÍA NO HAY COMANDOS INSTALADOS EN ESTE SISTEMA.', 'd', 0, true); }

@@ -12,6 +12,7 @@
   function cap(s){ s=String(s||''); return s.charAt(0).toUpperCase()+s.slice(1); }
   function titleCase(s){ return String(s||'').toLowerCase().replace(/(^|\s)(\S)/g,function(m,a,b){ return a+b.toUpperCase(); }); }
   function plural(n,uno,varios){ return n===1?uno:varios; }
+  function numU(n){ return n===1?'un':String(n); }     // «un contrato», nunca «1 contrato» ni «uno contratos»
   function compName(c){ c=String(c||'').trim(); return c.length<=3 ? c.toUpperCase() : titleCase(c); }
 
   var MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -127,7 +128,7 @@
   var NO_ENTIENDO=[ 'Mmm, esa no la he pillado. ¿Me lo dices de otra forma?', 'Perdona, no he entendido la pregunta. Prueba con algo como «contratos de enero».', 'Ups, eso todavía no lo sé hacer. ¿Lo reformulas?', 'No estoy seguro de qué me pides. Puedo buscar contratos por fechas, clientes, cuentas o compañías.', 'Esa se me escapa. Dímelo con otras palabras y lo intento.', 'Me he quedado pensando… y no lo entiendo. ¿Me das una pista?', 'Todavía estoy aprendiendo y esa no me la sé. Escribe «ayuda» y te digo lo que sé hacer.', 'No te he entendido bien. ¿Quieres que busque contratos, clientes o borradores?' ];
   var AQUI=[ 'Aquí tienes {n} {c} {d}.', 'Listo: {n} {c} {d}.', 'He encontrado {n} {c} {d}.', 'Ahí tienes: {n} {c} {d}.', 'Te muestro {n} {c} {d}.', 'Hecho. {N} {c} {d}.' ];
   var NADA=[ 'No he encontrado ningún contrato {d}.', 'No hay contratos {d}.', 'Nada por aquí: cero contratos {d}.', 'He buscado bien y no aparece ningún contrato {d}.' ];
-  var CUANTOS=[ 'Llevas {n} {c} {d}.', 'En total hay {n} {c} {d}.', 'Tengo contados {n} {c} {d}.', 'La cuenta sale así: {n} {c} {d}.', 'He contado {n} {c} {d}.' ];
+  var CUANTOS=[ 'Llevas {n} {c} {d}.', 'En total hay {n} {c} {d}.', 'Te cuento: {n} {c} {d}.', 'La cuenta sale así: {n} {c} {d}.', 'He contado {n} {c} {d}.' ];
 
   // ---------- mostrar en la tabla ----------
   function ensureContratos(cb){
@@ -246,10 +247,10 @@
     render(base, range);
     if(count){
       var D = desc ? cap(desc) : 'Ahora mismo';
-      return { say: fill(pick('cuantos',CUANTOS),{n:n,c:cword,d:desc||'en total',D:D}) };
+      return { say: fill(pick('cuantos',CUANTOS),{n:numU(n),c:cword,d:desc||'en total',D:D}) };
     }
     if(!desc) return { say: pick('todos',['Aquí tienes todos los contratos.','Te enseño todos los contratos.','Listo, todos los contratos a la vista.']) };
-    return { say: fill(pick('aqui',AQUI),{n:n,N:n,c:cword,d:desc}) };
+    return { say: fill(pick('aqui',AQUI),{n:numU(n),N:(n===1?'Un':n),c:cword,d:desc}) };
   }
 
   // ---------- borradores ----------
@@ -259,8 +260,9 @@
     var p=blinkCount();
     var fin=function(total){
       var txt;
-      if(total==null) txt = fill(pick('bp',['Para hoy te quedan {p} borradores pendientes de hacer.','Hoy tienes {p} pendientes por hacer.']),{p:p});
-      else txt = fill(pick('bt',['Tienes {t} borradores en total, y para hoy te quedan pendientes {p}.','Hay {t} borradores en total. De esos, {p} son para hoy.','En borradores tienes {t}. Ojo, que para hoy te quedan {p} por hacer.','{t} borradores en total; los urgentes de hoy son {p}.']),{t:total,p:p});
+      var hoyTxt = p===0 ? pick('b0',['y para hoy no te queda ninguno pendiente','y hoy ya no tienes ninguno pendiente']) : (p===1 ? pick('b1',['y para hoy te queda uno pendiente','y hoy solo te queda uno por hacer']) : fill(pick('bn',['y para hoy te quedan {p} pendientes','y hoy te quedan {p} por hacer']),{p:p}));
+      if(total==null) txt = p===0 ? 'Para hoy no te queda ningún borrador pendiente.' : (p===1 ? pick('bp1',['Para hoy te queda un borrador pendiente de hacer.','Hoy tienes uno pendiente por hacer.']) : fill(pick('bp',['Para hoy te quedan {p} borradores pendientes de hacer.','Hoy tienes {p} pendientes por hacer.']),{p:p}));
+      else { var tTxt = total===1 ? 'un borrador' : total+' borradores'; txt = fill(pick('bt',['Tienes {t} en total, {h}.','En borradores tienes {t}, {h}.','Hay {t} en total, {h}.']),{t:tTxt,h:hoyTxt}); }
       if(/\b(muestra|ensena|abre|ver|llevame|ir a|ve a)\w*/.test(t) && typeof goView==='function'){ try{ goView('borradores'); }catch(e){} }
       done({ say: txt });
     };
@@ -292,6 +294,7 @@
   B.handle = function(raw, done){
     var now = new Date();
     var t = fold(raw);
+    if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
     if(!t){ return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
     var greet = isGreeting(t) || /^lucas$/.test(t);
@@ -331,7 +334,7 @@
       return true;
     });
     render(list, lc.range);
-    done({ say: fill(pick('pickc',['Aquí tienes {todos}los contratos de {n}.','Perfecto, {n}: {k} {c}.','Te muestro los de {n}: {k} {c}.']),{n:titleCase(c.nombre), k:list.length, c:plural(list.length,'contrato','contratos'), todos: list.length>1?'todos ':''}) });
+    done({ say: fill(pick('pickc',['Aquí tienes {todos}los contratos de {n}.','Perfecto, {n}: {k} {c}.','Te muestro los de {n}: {k} {c}.']),{n:titleCase(c.nombre), k:numU(list.length), c:plural(list.length,'contrato','contratos'), todos: list.length>1?'todos ':''}) });
   };
 
   // ---------- recordatorio de pendientes ----------
@@ -341,7 +344,10 @@
   var REFUERZO = { '13:15':1, '19:15':1 };
   // avisa a la música de otras pestañas (YouTube/Spotify, con el script de Tampermonkey) para que baje mientras habla Lucas
   function duckPost(st){ var m={pfDuck:st, t:Date.now()}; try{ window.top.postMessage(m,'*'); }catch(e){} try{ if(window.parent && window.parent!==window.top) window.parent.postMessage(m,'*'); }catch(e){} }
-  B.duckSay = function(msg){
+  var sayQ=[], sayBusy=false;
+  B.duckSay = function(msg){ sayQ.push(msg); if(!sayBusy) nextSay(); };
+  function nextSay(){
+    var msg=sayQ.shift(); if(msg==null){ sayBusy=false; return; } sayBusy=true;
     duckPost('down');                                            // 2 s antes: la música empieza a bajar
     setTimeout(function(){
       // abre el asistente (aunque Lucas esté dormido) para que el aviso quede también por escrito, por si el sonido está apagado
@@ -352,7 +358,7 @@
         var ss=window.speechSynthesis, busy=!!(ss && (ss.speaking||ss.pending));
         if(busy) saw=true;
         var el=Date.now()-t0;
-        if((saw && !busy) || (!saw && el>6000) || el>60000){ clearInterval(iv); setTimeout(function(){ duckPost('up'); }, 2000); }   // 2 s después: vuelve a subir
+        if((saw && !busy) || (!saw && el>6000) || el>60000){ clearInterval(iv); setTimeout(function(){ duckPost('up'); setTimeout(nextSay, 1600); }, 2000); }   // 2 s después: vuelve a subir
       }, 200);
     }, 2000);
   };
@@ -360,11 +366,21 @@
   B.remind = function(force, slot){
     var now=new Date(), p=blinkCount();
     var at = slot ? (function(){ var hm=slot.split(':'); return new Date(now.getFullYear(),now.getMonth(),now.getDate(),+hm[0],+hm[1]); })() : now;
-    var o={h:horaTxt(at),p:p,c:plural(p,'contrato','contratos')}, msg;
+    var o={h:horaTxt(at),p:numU(p),c:plural(p,'contrato','contratos')}, msg;
     if(p<=0){
       if(!force) return;
       msg=fill(pick('remind0',['Prueba de aviso: son {h} y ahora mismo no te queda ningún contrato pendiente. ¡Todo al día!','Esto es una prueba. Son {h} y no hay contratos pendientes para hoy.']),o);
-    } else if(slot && REFUERZO[slot]) msg=fill(pick('remindR',[
+    } else if(p===1) msg=fill(pick(slot && REFUERZO[slot]?'remind1R':'remind1', slot && REFUERZO[slot] ? [
+        'Atención: son {h} y se acerca la hora de cerrar. Aún te queda un contrato pendiente por hacer.',
+        'Ojo, que son {h} y queda poco para cerrar. Tienes un contrato sin hacer todavía.',
+        'Son {h}. Antes de cerrar, recuerda que te queda un contrato por hacer.'
+      ] : [
+        'Recuerda que son {h} y aún te queda un contrato pendiente por hacer.',
+        'Aviso: son {h}. Todavía tienes un contrato pendiente para hoy.',
+        'Son {h}. Solo te queda un contrato por hacer, ¡vamos!',
+        'Un recordatorio rápido: {h}, y queda un contrato pendiente.'
+      ]),o);
+    else if(slot && REFUERZO[slot]) msg=fill(pick('remindR',[
         'Atención: son {h} y se acerca la hora de cerrar. Aún te quedan {p} {c} pendientes por hacer.',
         'Ojo, que son {h} y queda poco para cerrar. Tienes {p} {c} sin hacer todavía.',
         'Último empujón: son {h}, casi la hora de cerrar, y quedan {p} {c} pendientes.',
@@ -378,6 +394,8 @@
       ]),o);
     B.duckSay(msg);
   };
+  function semilla(k){ try{ return localStorage.getItem('pfSemilla_'+k)==='1'; }catch(e){ return false; } }   // marcas de la consola (SEMILLA), solo en este ordenador
+  B.semilla = semilla;
   var lastSlot='';
   setInterval(function(){
     try{
@@ -390,7 +408,121 @@
       if(key===lastSlot) return;
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
       lastSlot=key;
+      if(semilla('avisos')) return;            // semilla: en este ordenador no se avisa
       B.remind(false, slot);
     }catch(e){}
   }, 15000);
+
+  /* =====================================================================
+     FICHAJE DE SEBASTIÁN POR EL CHAT (lunes a viernes)
+     ===================================================================== */
+  var EMPLEADO = 'Sebastián';
+  var FICH = [
+    { id:'M-E', turno:'MAÑANA', tipo:'ENTRADA', at:'10:30', every:2, max:30, saludo:'Buenos días' },   // cada 2 min durante 1 hora
+    { id:'M-S', turno:'MAÑANA', tipo:'SALIDA',  at:'13:28', every:5, max:5,  saludo:'Buenas tardes' },
+    { id:'T-E', turno:'TARDE',  tipo:'ENTRADA', at:'17:30', every:2, max:30, saludo:'Buenas tardes' },
+    { id:'T-S', turno:'TARDE',  tipo:'SALIDA',  at:'19:28', every:5, max:10, saludo:'Buenas noches' }
+  ];
+  B.FICH = FICH;
+  function fichById(id){ for(var i=0;i<FICH.length;i++) if(FICH[i].id===id) return FICH[i]; return null; }
+  function hhmm(d){ return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+  function fKey(d){ return iso(d); }
+  function loadF(){ try{ var o=JSON.parse(localStorage.getItem('lucasFich')||'{}'); if(o.date!==fKey(new Date())) o={date:fKey(new Date()), s:{}}; o.s=o.s||{}; return o; }catch(e){ return {date:fKey(new Date()), s:{}}; } }
+  function saveF(o){ try{ localStorage.setItem('lucasFich', JSON.stringify(o)); }catch(e){} }
+  var pendingF = null;   // {id, test, until}
+  B.fichPending = function(){ return pendingF && Date.now() < pendingF.until ? pendingF : null; };
+
+  function fichAskText(f, n, test){
+    var tipoTxt = f.tipo==='ENTRADA' ? 'entrada' : 'salida';
+    var first = [
+      '{s}, {e}. Necesito que me confirmes que ya estás en tu puesto de trabajo. Contéstame por este chat y guardaré tu respuesta como hora de entrada.',
+      '{s}, {e}. ¿Ya estás en tu puesto? Respóndeme aquí, en el chat, y apunto tu hora de entrada.',
+      '{s}, {e}. Toca fichar la entrada: escríbeme cualquier cosa por este chat y quedará registrada.'
+    ];
+    var firstS = [
+      '{s}, {e}. Es la hora de salida del turno de {t}. Contéstame por este chat y guardaré tu respuesta como hora de salida.',
+      '{s}, {e}. Antes de irte, confírmame la salida: respóndeme aquí y la registro.',
+      '{s}, {e}. Toca fichar la salida del turno de {t}: escríbeme por este chat y la dejo guardada.'
+    ];
+    var again = [
+      '{e}, sigo esperando tu confirmación de {x}. Contéstame por el chat, por favor.',
+      '{e}, ¿estás por ahí? Necesito que me respondas para registrar tu {x}.',
+      'Recordatorio para {e}: todavía no me has confirmado la {x}. Escríbeme por este chat.',
+      '{e}, solo tienes que contestarme aquí para que quede registrada tu {x}.'
+    ];
+    var o = {s:f.saludo, e:EMPLEADO, t:f.turno.toLowerCase(), x:tipoTxt+(f.turno==='MAÑANA'?' de la mañana':' de la tarde')};
+    var txt = n<=1 ? fill(pick('fa'+f.tipo, f.tipo==='ENTRADA'?first:firstS), o) : fill(pick('fr', again), o);
+    return test ? '(Prueba) ' + txt : txt;
+  }
+  function fichAsk(f, n, test){
+    var win = f.every * 60000 + 30000;       // margen para contestar hasta el siguiente aviso
+    var until = test ? Date.now() + 10*60000 : Date.now() + win;
+    if(!test && n>=f.max) until = Date.now() + f.every*60000;   // el último aviso deja contestar un rato
+    pendingF = { id:f.id, test:!!test, until:until };
+    B.duckSay(fichAskText(f, n, test));
+  }
+  // la respuesta del empleado por el chat
+  function fichAnswer(done){
+    var pf = pendingF, f = fichById(pf.id), now = new Date(), h = hhmm(now);
+    pendingF = null;
+    var tipoTxt = f.tipo==='ENTRADA' ? 'entrada' : 'salida', turnoTxt = f.turno==='MAÑANA' ? 'de la mañana' : 'de la tarde';
+    var okMsgs = f.tipo==='ENTRADA' ? [
+      'Perfecto, {e}. He registrado tu entrada {t} a las {h}. ¡Que tengas un buen turno!',
+      'Anotado: entrada {t} a las {h}. ¡A por el día, {e}!',
+      'Listo, {e}. Entrada {t} registrada a las {h}. Mucho ánimo.'
+    ] : [
+      'Perfecto, {e}. He registrado tu salida {t} a las {h}. ¡Buen descanso!',
+      'Anotado: salida {t} a las {h}. ¡Gracias por el trabajo de hoy, {e}!',
+      'Listo, {e}. Salida {t} registrada a las {h}. ¡Hasta luego!'
+    ];
+    var o = {e:EMPLEADO, t:turnoTxt, h:h};
+    if(pf.test){ done({ say: fill(pick('fok'+f.tipo, okMsgs), o) + ' (Era una prueba: no se ha guardado.)' }); return; }
+    var st = loadF(); st.s[f.id] = st.s[f.id] || {}; st.s[f.id].done = h; saveF(st);
+    try{
+      google.script.run
+        .withSuccessHandler(function(r){
+          if(r && r.dup) done({ say: fill('Ya tenía registrada tu {x} {t} a las {h0}, {e}. La dejo como estaba.', {x:tipoTxt, t:turnoTxt, h0:r.hora, e:EMPLEADO}) });
+          else if(r && r.ok) done({ say: fill(pick('fok'+f.tipo, okMsgs), o) });
+          else { st.s[f.id].done = null; saveF(st); pendingF = pf; pendingF.until = Date.now()+5*60000; done({ say: 'Uy, no he podido guardar el fichaje ('+((r&&r.error)||'error')+'). Contéstame otra vez en un momento, por favor.' }); }
+        })
+        .withFailureHandler(function(e){ st.s[f.id].done = null; saveF(st); pendingF = pf; pendingF.until = Date.now()+5*60000; done({ say: 'Uy, no he podido guardar el fichaje. Revisa la conexión y contéstame otra vez, por favor.' }); })
+        .apiFichajeLucasGuardar(iso(now), f.turno, f.tipo, h, EMPLEADO);
+    }catch(e){ done({ say: 'No he podido guardar el fichaje ahora mismo.' }); }
+  }
+  B._fichAnswer = fichAnswer;
+
+  // reloj del fichaje (también despierta a Lucas: abre el chat)
+  setInterval(function(){
+    try{
+      var now=new Date(), dow=now.getDay();
+      if(dow===0 || dow===6) return;
+      if(B.semilla && B.semilla('fichaje')) return;   // semilla: en este ordenador no se ficha
+      var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+      var mins=now.getHours()*60+now.getMinutes(), st=loadF();
+      FICH.forEach(function(f){
+        var hm=f.at.split(':'), s0=(+hm[0])*60+(+hm[1]);
+        var lastAsk = s0 + (f.max-1)*f.every;
+        if(mins < s0 || mins > lastAsk + 1) return;
+        var r = st.s[f.id] = st.s[f.id] || {n:0, last:0};
+        if(r.done) return;
+        if(r.checking && Date.now() - r.checking < 30000) return;
+        if(r.n >= f.max) return;
+        if(r.last && Date.now() - r.last < f.every*60000 - 5000) return;
+        if(pendingF && pendingF.id!==f.id && Date.now() < pendingF.until) return;
+        r.checking = Date.now(); saveF(st);
+        var go = function(already){
+          var st2 = loadF(); var r2 = st2.s[f.id] = st2.s[f.id] || {n:0,last:0}; r2.checking = false;
+          if(already){ r2.done = already; saveF(st2); return; }   // ya fichó (quizá desde otro ordenador)
+          r2.n = (r2.n||0) + 1; r2.last = Date.now(); saveF(st2);
+          fichAsk(f, r2.n, false);
+        };
+        try{
+          google.script.run.withSuccessHandler(function(res){ var h=null; (res&&res.items||[]).forEach(function(x){ if(x.turno===f.turno && x.tipo===f.tipo) h=x.hora; }); go(h); })
+            .withFailureHandler(function(){ go(null); }).apiFichajeLucasDia(iso(now));
+        }catch(e){ go(null); }
+      });
+    }catch(e){}
+  }, 15000);
+  // pruebas desde la consola (no se guardan)
+  B.fichTest = function(id){ var f=fichById(id); if(f) fichAsk(f, 1, true); };
 })();
