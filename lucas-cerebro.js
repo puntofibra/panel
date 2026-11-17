@@ -1374,26 +1374,40 @@ var lastPicks = {};
     return (it.q+' '+(hayF||hayC ? t : '')+' '+(hayF ? '' : (it.def||''))).replace(/\s+/g,' ').trim();
   }
   var handleCore = null;
-  function iaPlanB(t, raw, now, done){
-    var no=function(){ done({ say: pick('noentiendo',NO_ENTIENDO) }); };
-    if(B._iaRetry || !handleCore || IA.st==='error' && IA.p===null && B._iaFallos>2) return no();
-    var fin=false, timer=setTimeout(function(){ if(!fin){ fin=true; no(); } }, IA.st==='lista' ? 5000 : 30000);
-    iaCargar().then(function(){ return IA.ex([String(raw||t)], { pooling:'mean', normalize:true }); }).then(function(o){
+  // busca la pregunta conocida más parecida; cb(null) si no hay ninguna clara
+  function iaMatch(txt, espera, cb){
+    if(!handleCore || B._iaRetry) return cb(null);
+    if(IA.st!=='lista' && !espera){ try{ iaCargar().catch(function(){}); }catch(e){} return cb(null); }
+    var fin=false, timer=setTimeout(function(){ if(!fin){ fin=true; cb(null); } }, IA.st==='lista' ? 4000 : 30000);
+    iaCargar().then(function(){ return IA.ex([String(txt)], { pooling:'mean', normalize:true }); }).then(function(o){
       if(fin) return; fin=true; clearTimeout(timer);
       var v=o.tolist()[0], best={};
       IA.vecs.forEach(function(e,j){ var s=iaDot(v,e), i=IA.idx[j]; if(best[i]==null || s>best[i]) best[i]=s; });
       var orden=Object.keys(best).sort(function(a,b){ return best[b]-best[a]; });
       var i1=+orden[0], s1=best[orden[0]], s2=orden.length>1 ? best[orden[1]] : 0;
-      console.log('[Lucas IA]', JSON.stringify(raw), '→', IA_INTENTS[i1].id, s1.toFixed(2), '(2º '+(orden[1]!=null?IA_INTENTS[+orden[1]].id:'-')+' '+s2.toFixed(2)+')');
-      if(s1 < 0.55 || s1-s2 < 0.03) return no();
-      var alt=iaAlt(IA_INTENTS[i1], t, now);
-      B._iaRetry=true; var lim=setTimeout(function(){ B._iaRetry=false; }, 20000);
-      handleCore(alt, function(r){
-        B._iaRetry=false; clearTimeout(lim);
-        if(r && r.say && !r.notUnderstood) r.say = pick('iaP',['🧠 Creo que te refieres a esto: ','🧠 Si te he entendido bien: ','🧠 Entiendo que me preguntas esto: ']) + r.say;
-        done(r);
-      });
-    }).catch(function(){ B._iaFallos=(B._iaFallos||0)+1; if(!fin){ fin=true; clearTimeout(timer); no(); } });
+      console.log('[Lucas IA]', JSON.stringify(String(txt)), '→', IA_INTENTS[i1].id, s1.toFixed(2), '(2º '+(orden[1]!=null?IA_INTENTS[+orden[1]].id:'-')+' '+s2.toFixed(2)+')');
+      if(s1 < 0.55 || s1-s2 < 0.03) return cb(null);
+      cb({ it:IA_INTENTS[i1], s:s1 });
+    }).catch(function(){ if(!fin){ fin=true; clearTimeout(timer); cb(null); } });
+  }
+  function iaResponder(m, t, now, done){
+    var alt=iaAlt(m.it, t, now);
+    B._iaRetry=true; var lim=setTimeout(function(){ B._iaRetry=false; }, 20000);
+    handleCore(alt, function(r){
+      B._iaRetry=false; clearTimeout(lim);
+      if(r && r.say && !r.notUnderstood) r.say = pick('iaP',['🧠 Creo que te refieres a esto: ','🧠 Si te he entendido bien: ','🧠 Entiendo que me preguntas esto: ']) + r.say;
+      done(r);
+    });
+  }
+  // las reglas no la entienden: espera a la IA (aunque tenga que cargar)
+  function iaPlanB(t, raw, now, done){
+    iaMatch(raw||t, true, function(m){ if(!m) return done({ say: pick('noentiendo',NO_ENTIENDO) }); iaResponder(m, t, now, done); });
+  }
+  // las reglas sí responden, pero la frase no habla de contratos ni de compañías: si la IA ve claro que es otra cosa, manda ella
+  var IA_MANDA = { bajas:1, pausar:1, instalar:1, recordatorios:1, fichajes:1, ayuda:1, limpiar:1, borradores:1, comparar:1, ranking:1, mejordia:1 };
+  function iaAntes(t, raw, now, debil, seguir, done){
+    if(!debil || B._iaRetry) return seguir();
+    iaMatch(raw||t, false, function(m){ if(m && IA_MANDA[m.it.id] && m.s>=0.6) return iaResponder(m, t, now, done); seguir(); });
   }
 
   // ---------- entrada principal ----------
@@ -1431,7 +1445,8 @@ var lastPicks = {};
     var ctx = { contractWords: CONTRACT_WORDS.test(rest||t) };
     if(greet && !rest) return done({ say: B.greetReply(t, now) });
 
-    ensureContratos(function(){
+    var debil = !/\bcontratos?\b/.test(rest||t) && !hasComp;
+    ensureContratos(function(){ iaAntes(rest||t, raw, now, debil, function(){
       var r = contratoQuery(rest||t, raw, now, ctx);
       if(!r.notUnderstood && (r.say || r.clients)){ B._ctx = { t: rest||t, at: Date.now() }; guardarHist(rest||t); }   // memoria para «¿y en noviembre?» y «vuelve atrás»
       if(r.notUnderstood){
@@ -1440,7 +1455,7 @@ var lastPicks = {};
       }
       if(greet && r.say){ var gp=B.greetPrefix(t, now); r.say = gp+(/[!.]$/.test(gp)?' ':'. ')+r.say; }
       done(r);
-    });
+    }, done); });
   };
   handleCore = B.handle;
 
