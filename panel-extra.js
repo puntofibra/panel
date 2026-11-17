@@ -52,6 +52,7 @@
     ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
     ['TEST4', 'PRUEBA EL FICHAJE DE SALIDA DE LA TARDE (19:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-S', 'SALIDA DE LA TARDE', say); }],
     ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIAN, JORGE Y MAICOL)', function(a, say){ fichMenuEmp(say); }],
+    ['PASSWORD', 'MUESTRA EL QR DE GOOGLE AUTHENTICATOR PARA VINCULAR OTRO MÓVIL', function(a, say){ pwComando(say); }],
     ['PIN', 'EMPLEADOS CON PIN DEL ASISTENTE: VER Y EDITAR SU NOMBRE Y SU PIN', function(a, say){ pinMenu(say); }],
     ['RECHARGE', 'RECARGA EL SALDO DEL ASISTENTE LUCAS (SE SUMA AL QUE YA HAY)', function(a, say){ recPaso1(say); }],
     ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }],
@@ -130,6 +131,110 @@
       });
       row.appendChild(t); row.appendChild(b);
       CON.q.push({ node: row }); if(!CON.typing) conPump();
+    });
+  }
+  // ---------- ACCESO A LA CONSOLA CON GOOGLE AUTHENTICATOR ----------
+  function conOculta(){ return !CON.auth || CON.ask === 'pinNum' || CON.ask === 'pwQR'; }
+  CON.fails = 0; CON.lock = 0; CON.token = null;
+  function pick1(a){ return a[Math.floor(Math.random() * a.length)]; }
+  function conLoginInicio(){
+    say('', '', 0, true);
+    say('SISTEMA PROTEGIDO · SE REQUIERE AUTENTICACIÓN', 'y', 12);
+    CON.esperando = true;
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        if(r && r.ok && r.configurado){ CON.esperando = false; say('USUARIO: MANU', '', 0, true); say('INTRODUZCA SU PASSWORD (CÓDIGO DE GOOGLE AUTHENTICATOR) Y PULSE ENTER.', 'd', 0, true); return; }
+        say('>> PRIMER ARRANQUE DE SEGURIDAD 🔐', 'g big', 20);
+        say('   ESCANEA EL CÓDIGO QR CON GOOGLE AUTHENTICATOR PARA VINCULAR TU MÓVIL.', 'y', 10);
+        say('   DESPUÉS ESCRIBE AQUÍ EL CÓDIGO DE 6 CIFRAS QUE TE DÉ COMO PASSWORD.', 'y', 10);
+        pwPedirQR(null);
+      }).withFailureHandler(function(){ CON.esperando = false; say('ERROR DE CONEXIÓN CON EL SERVIDOR DE SEGURIDAD. CIERRA Y VUELVE A ABRIR LA CONSOLA.', 'r', 10); errTone(); }).apiConsolaTotpEstado();
+    }catch(e){ CON.esperando = false; say('ERROR DEL SISTEMA DE SEGURIDAD.', 'r', 10); errTone(); }
+  }
+  function conLogin(raw){
+    var code = String(raw || '').replace(/\D/g, '');
+    if(Date.now() < CON.lock){ say('SISTEMA BLOQUEADO · ESPERA ' + Math.ceil((CON.lock - Date.now()) / 1000) + ' SEGUNDOS ANTES DE VOLVER A INTENTARLO.', 'r', 10); errTone(); return; }
+    if(code.length !== 6){ conFallo(); return; }
+    CON.esperando = true; say('VERIFICANDO CREDENCIALES…', 'd', 14);
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        CON.esperando = false;
+        if(!r || !r.ok){ conFallo(); return; }
+        CON.auth = true; CON.token = r.token; CON.fails = 0;
+        say('>> ACCESO CONCEDIDO ✅', 'g big', 22);
+        if(r.nuevo) say('   MÓVIL VINCULADO CORRECTAMENTE CON GOOGLE AUTHENTICATOR.', 'g', 0, true);
+        say('   ' + pick1(['BIENVENIDO AL SISTEMA, MANU.', 'IDENTIDAD VERIFICADA. BIENVENIDO, MANU.', 'CREDENCIALES VÁLIDAS · CARGANDO ENTORNO DE USUARIO…', 'AUTENTICACIÓN COMPLETADA. HOLA, MANU.']), 'y', 10);
+        say('SESIÓN ABIERTA ' + hoy(), 'y', 0, true);
+        tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+      }).withFailureHandler(function(){ CON.esperando = false; say('ERROR DE CONEXIÓN AL VERIFICAR. PRUEBA OTRA VEZ.', 'r', 10); errTone(); }).apiConsolaTotpVerificar(code);
+    }catch(e){ say('ERROR DEL SISTEMA DE SEGURIDAD.', 'r', 10); errTone(); }
+  }
+  function conFallo(){
+    CON.fails++;
+    say(pick1(['ACCESO DENEGADO · PASSWORD INCORRECTO.', 'ERROR 0x00000005: CREDENCIALES NO VÁLIDAS.', 'AUTENTICACIÓN FALLIDA. INTÉNTELO DE NUEVO.', 'PASSWORD RECHAZADO · INTENTO REGISTRADO EN EL SISTEMA.', 'SYSTEM ERROR: TOKEN DE SEGURIDAD NO VÁLIDO.', 'ACCESS DENIED · LA CONTRASEÑA NO COINCIDE.']), 'r', 12);
+    errTone();
+    if(CON.fails >= 5){ CON.fails = 0; CON.lock = Date.now() + 30000; say('DEMASIADOS INTENTOS FALLIDOS · TERMINAL BLOQUEADO 30 SEGUNDOS.', 'r big', 16); }
+  }
+  // comando PASSWORD: QR para vincular otro móvil (pide un código si no hay sesión verificada)
+  function pwComando(say){
+    say('>> VINCULAR OTRO MÓVIL 📱', 'g big', 20);
+    if(CON.token){ pwPedirQR(CON.token); return; }
+    say('   POR SEGURIDAD, ESCRIBE UN CÓDIGO ACTUAL DE GOOGLE AUTHENTICATOR:', 'y', 10);
+    CON.ask = 'pwQR';
+  }
+  function pwVerificarYMostrar(raw){
+    var code = String(raw || '').replace(/\D/g, '');
+    if(code.length !== 6){ say('CÓDIGO NO VÁLIDO. VUELVE A ESCRIBIR PASSWORD PARA INTENTARLO.', 'r', 10); errTone(); return; }
+    CON.esperando = true; say('VERIFICANDO…', 'd', 14);
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        if(!r || !r.ok){ CON.esperando = false; say('CÓDIGO INCORRECTO · NO SE PUEDE MOSTRAR EL QR.', 'r', 10); errTone(); return; }
+        CON.token = r.token; pwPedirQR(CON.token);
+      }).withFailureHandler(function(){ CON.esperando = false; say('ERROR DE CONEXIÓN.', 'r', 10); errTone(); }).apiConsolaTotpVerificar(code);
+    }catch(e){ say('ERROR DEL SISTEMA.', 'r', 10); errTone(); }
+  }
+  function pwPedirQR(token){
+    CON.esperando = true;
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        CON.esperando = false;
+        if(!r || !r.ok){ say('NO SE HA PODIDO GENERAR EL QR' + (r && r.error ? ': ' + String(r.error).toUpperCase() : '') + '.', 'r', 10); errTone(); return; }
+        say('   QR ABIERTO EN PANTALLA · ESCANÉALO CON GOOGLE AUTHENTICATOR.', 'g', 0, true);
+        pwMostrarQR(r.otpauth, r.secret);
+      }).withFailureHandler(function(){ CON.esperando = false; say('ERROR DE CONEXIÓN AL GENERAR EL QR.', 'r', 10); errTone(); }).apiConsolaTotpQR(token || '');
+    }catch(e){ CON.esperando = false; say('ERROR DEL SISTEMA.', 'r', 10); errTone(); }
+  }
+  function pwCargarLib(cb){
+    if(window.QRCode) return cb(true);
+    var urls = ['https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js', 'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'];
+    var i = 0;
+    (function probar(){
+      if(i >= urls.length) return cb(false);
+      var sc = document.createElement('script'); sc.src = urls[i++];
+      sc.onload = function(){ if(window.QRCode) cb(true); else probar(); }; sc.onerror = probar; document.head.appendChild(sc);
+    })();
+  }
+  // QR nítido en una ventana blanca encima de todo (fuera del efecto de pantalla antigua de la consola)
+  function pwMostrarQR(otpauth, secret){
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72);padding:16px;';
+    var c = document.createElement('div');
+    c.style.cssText = 'background:#fff;color:#111;border-radius:18px;padding:22px 22px 16px;text-align:center;font-family:Arial,Helvetica,sans-serif;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5);';
+    c.innerHTML = '<div style="font-weight:800;font-size:17px;margin-bottom:4px">Google Authenticator</div><div style="font-size:13px;color:#555;margin-bottom:14px">Escanea este código con la app para vincular el móvil a la consola</div>';
+    var q = document.createElement('div'); q.style.cssText = 'display:inline-block;padding:12px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;line-height:0;';
+    c.appendChild(q);
+    var grp = String(secret || '').replace(/(.{4})/g, '$1 ').trim();
+    var info = document.createElement('div'); info.style.cssText = 'margin-top:12px;font-size:12px;color:#555;';
+    info.innerHTML = '¿No puedes escanearlo? Clave manual:<br><b style="font-family:monospace;font-size:14px;color:#111;letter-spacing:1px">' + grp + '</b>';
+    c.appendChild(info);
+    var ok = document.createElement('button'); ok.type = 'button'; ok.textContent = 'Cerrar';
+    ok.style.cssText = 'margin-top:16px;width:100%;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;background:#111;color:#fff;';
+    ok.onclick = function(){ try{ ov.remove(); }catch(e){} try{ conIn.focus(); }catch(e){} };
+    c.appendChild(ok); ov.appendChild(c); document.body.appendChild(ov);
+    ov.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+    pwCargarLib(function(okLib){
+      if(okLib){ try{ new window.QRCode(q, { text: otpauth, width: 260, height: 260, colorDark: '#000000', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M }); return; }catch(e){} }
+      q.style.lineHeight = '1.4'; q.innerHTML = '<div style="font-size:13px;color:#b91c1c;max-width:260px">No se ha podido dibujar el QR. Añade la cuenta en Google Authenticator con la clave manual de abajo.</div>';
     });
   }
   // ---------- PIN DE EMPLEADOS (los guarda el servidor cifrados; aquí solo se ven nombres) ----------
@@ -225,6 +330,7 @@
     ['borradores', 'SIN AVISOS DE BORRADORES NUEVOS', 'LUCAS NO AVISA DE BORRADORES NUEVOS SIN ACTUALIZAR EN ESTE ORDENADOR'],
     ['contratos', 'AVISOS DE CONTRATOS NUEVOS', 'LUCAS AVISA EN ESTE ORDENADOR CUANDO SE FINALIZA UN CONTRATO NUEVO (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
     ['doblePausa', 'AVISOS DE DOBLE PAUSA', 'LUCAS AVISA EN ESTE ORDENADOR CUANDO UN CONTRATO EN ⏸️⏸️ YA TOCA DARLO DE BAJA, Y LO RECUERDA CADA HORA (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
+    ['consolaSinPin', 'CONSOLA SIN PASSWORD', 'LA CONSOLA NO PIDE EL CÓDIGO DE GOOGLE AUTHENTICATOR EN ESTE ORDENADOR (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
     ['recManu', 'RECORDATORIOS DE MANU', 'LUCAS AVISA EN ESTE ORDENADOR DE LOS RECORDATORIOS DE MANU (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
     ['recSebastian', 'RECORDATORIOS DE SEBASTIÁN', 'LUCAS AVISA EN ESTE ORDENADOR DE LOS RECORDATORIOS DE SEBASTIÁN (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
     ['recJorge', 'RECORDATORIOS DE JORGE', 'LUCAS AVISA EN ESTE ORDENADOR DE LOS RECORDATORIOS DE JORGE (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
@@ -422,14 +528,14 @@
   conOut.addEventListener('wheel', function(){ conHold = performance.now() + 4000; }, { passive:true });
   function conPrompt(){
     conLine = document.createElement('div');
-    conLine.innerHTML = '<span class="g">C:\\' + CON.dir + '&gt;</span> <span class="w" id="pfconTx"></span><span class="cur">_</span>';
-    conOut.appendChild(conLine); CON.busy = false; $('pfconTx').textContent = conIn.value; conScroll();
+    conLine.innerHTML = (CON.auth ? '<span class="g">C:\\' + CON.dir + '&gt;</span>' : '<span class="y">PASSWORD:</span>') + ' <span class="w" id="pfconTx"></span><span class="cur">_</span>';
+    conOut.appendChild(conLine); CON.busy = false; $('pfconTx').textContent = conOculta() ? conIn.value.replace(/./g, '•') : conIn.value; conScroll();
     if(CON.pend.length) conRun(CON.pend.shift());
   }
   function say(txt, cls, speed, fast){ CON.q.push({ txt:txt, cls:cls||'', speed:speed==null?18:speed, fast:!!fast }); if(!CON.typing) conPump(); }
   function conPump(){
     var it = CON.q.shift();
-    if(!it){ CON.typing = false; CON.skip = false; if(CON.on && CON.busy) conPrompt(); return; }
+    if(!it){ CON.typing = false; CON.skip = false; if(CON.on && CON.busy && !CON.esperando) conPrompt(); return; }
     CON.typing = true;
     if(it.node){ conOut.appendChild(it.node); conScroll(); conTimer = setTimeout(conPump, 24); return; }
     var el = document.createElement('div'); if(it.cls) el.className = it.cls; conOut.appendChild(el);
@@ -453,6 +559,7 @@
   }
   function hoy(){ var d=new Date(), p=function(n){ return ('0'+n).slice(-2); }; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+'  '+p(d.getHours())+':'+p(d.getMinutes()); }
   function openConsole(){
+    CON.auth = semOn('consolaSinPin'); CON.ask = null; CON.esperando = false;
     audio(); CON.on = true; CON.dir = 'PANEL'; CON.q = []; CON.typing = false; CON.busy = true; CON.pend = []; conIn.value = ''; clearTimeout(conTimer); conOut.innerHTML = '';
     box.classList.remove('off'); box.classList.add('on', 'boot'); setTimeout(function(){ box.classList.remove('boot'); }, 800);
     try{ conIn.focus({ preventScroll:true }); }catch(e){}
@@ -466,7 +573,8 @@
       say('FIBRA ÓPTICA ........ 1 Gbps', '', 0, true);
       say('ENLACE 5G ........... CONECTADO', 'g', 0, true);
       say('', '', 0, true);
-      say('SESIÓN ABIERTA ' + hoy(), 'y', 0, true);
+      if(CON.auth){ say('SESIÓN ABIERTA ' + hoy(), 'y', 0, true); }
+      else conLoginInicio();
     }, 650);
   }
   function closeConsole(){
@@ -479,8 +587,10 @@
   function errTone(){ tone(140, 90, 0.3, 'square', 0.08); }
   function conRun(raw){
     var cmd = raw.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
-    if(conLine){ var cu = conLine.querySelector('.cur'); if(cu) cu.remove(); var tx = conLine.querySelector('#pfconTx'); if(tx){ tx.textContent = (CON.ask === 'pinNum' && raw.trim()) ? '••••' : raw.toUpperCase(); tx.removeAttribute('id'); } }
+    if(conLine){ var cu = conLine.querySelector('.cur'); if(cu) cu.remove(); var tx = conLine.querySelector('#pfconTx'); if(tx){ tx.textContent = (conOculta() && raw.trim()) ? raw.trim().replace(/./g, '•') : raw.toUpperCase(); tx.removeAttribute('id'); } }
     conIn.value = ''; CON.busy = true; conScroll(true);
+    if(!CON.auth){ conLogin(raw); return; }
+    if(CON.ask === 'pwQR'){ CON.ask = null; pwVerificarYMostrar(raw); return; }
     if(CON.ask === 'pinNom'){ CON.ask = null; pinPasoNom(raw); return; }
     if(CON.ask === 'pinNum'){ CON.ask = null; pinPasoNum(raw); return; }
     if(!cmd){ say('', '', 0, true); return; }
@@ -510,7 +620,7 @@
     for(var i=0;i<COMANDOS.length;i++){ var c = COMANDOS[i]; if(cmd === c[0] || cmd.indexOf(c[0]+' ')===0){ try{ c[2](cmd.slice(c[0].length).trim(), say); }catch(e){ say('ERROR · ' + e.message, 'r', 12); errTone(); } return; } }
     say('ERROR 0x' + rh(4) + ' · COMANDO "' + cmd.slice(0, 20) + '" NO RECONOCIDO', 'r', 12); errTone();
   }
-  conIn.addEventListener('input', function(){ conIn.value = conIn.value.toUpperCase().slice(0, 30); var tx = $('pfconTx'); if(tx && !CON.busy) tx.textContent = conIn.value; tone(2200, 2200, 0.01, 'square', 0.03); conScroll(); });
+  conIn.addEventListener('input', function(){ conIn.value = conIn.value.toUpperCase().slice(0, 30); var tx = $('pfconTx'); if(tx && !CON.busy) tx.textContent = conOculta() ? conIn.value.replace(/./g, '•') : conIn.value; tone(2200, 2200, 0.01, 'square', 0.03); conScroll(); });
   conIn.addEventListener('keydown', function(e){
     e.stopPropagation();
     if(e.key === ' ' && CON.typing){ e.preventDefault(); conTapSkip(); return; }

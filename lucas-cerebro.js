@@ -349,6 +349,7 @@ var lastPicks = {};
     var nc=findCompanies(n);
     if(nc.length){ findCompanies(L).forEach(function(oc){ var f=fold(oc); L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?=\\s)','g'),' ').trim(); }); Object.keys(COMP_ALIAS).forEach(function(a){ L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+a+'(?=\\s)','g'),' ').trim(); }); }
     if(/\bciclo\b/.test(n)) L=L.replace(/\bciclo (de )?(\d{1,2}|uno|veinte)\b/g,' ');
+    if(/\bfibras?\b/.test(n)) L=L.replace(/\b(?:solo |solamente )?(?:(?:los |las )?(?:que )?(?:no )?(?:tienen?|tengan?|llevan?|lleven?) |sin |con |de )?(?:la |los |las )?fibras?\b/g,' ').replace(/\s+/g,' ').trim();
     var nn=nombreTokens(n);
     if(nn.length){ var on=nombreTokens(L); on.forEach(function(w){ L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+w+'(?=\\s)','g'),' ').trim(); }); }
     return (L+' '+n).replace(/\s+/g,' ').trim();
@@ -503,13 +504,15 @@ var lastPicks = {};
     if(dobleP){ base = base.filter(function(it){ return esDoblePausa(it); }); }
     if(ciclo){ base = base.filter(function(it){ return String(it['29']==null?'':it['29']).trim()===ciclo; }); }
     // pausa / baja: preguntar si solo los que tienen fibra o todos
-    var fibChoice = B._fibChoice || (/\bfibras?\b/.test(t) ? 'fibra' : null); B._fibChoice = null;
+    var sinFib = /\b(sin|no tienen?|no tengan?|no llevan?|no lleven?|que no tienen?|que no tengan?|sin la|sin nada de) (la )?fibras?\b/.test(t);
+    var fibChoice = B._fibChoice || (sinFib ? 'sinfibra' : (/\bfibras?\b/.test(t) ? 'fibra' : null)); B._fibChoice = null;
     if((mode==='pausa' || mode==='baja') && !fibChoice){
       B._fibAsk = { t:t, raw:raw, at:Date.now() };
       var qq = mode==='pausa' ? 'pausar' : 'dar de baja';
       return { say: fill(pick('fibQ',['¿Quieres ver solo los que tienen fibra o todos los pendientes de {q}?','Antes de enseñártelos: ¿solo los que tienen fibra, o todos?','¿Te saco solo los contratos con fibra o todos los pendientes de {q}?','Una pregunta: ¿los que tienen fibra nada más, o todos?']),{q:qq}), buttons:[{t:'🛜 Solo con fibra', v:'fib:fibra'},{t:'📋 Todos', v:'fib:todos'}] };
     }
     if(fibChoice==='fibra' && mode!=='instalar') base = base.filter(tieneFibra);
+    else if(fibChoice==='sinfibra' && mode!=='instalar') base = base.filter(function(it){ return !tieneFibra(it); });
     var doblePausa = (mode==='baja') ? base.filter(function(it){ return esDoblePausa(it); }).length : 0;
     if(dniM){ var dn=dniM[1]; base = base.filter(function(it){ return alnum(it['20'])===dn; }); }
     if(ibanFull){ base = base.filter(function(it){ var a=alnum(it['24']); return a && (a===ibanFull || a.indexOf(ibanFull)>=0 || digits(a).indexOf(digits(ibanFull))>=0); }); }
@@ -542,6 +545,7 @@ var lastPicks = {};
     else if(range) d.push(range.label);
     if(dobleP) d.push('pausados por segunda vez');
     if(fibChoice==='fibra' && mode!=='instalar') d.push('con fibra');
+    else if(fibChoice==='sinfibra' && mode!=='instalar') d.push('sin fibra');
     if(vip) d.push('de clientes VIP'+(ciclo?' de ciclo '+ciclo:''));
     else if(ciclo) d.push('de ciclo '+ciclo);
     if(nameUsed) d.push('de '+titleCase(nameUsed));
@@ -795,7 +799,7 @@ var lastPicks = {};
       if(!r && /\b(por meses|cada mes|mes a mes|meses)\b/.test(t)){ r={from:d0(now.getFullYear(),now.getMonth()-5,1), to:new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999), label:'de los últimos 6 meses'}; }
       if(!r){ r=monthRange(now.getFullYear(), now.getMonth()); r.label='de este mes'; }
       var comps=findCompanies(t), col = inst ? '15' : '14', f=r.from.getTime(), to=r.to.getTime();
-      var l=contratos().filter(function(it){ var k=tsOK(it[col]); if(!k || k<f || k>to || !enMeses(k, r)) return false; if(comps.length && comps.map(function(c){ return c.toUpperCase().trim(); }).indexOf(String(it['2']||'').toUpperCase().trim())<0) return false; if(/\bfibras?\b/.test(t) && !tieneFibra(it)) return false; return true; });
+      var l=contratos().filter(function(it){ var k=tsOK(it[col]); if(!k || k<f || k>to || !enMeses(k, r)) return false; if(comps.length && comps.map(function(c){ return c.toUpperCase().trim(); }).indexOf(String(it['2']||'').toUpperCase().trim())<0) return false; if(/\b(sin|no tienen?|no tengan?) (la )?fibras?\b/.test(t)){ if(tieneFibra(it)) return false; } else if(/\bfibras?\b/.test(t) && !tieneFibra(it)) return false; return true; });
       var porComp = /\b(compania|companias|operadora|operadoras|operador|por compania|cada compania)\b/.test(t);
       var meses = (r.to.getFullYear()-r.from.getFullYear())*12 + r.to.getMonth()-r.from.getMonth();
       var datos=[], modo;
@@ -2002,7 +2006,14 @@ var lastPicks = {};
   }
   // solo cobra los mensajes escritos (los botones pasan por B.pick y no cobran)
   var handleBase = B.handle;
+  // «cls»: borra la conversación del chat (no cobra saldo)
+  function borrarChat(done){
+    try{ var box=document.getElementById('iaChatMsgs'); if(box) box.innerHTML=''; }catch(e){}
+    GRUPOS.length=0; B._ctx=null; B._hist=[]; B._fibAsk=null; B._bajaAsk=null; B._recPend=null; B._pinAsk=null;
+    done({ say: pick('cls',['🧹 Conversación borrada. ¿Empezamos de nuevo?','🧹 Chat limpio. Tú dirás.','🧹 Listo, pantalla en blanco. ¿Qué necesitas?']) });
+  }
   B.handle = function(raw, done){
+    if(/^\s*cls\s*$/i.test(String(raw||''))) return borrarChat(done);
     if(B._enHandle || B._porBoton) return handleBase(raw, done);
     if(SALDO!=null && SALDO<COSTE) return sinSaldo(done);
     try{ caducarTemporales(); }catch(e){}
