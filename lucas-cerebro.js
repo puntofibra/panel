@@ -1157,6 +1157,7 @@ var lastPicks = {};
   function esc0(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
   function recEnterado(id, persona, test, cb){
     var key=id+'|'+persona; if(recEnPantalla[key]){ try{ recEnPantalla[key].remove(); }catch(e){} delete recEnPantalla[key]; }
+    B._recAck[id+'|'+persona]=true;
     var frase=pick('recEnt',['Perfecto, {p}, marcado como enterado.','Anotado: {p} está al tanto.','Genial, {p}. No insisto más con este aviso.']).replace('{p}',persona);
     if(test) return cb(frase+' (era una prueba)');
     (REC_CACHE||[]).forEach(function(r){ if(r.id===id){ r.ack=r.ack||{}; r.ack[persona]=Date.now(); } });
@@ -1396,24 +1397,61 @@ var lastPicks = {};
   B.duckSay = function(msg, buttons){ sayQ.push({ m:msg, b:buttons||null }); if(!sayBusy) nextSay(); };
   // botones en el chat del asistente (para los avisos que no vienen de una pregunta)
   var fichBtns = [];
-  B.renderButtons = function(list){
+  // ---------- botones del asistente: se ponen en GRIS cuando ya no se pueden usar ----------
+  var GRUPOS = [];
+  function btnTipo(v){ v=String(v||''); if(v.indexOf('q:')===0) return 'q'; if(v.indexOf('pinf:')===0) return 'pinf'; if(v.indexOf('rec:ok:')===0) return 'recok'; if(v==='fichOK') return 'fich'; return 'temp'; }
+  function apagarBtn(b, elegido){
+    if(b._apagado) return; b._apagado=true; b.disabled=true;
+    b.style.background='#e9ebef'; b.style.color='#9aa1ab'; b.style.borderColor='#d5d9df'; b.style.boxShadow='none';
+    b.style.cursor='not-allowed'; b.style.opacity='1'; b.style.transform=''; b.style.filter='grayscale(1)';
+    b.onmouseenter=b.onmouseleave=null; b.title='Este botón ya no está disponible';
+    if(elegido && String(b.textContent).indexOf('✓')!==0) b.textContent='✓ '+b.textContent;
+  }
+  B._recAck = {};
+  function btnValido(v){
+    v=String(v||'');
+    if(v.indexOf('q:')===0) return true;
+    if(v.indexOf('pinf:')===0) return !!(B._pinUser && Date.now()-B._pinUser.at < 30*60000);
+    if(v.indexOf('rec:ok:')===0){ var pz=v.split(':'); return !B._recAck[pz[2]+'|'+pz[3]]; }
+    if(v==='fichOK') return !!(B.fichPending && B.fichPending());
+    if(v.indexOf('fib:')===0) return !!B._fibAsk;
+    if(v==='baja2P:si' || v==='baja2P:no') return !!B._bajaAsk;
+    if(v==='baja2P:ver' || v==='baja2P:quitar') return !!B._bajaLast;
+    if(v.indexOf('fib2:')===0) return !!B._fibLast;
+    return true;
+  }
+  // al escribir un mensaje nuevo, las preguntas anteriores ya no valen (salvo ayuda, PIN, «Enterado» y fichaje)
+  function caducarTemporales(){ GRUPOS.forEach(function(g){ g.bts.forEach(function(b){ if(btnTipo(b._v)==='temp') apagarBtn(b); }); }); }
+  B._caducarBotones = caducarTemporales;
+  B.renderButtons = function(list, opc){
     var box = document.getElementById('iaChatMsgs'); if(!box || !list || !list.length) return;
+    // un grupo nuevo deja sin efecto los botones temporales anteriores
+    caducarTemporales();
     var bx = document.createElement('div'); bx.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;max-width:90%;';
+    var g = { el:bx, bts:[] };
     list.forEach(function(o){
-      var b = document.createElement('button'); b.type = 'button'; b.textContent = o.t;
-      b.style.cssText = 'border:1px solid #17ff5f;background:#0f1512;color:#d9ffe6;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 0 12px rgba(23,255,95,.35);transition:transform .15s;';
-      b.onmouseenter = function(){ b.style.transform = 'scale(1.06)'; }; b.onmouseleave = function(){ b.style.transform = ''; };
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = o.t; b._v = o.v;
+      b.style.cssText = 'border:1px solid #17ff5f;background:#0f1512;color:#d9ffe6;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 0 12px rgba(23,255,95,.35);transition:transform .15s, background .2s, color .2s;';
+      b.onmouseenter = function(){ if(!b._apagado) b.style.transform = 'scale(1.06)'; }; b.onmouseleave = function(){ b.style.transform = ''; };
       b.onclick = function(){
-        if(b.disabled) return;
-        bx.querySelectorAll('button').forEach(function(x){ x.disabled = true; x.style.opacity = x === b ? '1' : '.35'; x.style.cursor = 'default'; });
+        if(b._apagado || b.disabled) return;
+        if(!btnValido(o.v)){ apagarBtn(b); return; }
+        var t = btnTipo(o.v);
+        if(t!=='q' && t!=='pinf') g.bts.forEach(function(x){ apagarBtn(x, x===b); });   // los de ayuda y PIN se pueden volver a usar
+        if(opc && opc.eco){ try{ if(typeof addMsg==='function') addMsg(String(o.t).replace(/^\S+\s/,''), 'user'); }catch(e){} }
         B.pick(o.v, function(rr){ if(rr && rr.say && window.__lucasSay) window.__lucasSay(rr.say); if(rr && rr.buttons) B.renderButtons(rr.buttons); });
       };
-      bx.appendChild(b);
+      bx.appendChild(b); g.bts.push(b);
       if(String(o.v).indexOf('fichOK')===0) fichBtns.push(b);
     });
+    GRUPOS.push(g); if(GRUPOS.length>60) GRUPOS.shift();
     box.appendChild(bx); box.scrollTop = box.scrollHeight;
   };
-  function apagaFichBtns(){ fichBtns.forEach(function(b){ b.disabled = true; b.style.opacity = '.35'; b.style.cursor = 'default'; }); fichBtns = []; }
+  // revisa cada poco si algún botón ha caducado (PIN, pregunta vencida, recordatorio aceptado, fichaje…)
+  setInterval(function(){ GRUPOS.forEach(function(g){ g.bts.forEach(function(b){ if(!b._apagado && !btnValido(b._v)) apagarBtn(b); }); }); }, 1500);
+  // los botones que pinta el propio panel también pasan por aquí
+  try{ window.__lucasButtons = function(r){ if(r && r.buttons) B.renderButtons(r.buttons, { eco:true }); }; }catch(e){}
+  function apagaFichBtns(){ fichBtns.forEach(function(b){ apagarBtn(b); }); fichBtns = []; }
   B._apagaFichBtns = apagaFichBtns;
   function nextSay(){
     var it=sayQ.shift(); if(it==null){ sayBusy=false; return; } sayBusy=true; var msg=it.m;
@@ -1945,6 +1983,7 @@ var lastPicks = {};
   B.handle = function(raw, done){
     if(B._enHandle || B._porBoton) return handleBase(raw, done);
     if(SALDO!=null && SALDO<COSTE) return sinSaldo(done);
+    try{ caducarTemporales(); }catch(e){}
     B._enHandle = true;
     try{ handleBase(raw, done); } finally{ B._enHandle = false; }
     saldoConsumir();
@@ -1977,6 +2016,15 @@ var lastPicks = {};
   function estadoIconos(){ var a=[]; try{ document.querySelectorAll('.searchHead .active').forEach(function(b){ a.push(b.id || b.getAttribute('data-ico') || b.textContent.trim()); }); }catch(e){} return a.sort().join('|'); }
   function fijarBase(){ ICO_BASE=estadoIconos(); }
   // el LIMPIAR del panel no reinicia FIBRA ni VIP: se hace aquí (estado + colores de los botones)
+  function resetCompania(){
+    try{
+      var sel=document.getElementById('companyFilter'); if(!sel) return;
+      var wrap=sel.nextElementSibling;
+      var todas = wrap && wrap.classList && wrap.classList.contains('pillSelect') ? wrap.querySelector('.pillMenu .pillOpt') : null;
+      if(todas && typeof todas.onclick==='function'){ todas.onclick(); return; }     // opción «TODAS LAS COMPAÑÍAS» del desplegable
+      sel.value=''; sel.dispatchEvent(new Event('change'));
+    }catch(e){}
+  }
   function resetFibraVip(){
     try{ if(typeof FIBRA_MODE!=='undefined') FIBRA_MODE=0; }catch(e){}
     try{ if(typeof VIP_MODE!=='undefined') VIP_MODE=0; }catch(e){}
@@ -2002,7 +2050,7 @@ var lastPicks = {};
         // si tocas tú los filtros a mano, el filtro de Lucas deja de estar activo
         ['q','companyFilter','dateFrom','dateTo'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.addEventListener('input', function(){ setTimeout(pintarBtnIA, 300); }); el.addEventListener('change', function(){ setTimeout(pintarBtnIA, 300); }); } });
       }
-      if(typeof window.clearSearch==='function' && !window.clearSearch.__ia){ var cs=window.clearSearch; window.clearSearch=function(){ resetFibraVip(); var r=cs.apply(this, arguments); FIA=false; setTimeout(function(){ fijarBase(); pintarBtnIA(); }, 150); return r; }; window.clearSearch.__ia=true; }
+      if(typeof window.clearSearch==='function' && !window.clearSearch.__ia){ var cs=window.clearSearch; window.clearSearch=function(){ resetFibraVip(); var r=cs.apply(this, arguments); resetCompania(); FIA=false; setTimeout(function(){ fijarBase(); pintarBtnIA(); }, 150); return r; }; window.clearSearch.__ia=true; }
       var act = FIA || hayAlgunFiltro();
       b.classList.toggle('iaOn', act); b.disabled=!act;
     }catch(e){}
