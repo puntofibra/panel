@@ -1044,8 +1044,7 @@ var lastPicks = {};
         if(!res || !res.ok) return dime('Uy, no he podido guardar el recordatorio'+(res&&res.error?' ('+res.error+')':'')+'. Prueba otra vez.');
         REC_CACHE=null; REC_CACHE_T=0;
         var avTxt=o.avisos.map(function(m){ for(var i=0;i<REC_AVISOS.length;i++) if(REC_AVISOS[i][0]===m) return REC_AVISOS[i][1].toLowerCase(); return m===0 ? 'a la misma hora' : (m%60===0 ? (m/60)+' '+plural(m/60,'hora','horas') : m+' minutos')+' antes'; });
-        var semF=recSinSemilla(o.personas);
-        dime(fill(pick('recOK',['¡Apuntado! Se lo recordaré a {p} {a}.','Hecho. Aviso a {p} {a}.','Guardado: {p} recibirá el aviso {a}.']),{p:listaTxt(o.personas),a:listaTxt(avTxt)})+' '+pick('recOK2',['Si no pulsáis «Enterado», insisto cada media hora.','Y si nadie pulsa «Enterado», vuelvo a avisar cada media hora.'])+semF);
+        dime(fill(pick('recOK',['¡Apuntado! Se lo recordaré a {p} {a}.','Hecho. Aviso a {p} {a}.','Guardado: {p} recibirá el aviso {a}.']),{p:listaTxt(o.personas),a:listaTxt(avTxt)})+' '+pick('recOK2',['Si no pulsáis «Enterado», insisto cada media hora.','Y si nadie pulsa «Enterado», vuelvo a avisar cada media hora.']));
       }).withFailureHandler(function(e){ dime('No he podido guardar el recordatorio: '+(e && e.message ? e.message : 'error de conexión')+'.'); }).apiRecCrear(pl);
     }catch(e){ dime('No he podido guardar el recordatorio ahora mismo.'); }
   }
@@ -1060,11 +1059,6 @@ var lastPicks = {};
     if(!o.when){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: fill(pick('recCuando',['Vale, «{t}». ¿Para cuándo te lo recuerdo? Dime el día, la hora o las dos cosas.','Apuntado «{t}». ¿Qué día y a qué hora?','¿Y para cuándo es «{t}»? Por ejemplo: «mañana a las 10» o «el lunes».']),{t:o.texto}) }); }
     if(o.when.getTime()<Date.now()){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: 'Esa hora ya ha pasado. ¿Para cuándo lo pongo?' }); }
     recPreguntarPersonas(o, done);
-  }
-  function recSinSemilla(pers){
-    var falta=(pers||[]).filter(function(p){ for(var i=0;i<REC_PERS.length;i++) if(REC_PERS[i][0]===p) return !semilla(REC_PERS[i][1]); return false; });
-    if(!falta.length) return '';
-    return ' ⚠️ Ojo: este ordenador no tiene instalada la semilla de recordatorios de '+listaTxt(falta)+', así que aquí no sonará. Para que suene, escribe CONSOLA, luego SEMILLA → 1 y elige «Recordatorios de '+falta[0]+'».';
   }
   function recPendiente(raw, done){
     var rp=B._recPend; if(!rp || Date.now()-rp.at > 10*60000){ B._recPend=null; return false; }
@@ -1086,10 +1080,9 @@ var lastPicks = {};
     recCargar(function(l){
       if(l==null) return done({ say:'No he podido leer los recordatorios ahora mismo.' });
       var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000; }).sort(function(a,b){ return a.cuando-b.cuando; });
-      var semL=recSinSemilla(fut.reduce(function(a,r){ (r.personas||[]).forEach(function(p){ if(a.indexOf(p)<0) a.push(p); }); return a; }, []));
       if(!fut.length) return done({ say: pick('recL0',['No hay ningún recordatorio pendiente.','No tienes recordatorios apuntados.','Nada apuntado por ahora.']) });
       var txt=fut.slice(0,8).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'» ('+listaTxt(r.personas)+')'; }).join('\n');
-      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+(semL?'\n'+semL.trim():'')+'\nSi quieres borrar alguno, púlsalo:', buttons: fut.slice(0,8).map(function(r){ return { t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }; }) });
+      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+'\nSi quieres borrar alguno, púlsalo:', buttons: fut.slice(0,8).map(function(r){ return { t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }; }) });
     }, true);
   }
   function recBorrar(id, done){
