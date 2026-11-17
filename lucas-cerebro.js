@@ -7,7 +7,8 @@
   function digits(s){ return String(s||'').replace(/\D/g,''); }
   function alnum(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
   var lastPick = {};
-  function pick(key, arr){ if(arr.length<2) return arr[0]; var i, n=0; do{ i=Math.floor(Math.random()*arr.length); }while(i===lastPick[key] && ++n<12); lastPick[key]=i; return arr[i]; }
+var lastPicks = {};
+  function pick(key, arr){ if(arr.length<2) return arr[0]; var h=lastPicks[key]||(lastPicks[key]=[]); var mem=Math.min(h.length, Math.max(1, Math.floor(arr.length/2))); var recent=h.slice(-mem); var libres=[]; for(var j=0;j<arr.length;j++) if(recent.indexOf(j)<0) libres.push(j); var i=libres.length?libres[Math.floor(Math.random()*libres.length)]:Math.floor(Math.random()*arr.length); h.push(i); if(h.length>20) h.shift(); lastPick[key]=i; return arr[i]; }
   function fill(t,o){ return String(t).replace(/\{(\w+)\}/g,function(_,k){ return o[k]!=null?o[k]:''; }); }
   function cap(s){ s=String(s||''); return s.charAt(0).toUpperCase()+s.slice(1); }
   function titleCase(s){ return String(s||'').toLowerCase().replace(/(^|\s)(\S)/g,function(m,a,b){ return a+b.toUpperCase(); }); }
@@ -336,7 +337,7 @@
   // ---------- charla ----------
   function smallTalk(t, now){
     if(/\b(gracias|muchas gracias|te lo agradezco|genial gracias|mil gracias)\b/.test(t)) return pick('thx',['¡De nada! Aquí estoy para lo que necesites.','Para eso estoy.','¡Un placer!','No hay de qué. ¿Algo más?','A mandar.']);
-    if(/^(adios|hasta luego|hasta manana|chao|chau|nos vemos|me voy|bye)\b/.test(t)) return pick('bye',['¡Hasta luego! Que vaya bien.','Nos vemos. Aquí me quedo vigilando los borradores.','¡Chao! Descansa.','Hasta pronto.']);
+    if(/^(adios|adeu|hasta luego|hasta manana|hasta pronto|hasta la vista|hasta otra|hasta ahora|hasta despues|chao|chau|ciao|xao|bye|bye bye|agur|nos vemos|me voy|me piro|me marcho|bueno me voy|venga me voy|hasta el lunes|buen finde|feliz finde|que descanses)\b/.test(t)) return B.bye(now);
     if(/\b(quien eres|como te llamas|que eres|tu nombre)\b/.test(t)) return pick('who',['Soy Lucas, el asistente de Puntofibra. Busco contratos, clientes y te recuerdo lo pendiente.','Me llamo Lucas, tu robot ayudante. Pídeme contratos por fechas, clientes o compañías.','Lucas, para servirte. Mi especialidad: encontrar contratos en un segundo.']);
     if(/\b(como estas|que tal estas|como vas|que tal te va|como andas)\b/.test(t)) return pick('how',['¡Con las pilas cargadas al cien por cien!','Muy bien, engrasado y listo. ¿Y tú?','Funcionando perfectamente, gracias por preguntar.','De maravilla, sin un solo cortocircuito.']);
     if(/\bque hora es\b|\bhora es\b|\bdime la hora\b/.test(t)) return 'Son '+horaTxt(now)+'.';
@@ -346,6 +347,44 @@
     if(/\b(quita|quitame|limpia|limpiame|borra|resetea|elimina)\b.*\bfiltros?\b|\bsin filtros\b/.test(t)) return '__CLEAR__';
     return null;
   }
+  B.bye = function(now){
+    var h=now.getHours(), dow=now.getDay();
+    var base=['¡Hasta luego! Que vaya bien.','Nos vemos. Aquí me quedo vigilando los borradores.','¡Chao! Cuídate.','Hasta pronto, aquí estaré.','¡Adiós! Ha sido un placer.','Venga, hasta luego. Yo no me muevo de aquí.','¡Nos vemos! Me quedo de guardia.','Hasta la próxima, jefe.','¡Ciao! Te espero por aquí.','Cuídate mucho. ¡Hasta otra!','Hasta ahora. Si pasa algo, te aviso.','¡Adiós, adiós! Lucas se queda al mando.'];
+    var extra=[];
+    if(h>=20||h<5) extra=['¡Buenas noches! Descansa, que te lo has ganado.','Que descanses. Mañana más.','¡Hasta mañana! Apago motores… bueno, no del todo.'];
+    else if(h>=13 && h<16) extra=['¡Buen provecho! Nos vemos luego.','Que aproveche la comida. ¡Hasta luego!'];
+    if(dow===5 && h>=13 || dow===6) extra=extra.concat(['¡Buen finde! Nos vemos el lunes.','Disfruta del fin de semana. ¡Hasta el lunes!']);
+    var lista = base.concat(extra);
+    return pick('bye', lista);
+  };
+  B.greetReply = function(t, now){
+    now = now || new Date();
+    var h=now.getHours(), dow=now.getDay();
+    var dice = /\bbuenos dias\b|\bbuen dia\b/.test(t) ? 'Buenos días' : (/\bbuenas tardes\b/.test(t) ? 'Buenas tardes' : (/\bbuenas noches\b/.test(t) ? 'Buenas noches' : null));
+    var horaS = (h>=6&&h<14) ? 'Buenos días' : ((h>=14&&h<21) ? 'Buenas tardes' : 'Buenas noches');
+    var txt;
+    if(dice){
+      txt = fill(pick('gD',['¡{s}! ¿En qué te ayudo?','{s}. ¿Qué necesitas?','¡{s}! Aquí estoy, dime.','{s}, jefe. ¿Qué buscamos?','¡Muy {sl}! ¿Por dónde empezamos?','{s}. Lucas listo para trabajar.','¡{s} también para ti! ¿Qué te saco?','{s}. ¿Qué hacemos hoy?']),{s:dice, sl:dice.toLowerCase()});
+    } else if(/^buenas\b/.test(t)){
+      txt = pick('gB',['¡Buenas! ¿Qué necesitas?','¡Buenas, buenas! ¿Qué te saco?','Buenas. Aquí me tienes.','¡Muy buenas! ¿En qué te ayudo?','¡Buenas! Dime qué buscamos.','Buenas, jefe. ¿Qué hacemos?']);
+    } else {
+      txt = pick('gH',['¡Hola! ¿En qué te puedo ayudar?','¡Hola, hola! ¿Qué necesitas?','¡Hey! Aquí estoy.','¡Holaaa! ¿Qué buscamos hoy?','¡Hola! Lucas a tu servicio.','¿Qué tal? Dime qué te saco.','¡Hola! Me alegra verte. ¿Qué hacemos?','¡Ey! ¿Qué se te ofrece?','¡Hola! Listo para trabajar.','Hola, jefe. ¿Por dónde empezamos?','¡Saludos, humano! ¿En qué te ayudo?','¡Hola! Pídeme contratos, clientes o borradores.','¡Buenas! ¿Qué necesitas?','¡' + horaS + '! ¿Qué te saco?']);
+    }
+    var extra=[];
+    if(h>=22||h<6) extra=['¿Todavía trabajando? Eres una máquina.','Vaya horas… vamos a por ello.'];
+    else if(dow===1 && h<14) extra=['Lunes otra vez, ¡a por la semana!'];
+    else if(dow===5 && h>=14) extra=['Viernes por la tarde, ya casi lo tienes.'];
+    if(extra.length && Math.random()<0.4) txt+=' '+pick('greetx',extra);
+    return txt;
+  };
+  B.greetPrefix = function(t, now){
+    var h=(now||new Date()).getHours();
+    if(/\bbuenos dias\b|\bbuen dia\b/.test(t)) return 'Buenos días';
+    if(/\bbuenas tardes\b/.test(t)) return 'Buenas tardes';
+    if(/\bbuenas noches\b/.test(t)) return 'Buenas noches';
+    if(/^buenas\b/.test(t)) return pick('gpB',['¡Buenas!','Buenas']);
+    return pick('gpH',['¡Hola!','Hola','¡Hey!','¡Hola, hola!']);
+  };
   function isGreeting(t){ return /^(hola|holi|holaa+|buenas|buenos dias|buenas tardes|buenas noches|hey|ey|saludos|que tal|que pasa|buen dia)\b/.test(t); }
   var CONTRACT_WORDS = /\b(contratos?|solicitud(es)?|altas?|clientes?|muestra\w*|ensena\w*|filtra\w*|busca\w*|saca\w*|dame|lista\w*|ver|ensenar|trae\w*|pon\w*|cuant[oa]s|llevo|llevamos|hicieron|hecho|hechos|cuenta|iban|dni|nie|telefono|cambiar|baja)\b/;
 
@@ -370,15 +409,15 @@
     var hasDate = !!parseDates(rest||t, now);
     var hasComp = findCompanies(rest||t).length>0;
     var ctx = { contractWords: CONTRACT_WORDS.test(rest||t) };
-    if(greet && !rest) return done({ say: B.greet(false) });
+    if(greet && !rest) return done({ say: B.greetReply(t, now) });
 
     ensureContratos(function(){
       var r = contratoQuery(rest||t, raw, now, ctx);
       if(r.notUnderstood){
-        if(greet) return done({ say: B.greet(false) });
+        if(greet) return done({ say: B.greetReply(t, now) });
         return done({ say: pick('noentiendo',NO_ENTIENDO) });
       }
-      if(greet && r.say) r.say = saludoHora(now)+'. '+r.say;
+      if(greet && r.say){ var gp=B.greetPrefix(t, now); r.say = gp+(/[!.]$/.test(gp)?' ':'. ')+r.say; }
       done(r);
     });
   };
