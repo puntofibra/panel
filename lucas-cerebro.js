@@ -322,10 +322,22 @@ var lastPicks = {};
     var esMostrar = /^(muestrame|ensename|sacame|dame|pasame)( todos| todas)?$/.test(t);
     var esCuantos = /^(cuantos|cuantas|y cuantos|y cuantas)( son| hay| salen| serian| tengo| llevo)?$/.test(t);
     var m = t.match(/^(?:y|e|y que tal|y si|y ahora|ahora|tambien|y tambien|solo|y solo)\s+(.*)$/);
-    if(!esMostrar && !esCuantos && !m) return null;
+    var RE_TODOS = /^(?:(?:y\s+)?(?:cuant[oa]s\s+)?(?:hay\s+)?)?(en total|en general|globalmente|global|de todos|de todas|todos|todas|sin compania|cualquier compania|sin filtro)(?:\s+(?:de\s+)?(?:todos|todas|las companias|todas las companias|las compania|los clientes|los contratos))*\b\s*/;
+    var mT = (m ? m[1] : t).match(RE_TODOS);
+    if(!esMostrar && !esCuantos && !m && !mT) return null;
     var L=c.t;
     if(esMostrar) return L.replace(/\b(cuant[oa]s|numero de|total de)\b/g,' ').replace(/\s+/g,' ').trim();
     if(esCuantos) return /\bcuant[oa]s\b/.test(L) ? L : ('cuantos '+L);
+    if(mT){                                                    // «¿y en total de todos?»: quita compañía, nombre y ciclo, deja la fecha
+      findCompanies(L).forEach(function(oc){ var f=fold(oc); L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?=\\s)','g'),' ').trim(); });
+      Object.keys(COMP_ALIAS).forEach(function(a){ L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+a+'(?=\\s)','g'),' ').trim(); });
+      nombreTokens(L).forEach(function(w){ L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+w+'(?=\\s)','g'),' ').trim(); });
+      L=L.replace(/\bciclo (de )?(\d{1,2}|uno|veinte)\b/g,' ').replace(/\s+/g,' ').trim();
+      if(/^(en total|y en total|cuant)/.test(m ? m[1] : t) || /\bcuant[oa]s\b/.test(t)){ if(!/\bcuant[oa]s\b/.test(L)) L='cuantos '+L; }
+      var resto=(m ? m[1] : t).slice(mT[0].length).trim();
+      if(!resto) return L || 'contratos';
+      m=[null, resto];
+    }
     var n = m[1].replace(/^(los|las|el|la)\s+(de|del)\s+/,'de ').replace(/^(con|para|por)\s+/,'$1 ').trim();
     if(!n) return null;
     if(/^(cuant[oa]s)\b/.test(n) && !/\bcuant[oa]s\b/.test(L)) L='cuantos '+L;
