@@ -51,7 +51,7 @@
     ['TEST2', 'PRUEBA EL FICHAJE DE SALIDA DE LA MAÑANA (13:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('M-S', 'SALIDA DE LA MAÑANA', say); }],
     ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
     ['TEST4', 'PRUEBA EL FICHAJE DE SALIDA DE LA TARDE (19:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-S', 'SALIDA DE LA TARDE', say); }],
-    ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIAN, JORGE Y MAICOL)', function(a, say){ fichMenuEmp(say); }],
+    ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIAN, JORGE, MAICOL O TODOS)', function(a, say){ fichMenuEmp(say); }],
     ['PASSWORD', 'MUESTRA EL QR DE GOOGLE AUTHENTICATOR PARA VINCULAR OTRO MÓVIL', function(a, say){ pwComando(say); }],
     ['PIN', 'EMPLEADOS CON PIN DEL ASISTENTE: VER Y EDITAR SU NOMBRE Y SU PIN', function(a, say){ pinMenu(say); }],
     ['RECHARGE', 'RECARGA EL SALDO DEL ASISTENTE LUCAS (SE SUMA AL QUE YA HAY)', function(a, say){ recPaso1(say); }],
@@ -386,6 +386,7 @@
     say('>> REGISTRO DE FICHAJES 🕘', 'g big', 20);
     say('   ¿DE QUIÉN QUIERES VER LOS FICHAJES?', 'w', 12);
     FICH_EMP.forEach(function(n, i){ say('   ' + (i+1) + ' - ' + n.toUpperCase(), 'y', 0, true); });
+    say('   ' + (FICH_EMP.length+1) + ' - TODOS', 'y', 0, true);
     say('   ESCRIBE EL NÚMERO (O EL NOMBRE) Y PULSA ENTER.', 'd', 0, true);
   }
   function fichMenu(say){
@@ -414,9 +415,24 @@
   var DIAS3 = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
   var TURNOS = [ ['MAÑANA','ENTRADA','10:30'], ['MAÑANA','SALIDA','13:28'], ['TARDE','ENTRADA','17:30'], ['TARDE','SALIDA','19:28'] ];
   function minsOf(h){ var p = String(h||'').split(':'); return (+p[0])*60 + (+p[1]||0); }
-  function fichListar(n){
+  function fichListar(n, pre){
     var r = fichRango(n); if(!r){ say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 8.', 'r', 12); errTone(); CON.ask = 'fich'; return; }
-    say('>> ' + fichEmp.toUpperCase() + ' · ' + FICH_OPC[n] + ' · CONSULTANDO EL REGISTRO…', 'g', 16);
+    // TODOS: se lee el registro una vez y se enseña empleado por empleado
+    if(fichEmp === 'Todos' && !pre){
+      say('>> TODOS LOS EMPLEADOS · ' + FICH_OPC[n] + ' · CONSULTANDO EL REGISTRO…', 'g', 16);
+      var todos = function(items, err){
+        if(err){ say('ERROR AL LEER EL REGISTRO: ' + err, 'r', 10); errTone(); fichEmp = 'Todos'; return; }
+        FICH_EMP.forEach(function(emp){ fichEmp = emp; say('', '', 0, true); say('══════════  ' + emp.toUpperCase() + '  ══════════', 'g big', 10); fichListar(n, items || []); });
+        fichEmp = 'Todos'; lastFich = null;
+      };
+      try{
+        google.script.run.withSuccessHandler(function(res){ if(res && res.ok) todos(res.items); else todos(null, (res && res.error) || 'sin respuesta'); })
+          .withFailureHandler(function(e){ todos(null, (e && e.message) || String(e)); })
+          .apiFichajeLucasLista(isoD(r[0]), isoD(r[1]));
+      }catch(e){ todos(null, e.message); }
+      return;
+    }
+    if(!pre) say('>> ' + fichEmp.toUpperCase() + ' · ' + FICH_OPC[n] + ' · CONSULTANDO EL REGISTRO…', 'g', 16);
     var fold = function(x){ return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
     var flexible = fichEmp !== 'Sebastián';      // Jorge y Maicol: horario flexible, sin marcar retrasos
     var finFlex = function(items){     // Jorge / Maicol: varias entradas y salidas al día (máx. 5)
@@ -484,6 +500,7 @@
       say('RESUMEN · ' + dias + ' ' + (dias === 1 ? 'DÍA LABORABLE' : 'DÍAS LABORABLES') + ' · ' + ok + ' ' + (ok === 1 ? 'FICHAJE' : 'FICHAJES') + ' · ' + falta + ' SIN FICHAR' + (tarde ? ' · ' + tarde + (tarde === 1 ? ' ENTRADA CON RETRASO' : ' ENTRADAS CON RETRASO') : ''), 'w', 0, true);
       tone(1500, 2200, 0.12, 'square', 0.04);
     };
+    if(pre) return fin(pre);
     try{
       google.script.run.withSuccessHandler(function(res){ if(res && res.ok) fin(res.items); else fin(null, (res && res.error) || 'sin respuesta'); })
         .withFailureHandler(function(e){ fin(null, (e && e.message) || String(e)); })
@@ -595,7 +612,7 @@
     if(CON.ask === 'pinNum'){ CON.ask = null; pinPasoNum(raw); return; }
     if(!cmd){ say('', '', 0, true); return; }
     if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }
-    if(CON.ask === 'fichEmp'){ CON.ask = null; if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
+    if(CON.ask === 'fichEmp'){ CON.ask = null; if(cmd === String(FICH_EMP.length+1) || cmd === 'TODOS'){ fichEmp = 'Todos'; fichMenu(say); return; } if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
     if(CON.ask === 'fich'){ CON.ask = null; if(/^[1-8]$/.test(cmd)){ fichListar(+cmd); return; } }
     if(CON.ask === 'recarga'){ CON.ask = null;
       if(/^(CANCELAR|SALIR|NO|NADA)$/.test(cmd)){ say('   RECARGA CANCELADA.', 'd', 10); return; }
