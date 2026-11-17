@@ -56,8 +56,26 @@ var lastPicks = {};
     // el 15 de enero
     m = t.match(new RegExp('\\b(?:el|dia)\\s+(\\d{1,2})\\s+de\\s+'+MRE));
     if(m){ var dd2=d0(yr||y,MES_IDX[m[2]],+m[1]); return dayRange(dd2,'del '+m[1]+' de '+MESES[MES_IDX[m[2]]]+' de '+dd2.getFullYear()); }
+    // varios meses sueltos: «septiembre y octubre», «septiembre, octubre y noviembre», «enero y marzo» (solo esos meses)
+    var mmAll = t.match(new RegExp('\\b'+MRE+'\\b','g'));
+    var esSpan = new RegExp('\\b(?:de|desde)\\s+'+MRE+'\\s+(?:a|hasta)\\s+'+MRE+'|\\bentre\\s+'+MRE+'\\s+y\\s+'+MRE).test(t);
+    if(mmAll && !esSpan){
+      var lst=[]; mmAll.forEach(function(w){ var ix=MES_IDX[w]; if(lst.indexOf(ix)<0) lst.push(ix); });
+      if(lst.length>=2){
+        var Y0 = yr||y, yy4=Y0, prevM=-1, items=[];
+        lst.forEach(function(ix){ if(prevM>=0 && ix<prevM) yy4++; items.push({y:yy4, m:ix}); prevM=ix; });
+        var last=items[items.length-1];
+        if(!yr && yy4>Y0 && d0(last.y,last.m,1).getTime()>now.getTime()) items.forEach(function(o){ o.y--; });
+        var first=items[0]; last=items[items.length-1];
+        var keys=items.map(function(o){ return o.y+'-'+o.m; });
+        var nombres=items.map(function(o){ return MESES[o.m]; });
+        var lbl='de '+nombres.slice(0,-1).join(', ')+' y '+nombres[nombres.length-1];
+        if(first.y!==y || last.y!==y) lbl += (first.y===last.y ? ' de '+first.y : ' ('+first.y+'-'+last.y+')');
+        return { from:d0(first.y,first.m,1), to:endOfMonth(last.y,last.m), label:lbl, meses:keys };
+      }
+    }
     // de enero a marzo / entre enero y marzo
-    m = t.match(new RegExp('\\b(?:de|desde|entre)\\s+'+MRE+'\\s+(?:a|hasta|y)\\s+'+MRE));
+    m = t.match(new RegExp('\\b(?:de|desde)\\s+'+MRE+'\\s+(?:a|hasta)\\s+'+MRE)) || t.match(new RegExp('\\b(?:entre)\\s+'+MRE+'\\s+(?:y)\\s+'+MRE));
     if(m){ var yy3=yr||y, a1=MES_IDX[m[1]], a2=MES_IDX[m[2]]; var yA = a1>a2 ? yy3-1 : yy3; return {from:d0(yA,a1,1), to:endOfMonth(yy3,a2), label:'de '+MESES[a1]+' a '+MESES[a2]+' de '+yy3}; }
     // trimestres
     m = t.match(/\b(primer|1er|1|segundo|2|tercer|3er|3|cuarto|4)\s*(?:o\s*)?trimestre\b/);
@@ -86,6 +104,7 @@ var lastPicks = {};
 
   // ---------- datos del panel ----------
   function contratos(){ try{ return (typeof CONTRATOS!=='undefined' && CONTRATOS) ? CONTRATOS : []; }catch(e){ return []; } }
+  function enMeses(k, r){ if(!r || !r.meses) return true; var d=new Date(k); return r.meses.indexOf(d.getFullYear()+'-'+d.getMonth())>=0; }
   function ts(v){ try{ return dateToTS(v); }catch(e){ return 0; } }
   function companies(){
     var seen={}, out=[];
@@ -241,7 +260,7 @@ var lastPicks = {};
     Object.keys(COMP_ALIAS).forEach(function(a){ a.split(' ').forEach(function(p){ nameTokens = nameTokens.filter(function(x){ return x!==p; }); }); });
 
     var base = contratos().slice();
-    if(range){ var f=range.from.getTime(), to=range.to.getTime(); base = base.filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to; }); }
+    if(range){ var f=range.from.getTime(), to=range.to.getTime(); base = base.filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to && enMeses(k, range); }); }
     if(comps.length){ var cs=comps.map(function(c){ return c.toUpperCase().trim(); }); base = base.filter(function(it){ return cs.indexOf(String(it['2']||'').toUpperCase().trim())>=0; }); }
     if(mode){ base = base.filter(function(it){ return modoOK(it, mode); }); }
     if(vip){
@@ -474,7 +493,7 @@ var lastPicks = {};
     var c=lc.list[i], doc=alnum(c.doc);
     var list = contratos().filter(function(it){
       if(doc ? alnum(it['20'])!==doc : fold(it['21'])!==fold(c.nombre)) return false;
-      if(lc.range){ var k=ts(it['14']); if(!k||k<lc.range.from.getTime()||k>lc.range.to.getTime()) return false; }
+      if(lc.range){ var k=ts(it['14']); if(!k||k<lc.range.from.getTime()||k>lc.range.to.getTime()||!enMeses(k, lc.range)) return false; }
       if(lc.comps && lc.comps.length && lc.comps.map(function(x){return x.toUpperCase().trim();}).indexOf(String(it['2']||'').toUpperCase().trim())<0) return false;
       if(lc.mode && !modoOK(it, lc.mode)) return false;
       return true;
