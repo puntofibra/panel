@@ -891,8 +891,15 @@ var lastPicks = {};
     function find(re){ var r=re.exec(p); if(r){ spans.push([r.index, r.index+r[0].length]); p = p.slice(0,r.index)+new Array(r[0].length+1).join(' ')+p.slice(r.index+r[0].length); } return r; }
     var m;
     m = find(/\b(?:de|por) la (manana|tarde|noche)\b|\bpor la mananita\b/); if(m) tod = (m[1]==='tarde'?'tarde':(m[1]==='noche'?'noche':'manana'));
+    // varios avisos relativos: «dentro de 5, de 10 y de 15 minutos», «en 1 y en 2 horas»
+    var NW='(?:\\d+|un|una|media|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta y cinco|cuarenta)';
+    var multi=null;
+    m = find(new RegExp('\\b(?:en|dentro de)\\s+('+NW+'(?:\\s*(?:,|y|e|o)\\s*(?:(?:en|dentro de|de|a los|a las)\\s+)?'+NW+')+)\\s*(minutos?|mins?|horas?|h)\\b'));
+    if(m){ var nums=m[1].split(/\s*(?:,|\by\b|\be\b|\bo\b)\s*/).map(function(x){ return nR(x.replace(/^(en|dentro de|de|a los|a las)\s+/,'').trim()); }).filter(function(x){ return x>0; });
+      var fac=/^h/.test(m[2])?60:1; nums=nums.map(function(x){ return Math.round(x*fac); }).sort(function(a,b){ return a-b; });
+      if(nums.length>1){ var mx=nums[nums.length-1]; exact=new Date(now.getTime()+mx*60000); multi=nums.map(function(x){ return mx-x; }).sort(function(a,b){ return b-a; }); } }
     // dentro de / en N minutos, horas, días, semanas, meses
-    m = find(/\b(?:en|dentro de)\s+(\d+|un|una|media|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta y cinco|cuarenta)\s*(minutos?|mins?|horas?|h|dias?|semanas?|mes(?:es)?)(\s+y media)?\b/);
+    m = exact ? null : find(/\b(?:en|dentro de)\s+(\d+|un|una|media|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta y cinco|cuarenta)\s*(minutos?|mins?|horas?|h|dias?|semanas?|mes(?:es)?)(\s+y media)?\b/);
     if(m){ var n=nR(m[1]), u=m[2]; if(m[1]==='media' && /^h/.test(u)){ n=30; u='min'; } if(m[3]) n+=0.5;
       if(/^m(in|inuto)/.test(u)) exact=new Date(now.getTime()+n*60000);
       else if(/^h/.test(u)) exact=new Date(now.getTime()+n*3600000);
@@ -928,7 +935,7 @@ var lastPicks = {};
     else if(hh!=null){ var base=day||addD(now,0); when=new Date(base.getFullYear(),base.getMonth(),base.getDate(),hh,mi); if(!day && when<=now) when=new Date(when.getTime()+86400000); }
     else if(day){ var H = tod==='tarde'?17:(tod==='noche'?21:10); when=new Date(day.getFullYear(),day.getMonth(),day.getDate(),H,0); defHora=true;
       if(when<=now){ var t5=new Date(now.getTime()+60*60000); t5.setMinutes(Math.ceil(t5.getMinutes()/5)*5,0,0); when=t5; } }
-    return { when:when, defHora:defHora, spans:spans };
+    return { when:when, defHora:defHora, spans:spans, avisos:multi };
   }
   function recTexto(raw, trigLen, spans){
     var s=raw.split('');
@@ -978,10 +985,11 @@ var lastPicks = {};
 
   B._recPend = null;
   function recPreguntarPersonas(o, done){
-    var resumen = '«'+o.texto+'», '+fechaBonita(o.when)+(o.defHora?' (no me dijiste hora, te pongo esa)':'')+'.';
+    var resumen = '«'+o.texto+'», '+fechaBonita(o.when)+(o.defHora?' (no me dijiste hora, te pongo esa)':'')+(o.avisos && o.avisos.length ? ', con '+numU(o.avisos.length)+' '+plural(o.avisos.length,'aviso','avisos')+' a las '+o.avisos.map(function(mm){ var d=new Date(o.when.getTime()-mm*60000); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }).join(', ') : '')+'.';
     done({ say: pick('recQ1',['Vale, apunto: ','Entendido: ','Perfecto, recordatorio: '])+resumen+' '+pick('recQ2',['¿Para quién es el recordatorio?','¿A quién se lo recuerdo?','¿Para quién es?']) });
     renderChecks(REC_PERS.map(function(p){ return { t:p[0], v:p[0], on: o.pre && o.pre.indexOf(p[0])>=0 }; }), 'Siguiente ➜', function(pers){
       o.personas=pers;
+      if(o.avisos && o.avisos.length){ recGuardar(o); return; }
       var ahora=Date.now(), sug=o.when.getTime()-ahora > 3*3600000 ? 60 : 0;
       if(window.__lucasSay) window.__lucasSay(pick('recQ3',['¿Cuándo te lo recuerdo? Puedes marcar varias.','¿Con cuánta antelación aviso? Marca una o varias.','¿Cuándo quieres el aviso? Elige una o varias.']));
       renderChecks(REC_AVISOS.map(function(a){ var at=o.when.getTime()-a[0]*60000; return { t:a[1], v:a[0], on:a[0]===sug, off: a[0]>0 && at<ahora-60000 }; }), 'Guardar ✅', function(av){
@@ -997,8 +1005,9 @@ var lastPicks = {};
       google.script.run.withSuccessHandler(function(res){
         if(!res || !res.ok) return dime('Uy, no he podido guardar el recordatorio'+(res&&res.error?' ('+res.error+')':'')+'. Prueba otra vez.');
         REC_CACHE=null; REC_CACHE_T=0;
-        var avTxt=o.avisos.map(function(m){ for(var i=0;i<REC_AVISOS.length;i++) if(REC_AVISOS[i][0]===m) return REC_AVISOS[i][1].toLowerCase(); return ''; });
-        dime(fill(pick('recOK',['¡Apuntado! Se lo recordaré a {p} {a}.','Hecho. Aviso a {p} {a}.','Guardado: {p} recibirá el aviso {a}.']),{p:listaTxt(o.personas),a:listaTxt(avTxt)})+' '+pick('recOK2',['Si no pulsáis «Enterado», insisto cada media hora.','Y si nadie pulsa «Enterado», vuelvo a avisar cada media hora.']));
+        var avTxt=o.avisos.map(function(m){ for(var i=0;i<REC_AVISOS.length;i++) if(REC_AVISOS[i][0]===m) return REC_AVISOS[i][1].toLowerCase(); return m===0 ? 'a la misma hora' : (m%60===0 ? (m/60)+' '+plural(m/60,'hora','horas') : m+' minutos')+' antes'; });
+        var semF=recSinSemilla(o.personas);
+        dime(fill(pick('recOK',['¡Apuntado! Se lo recordaré a {p} {a}.','Hecho. Aviso a {p} {a}.','Guardado: {p} recibirá el aviso {a}.']),{p:listaTxt(o.personas),a:listaTxt(avTxt)})+' '+pick('recOK2',['Si no pulsáis «Enterado», insisto cada media hora.','Y si nadie pulsa «Enterado», vuelvo a avisar cada media hora.'])+semF);
       }).withFailureHandler(function(e){ dime('No he podido guardar el recordatorio: '+(e && e.message ? e.message : 'error de conexión')+'.'); }).apiRecCrear(pl);
     }catch(e){ dime('No he podido guardar el recordatorio ahora mismo.'); }
   }
@@ -1009,10 +1018,15 @@ var lastPicks = {};
     if(mA){ mA[1].split(/\s*(?:,|y)\s*/).forEach(function(w){ var nm=NOMBRE_PERS[w]; if(nm && pre.indexOf(nm)<0) pre.push(nm); }); cut+=mA[0].length; }
     if(/^recuerdame|^recuerdamelo|^acuerdame|^avisame|^apuntame|^anotame/.test(mt[1]) && !pre.length) pre=['Manu'];
     var pr=recParse(raw, now);
-    var o={ texto: recTexto(raw, cut, pr.spans.filter(function(sp){ return sp[0]>=cut; })), when: pr.when, defHora: pr.defHora, pre: pre };
+    var o={ texto: recTexto(raw, cut, pr.spans.filter(function(sp){ return sp[0]>=cut; })), when: pr.when, defHora: pr.defHora, pre: pre, avisos: pr.avisos||null };
     if(!o.when){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: fill(pick('recCuando',['Vale, «{t}». ¿Para cuándo te lo recuerdo? Dime el día, la hora o las dos cosas.','Apuntado «{t}». ¿Qué día y a qué hora?','¿Y para cuándo es «{t}»? Por ejemplo: «mañana a las 10» o «el lunes».']),{t:o.texto}) }); }
     if(o.when.getTime()<Date.now()){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: 'Esa hora ya ha pasado. ¿Para cuándo lo pongo?' }); }
     recPreguntarPersonas(o, done);
+  }
+  function recSinSemilla(pers){
+    var falta=(pers||[]).filter(function(p){ for(var i=0;i<REC_PERS.length;i++) if(REC_PERS[i][0]===p) return !semilla(REC_PERS[i][1]); return false; });
+    if(!falta.length) return '';
+    return ' ⚠️ Ojo: este ordenador no tiene instalada la semilla de recordatorios de '+listaTxt(falta)+', así que aquí no sonará. Para que suene, escribe CONSOLA, luego SEMILLA → 1 y elige «Recordatorios de '+falta[0]+'».';
   }
   function recPendiente(raw, done){
     var rp=B._recPend; if(!rp || Date.now()-rp.at > 10*60000){ B._recPend=null; return false; }
@@ -1034,9 +1048,10 @@ var lastPicks = {};
     recCargar(function(l){
       if(l==null) return done({ say:'No he podido leer los recordatorios ahora mismo.' });
       var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000; }).sort(function(a,b){ return a.cuando-b.cuando; });
+      var semL=recSinSemilla(fut.reduce(function(a,r){ (r.personas||[]).forEach(function(p){ if(a.indexOf(p)<0) a.push(p); }); return a; }, []));
       if(!fut.length) return done({ say: pick('recL0',['No hay ningún recordatorio pendiente.','No tienes recordatorios apuntados.','Nada apuntado por ahora.']) });
       var txt=fut.slice(0,8).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'» ('+listaTxt(r.personas)+')'; }).join('\n');
-      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+'\nSi quieres borrar alguno, púlsalo:', buttons: fut.slice(0,8).map(function(r){ return { t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }; }) });
+      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+(semL?'\n'+semL.trim():'')+'\nSi quieres borrar alguno, púlsalo:', buttons: fut.slice(0,8).map(function(r){ return { t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }; }) });
     }, true);
   }
   function recBorrar(id, done){
