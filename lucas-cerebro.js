@@ -346,14 +346,36 @@
   // avisa a la música de otras pestañas (YouTube/Spotify, con el script de Tampermonkey) para que baje mientras habla Lucas
   function duckPost(st){ var m={pfDuck:st, t:Date.now()}; try{ window.top.postMessage(m,'*'); }catch(e){} try{ if(window.parent && window.parent!==window.top) window.parent.postMessage(m,'*'); }catch(e){} }
   var sayQ=[], sayBusy=false;
-  B.duckSay = function(msg){ sayQ.push(msg); if(!sayBusy) nextSay(); };
+  B.duckSay = function(msg, buttons){ sayQ.push({ m:msg, b:buttons||null }); if(!sayBusy) nextSay(); };
+  // botones en el chat del asistente (para los avisos que no vienen de una pregunta)
+  var fichBtns = [];
+  B.renderButtons = function(list){
+    var box = document.getElementById('iaChatMsgs'); if(!box || !list || !list.length) return;
+    var bx = document.createElement('div'); bx.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;max-width:90%;';
+    list.forEach(function(o){
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = o.t;
+      b.style.cssText = 'border:1px solid #17ff5f;background:#0f1512;color:#d9ffe6;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 0 12px rgba(23,255,95,.35);transition:transform .15s;';
+      b.onmouseenter = function(){ b.style.transform = 'scale(1.06)'; }; b.onmouseleave = function(){ b.style.transform = ''; };
+      b.onclick = function(){
+        if(b.disabled) return;
+        bx.querySelectorAll('button').forEach(function(x){ x.disabled = true; x.style.opacity = x === b ? '1' : '.35'; x.style.cursor = 'default'; });
+        B.pick(o.v, function(rr){ if(rr && rr.say && window.__lucasSay) window.__lucasSay(rr.say); if(rr && rr.buttons) B.renderButtons(rr.buttons); });
+      };
+      bx.appendChild(b);
+      if(String(o.v).indexOf('fichOK')===0) fichBtns.push(b);
+    });
+    box.appendChild(bx); box.scrollTop = box.scrollHeight;
+  };
+  function apagaFichBtns(){ fichBtns.forEach(function(b){ b.disabled = true; b.style.opacity = '.35'; b.style.cursor = 'default'; }); fichBtns = []; }
+  B._apagaFichBtns = apagaFichBtns;
   function nextSay(){
-    var msg=sayQ.shift(); if(msg==null){ sayBusy=false; return; } sayBusy=true;
+    var it=sayQ.shift(); if(it==null){ sayBusy=false; return; } sayBusy=true; var msg=it.m;
     duckPost('down');                                            // 2 s antes: la música empieza a bajar
     setTimeout(function(){
       // abre el asistente (aunque Lucas esté dormido) para que el aviso quede también por escrito, por si el sonido está apagado
       try{ var dk=document.getElementById('lucasDock'), pk=document.getElementById('lucasPeek'); if(dk && pk && dk.classList.contains('on') && !dk.classList.contains('open')) pk.click(); }catch(e){}
       if(window.__lucasSay) window.__lucasSay(msg);
+      if(it.b) B.renderButtons(it.b);
       var t0=Date.now(), saw=false;
       var iv=setInterval(function(){
         var ss=window.speechSynthesis, busy=!!(ss && (ss.speaking||ss.pending));
@@ -436,22 +458,28 @@
   function fichAskText(f, n, test){
     var tipoTxt = f.tipo==='ENTRADA' ? 'entrada' : 'salida';
     var first = [
-      '{s}, {e}. Necesito que me confirmes que ya estás en tu puesto de trabajo. Contéstame por este chat y guardaré tu respuesta como hora de entrada.',
-      '{s}, {e}. ¿Ya estás en tu puesto? Respóndeme aquí, en el chat, y apunto tu hora de entrada.',
-      '{s}, {e}. Toca fichar la entrada: escríbeme cualquier cosa por este chat y quedará registrada.'
+      '{s}, {e}. Necesito que me confirmes que ya estás en tu puesto de trabajo. Pulsa el botón de abajo y guardaré la hora como tu entrada.',
+      '{s}, {e}. ¿Ya estás en tu puesto? Confírmamelo con el botón y apunto tu hora de entrada.',
+      '{s}, {e}. Toca fichar la entrada {x2}: un toque en el botón y queda registrada.',
+      '{s}, {e}. Empezamos el turno {x2}. Cuando estés listo, pulsa «confirmar» y registro tu entrada.',
+      '{s}, {e}. Te espero para fichar la entrada: dale al botón verde y listo.'
     ];
     var firstS = [
-      '{s}, {e}. Es la hora de salida del turno de {t}. Contéstame por este chat y guardaré tu respuesta como hora de salida.',
-      '{s}, {e}. Antes de irte, confírmame la salida: respóndeme aquí y la registro.',
-      '{s}, {e}. Toca fichar la salida del turno de {t}: escríbeme por este chat y la dejo guardada.'
+      '{s}, {e}. Es la hora de salida del turno de {t}. Pulsa el botón para confirmar y guardaré tu hora de salida.',
+      '{s}, {e}. Antes de irte, confírmame la salida con el botón y la dejo registrada.',
+      '{s}, {e}. Se acaba el turno de {t}: un toque en el botón y tu salida queda guardada.',
+      '{s}, {e}. Hora de cerrar el turno de {t}. Confirma tu salida con el botón, por favor.',
+      '{s}, {e}. No te vayas sin fichar: pulsa el botón y registro tu salida.'
     ];
     var again = [
-      '{e}, sigo esperando tu confirmación de {x}. Contéstame por el chat, por favor.',
-      '{e}, ¿estás por ahí? Necesito que me respondas para registrar tu {x}.',
-      'Recordatorio para {e}: todavía no me has confirmado la {x}. Escríbeme por este chat.',
-      '{e}, solo tienes que contestarme aquí para que quede registrada tu {x}.'
+      '{e}, sigo esperando que confirmes tu {x}. Pulsa el botón, por favor.',
+      '{e}, ¿estás por ahí? Solo falta que pulses el botón para registrar tu {x}.',
+      'Recordatorio para {e}: todavía no has confirmado la {x}. Te dejo el botón aquí abajo.',
+      '{e}, un toque en el botón y tu {x} queda registrada.',
+      '{e}, no me olvido de ti: falta confirmar tu {x}.',
+      'Otra vez yo, {e}. Confirma tu {x} con el botón cuando puedas.'
     ];
-    var o = {s:f.saludo, e:EMPLEADO, t:f.turno.toLowerCase(), x:tipoTxt+(f.turno==='MAÑANA'?' de la mañana':' de la tarde')};
+    var o = {s:f.saludo, e:EMPLEADO, t:f.turno.toLowerCase(), x:tipoTxt+(f.turno==='MAÑANA'?' de la mañana':' de la tarde'), x2:(f.turno==='MAÑANA'?'de la mañana':'de la tarde')};
     var txt = n<=1 ? fill(pick('fa'+f.tipo, f.tipo==='ENTRADA'?first:firstS), o) : fill(pick('fr', again), o);
     return test ? '(Prueba) ' + txt : txt;
   }
@@ -460,21 +488,27 @@
     var until = test ? Date.now() + 10*60000 : Date.now() + win;
     if(!test && n>=f.max) until = Date.now() + f.every*60000;   // el último aviso deja contestar un rato
     pendingF = { id:f.id, test:!!test, until:until };
-    B.duckSay(fichAskText(f, n, test));
+    apagaFichBtns();
+    var bt = f.tipo==='ENTRADA' ? pick('fbtE',['✅ Confirmar entrada','✅ Ya estoy en mi puesto','✅ Confirmo mi entrada']) : pick('fbtS',['✅ Confirmar salida','✅ Me voy, confirmo salida','✅ Confirmo mi salida']);
+    B.duckSay(fichAskText(f, n, test), [{ t:bt, v:'fichOK' }]);
   }
   // la respuesta del empleado por el chat
   function fichAnswer(done){
     var pf = pendingF, f = fichById(pf.id), now = new Date(), h = hhmm(now);
-    pendingF = null;
+    pendingF = null; apagaFichBtns();
     var tipoTxt = f.tipo==='ENTRADA' ? 'entrada' : 'salida', turnoTxt = f.turno==='MAÑANA' ? 'de la mañana' : 'de la tarde';
     var okMsgs = f.tipo==='ENTRADA' ? [
       'Perfecto, {e}. He registrado tu entrada {t} a las {h}. ¡Que tengas un buen turno!',
       'Anotado: entrada {t} a las {h}. ¡A por el día, {e}!',
-      'Listo, {e}. Entrada {t} registrada a las {h}. Mucho ánimo.'
+      'Listo, {e}. Entrada {t} registrada a las {h}. Mucho ánimo.',
+      'Gracias, {e}. Tu entrada {t} queda guardada a las {h}. ¡Vamos allá!',
+      'Confirmado, {e}: entrada {t} a las {h}. Que sea un gran turno.'
     ] : [
       'Perfecto, {e}. He registrado tu salida {t} a las {h}. ¡Buen descanso!',
       'Anotado: salida {t} a las {h}. ¡Gracias por el trabajo de hoy, {e}!',
-      'Listo, {e}. Salida {t} registrada a las {h}. ¡Hasta luego!'
+      'Listo, {e}. Salida {t} registrada a las {h}. ¡Hasta luego!',
+      'Gracias, {e}. Tu salida {t} queda guardada a las {h}. ¡A descansar!',
+      'Confirmado, {e}: salida {t} a las {h}. Buen trabajo.'
     ];
     var o = {e:EMPLEADO, t:turnoTxt, h:h};
     if(pf.test){ done({ say: fill(pick('fok'+f.tipo, okMsgs), o) + ' (Era una prueba: no se ha guardado.)' }); return; }
@@ -593,6 +627,7 @@
   // botones del chat
   B.pick = function(v, done){
     v = String(v||'');
+    if(v==='fichOK'){ if(B.fichPending()) return B._fichAnswer(done); return done({ say: pick('fpas',['Ese aviso ya ha caducado, pero no pasa nada: el próximo te llegará a su hora.','Ya no hay ningún fichaje esperando confirmación ahora mismo.']) }); }
     if(v.indexOf('emp:')===0) return askTipo(v.slice(4), done);
     if(v.indexOf('tipo:')===0){ if(!flow || !flow.emp) return askEmp(done); return guardarManual(flow.emp, v.slice(5), done); }
   };
