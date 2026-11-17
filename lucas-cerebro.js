@@ -1267,13 +1267,15 @@ var lastPicks = {};
                                 : pick('mb0',['No hay ningún contrato de Simyo para bajar a 1 €. ¡Todo al día!','Nada que bajar a 1 € ahora mismo. ¡Todo al día!']) });
       }
       if(id==='maicol_pausar0' || id==='maicol_pausar0_mas'){
-        // mes natural de hace 2 meses (y, con «mostrar también», el de hace 1 mes); solo Simyo; estado «-», 😓 o 🪙 (🤑 = ya pausadas a 0 €)
+        // mes natural de hace 2 meses (y, con «mostrar también», el de hace 1 mes); solo Simyo; ⛔ líneas extra > 0; estado «-», 😓 o 🪙 (🤑 = ya pausadas a 0 €)
         var mas = id==='maicol_pausar0_mas';
         var mr=monthRange(now.getFullYear(), now.getMonth()-2), mr1=monthRange(now.getFullYear(), now.getMonth()-1);
         var desde2=mr.from, hasta2= mas ? mr1.to : mr.to;
         var l2=contratos().filter(function(it){
           var k=ts(it['14']); if(!k || k<desde2.getTime() || k>hasta2.getTime()) return false;
           if(String(it['2']||'').toUpperCase().indexOf('SIMYO')<0) return false;
+          var lx=parseFloat(String(it['18']==null?'':it['18']).trim().replace(',','.'));   // ⛔ líneas extra: solo si hay 1 o más
+          if(isNaN(lx) || lx<=0) return false;
           var e=String(it['44']==null?'':it['44']).replace(/️/g,'').trim();
           if(e.indexOf('\u{1F911}')>=0) return false;                                   // 🤑 = ya pausadas a 0 €
           return e==='' || e==='-' || e==='—' || e.indexOf('\u{1F613}')>=0 || e.indexOf('\u{1FA99}')>=0;
