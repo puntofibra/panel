@@ -765,8 +765,25 @@ var lastPicks = {};
     var c=document.createElement('div');
     c.style.cssText='margin:4px 0 12px;max-width:96%;border:1px solid #17ff5f;border-radius:16px;padding:12px 12px 6px;background:linear-gradient(160deg,#07140d,#040a0b);box-shadow:0 0 18px rgba(23,255,95,.25);';
     c.innerHTML='<div style="font-weight:900;color:#17ff5f;font-size:13px;letter-spacing:.5px">📊 '+esc0(titulo)+'</div><div style="font-size:11px;color:#7fb894;margin:2px 0 6px">'+esc0(sub)+'</div>'+svg;
+    c.style.cursor='zoom-in'; c.title='Pulsa para ver la gráfica en grande';
+    c.onclick=function(){ abrirGrafica(titulo, sub, svg); };
     box.appendChild(c); box.scrollTop=box.scrollHeight;
     setTimeout(function(){ c.querySelectorAll('.lgBar').forEach(function(b){ b.style.transform='scaleY(1)'; }); }, 60);
+  }
+  // gráfica en grande, en el centro de la pantalla, con X para cerrar
+  function abrirGrafica(titulo, sub, svg){
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(2,8,5,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;transition:opacity .25s;';
+    var c=document.createElement('div');
+    c.style.cssText='position:relative;width:min(980px,96vw);max-height:92vh;overflow:auto;border:2px solid #17ff5f;border-radius:20px;padding:22px 22px 14px;background:linear-gradient(160deg,#07140d,#040a0b);box-shadow:0 0 40px rgba(23,255,95,.35),0 0 90px rgba(0,212,255,.15);transform:scale(.92);transition:transform .3s cubic-bezier(.2,1.3,.4,1);';
+    c.innerHTML='<div style="font-weight:900;color:#17ff5f;font-size:20px;letter-spacing:.5px;padding-right:40px">📊 '+esc0(titulo)+'</div><div style="font-size:13px;color:#7fb894;margin:4px 0 14px">'+esc0(sub)+'</div>'+svg.replace(/transform:scaleY\(0\)/g,'transform:scaleY(0)');
+    var x=document.createElement('button'); x.type='button'; x.textContent='×'; x.title='Cerrar';
+    x.style.cssText='position:absolute;top:10px;right:14px;width:40px;height:40px;border-radius:50%;border:1px solid #17ff5f;background:#0b1a12;color:#d9ffe6;font-size:26px;line-height:36px;cursor:pointer;box-shadow:0 0 12px rgba(23,255,95,.4);';
+    var cerrar=function(){ ov.style.opacity='0'; c.style.transform='scale(.92)'; document.removeEventListener('keydown', esc); setTimeout(function(){ try{ ov.remove(); }catch(e){} },260); };
+    var esc=function(e){ if(e.key==='Escape') cerrar(); };
+    x.onclick=cerrar; ov.onclick=function(e){ if(e.target===ov) cerrar(); }; document.addEventListener('keydown', esc);
+    c.appendChild(x); ov.appendChild(c); document.body.appendChild(ov);
+    requestAnimationFrame(function(){ ov.style.opacity='1'; c.style.transform='scale(1)'; setTimeout(function(){ c.querySelectorAll('.lgBar').forEach(function(b){ b.style.transform='scaleY(1)'; }); }, 80); });
   }
   B.pintarGrafica = pintarGrafica;
   function grafica(t, now, done){
@@ -1800,4 +1817,54 @@ var lastPicks = {};
     }catch(e){}
     done({ say: 'Pulsa el botón 🔄 Actualizar de contratos para verlo.' });
   };
+
+  /* =====================================================================
+     SALDO DEL ASISTENTE: cada mensaje ESCRITO cuesta 0,019 € (los botones no).
+     El saldo vive en el servidor (igual en todos los ordenadores), en milésimas de euro.
+     ===================================================================== */
+  var SALDO=null, COSTE=19;
+  function saldoTxt(m){ return (Math.floor(Math.max(0,m)/10)/100).toFixed(2).replace('.',','); }
+  function saldoPintar(){
+    var x=document.getElementById('iaChatClose'); if(!x || !x.parentNode) return;
+    var el=document.getElementById('lucasSaldo');
+    if(!el){ el=document.createElement('span'); el.id='lucasSaldo'; el.title='Saldo del asistente';
+      el.style.cssText='margin-left:auto;margin-right:14px;font-size:12px;font-weight:800;white-space:nowrap;letter-spacing:.3px;font-variant-numeric:tabular-nums;';
+      x.parentNode.insertBefore(el, x); }
+    el.textContent='Saldo: '+(SALDO==null?'…':saldoTxt(SALDO)+' €');
+    el.style.color = SALDO==null ? '#9aa3ad' : (SALDO<COSTE ? '#ff4d4d' : (SALDO<1000 ? '#ffb020' : '#17ff5f'));
+  }
+  function saldoCargar(){ try{ google.script.run.withSuccessHandler(function(r){ if(r && r.ok){ SALDO=r.saldo; saldoPintar(); } }).withFailureHandler(function(){}).apiSaldoVer(); }catch(e){} }
+  B.saldoSet = function(m){ SALDO=m; saldoPintar(); };
+  setTimeout(saldoCargar, 1500); setInterval(saldoCargar, 60000); setInterval(saldoPintar, 2000);
+  function saldoConsumir(){
+    if(SALDO!=null){ SALDO=Math.max(0, SALDO-COSTE); saldoPintar(); }
+    try{ google.script.run.withSuccessHandler(function(r){ if(r && r.saldo!=null){ SALDO=r.saldo; saldoPintar(); } }).withFailureHandler(function(){}).apiSaldoConsumir(); }catch(e){}
+  }
+  function sinSaldo(done){
+    done({ say: pick('sinSaldo',['Me he quedado sin saldo. Contacta con el administrador para recargarlo y seguimos.','Saldo agotado. Pide al administrador que me recargue y vuelvo a estar a tope.','Lo siento, no me queda saldo. Contacta con el administrador para recargarlo.']) });
+    try{
+      if(document.getElementById('lucasSinSaldo')) return;
+      var ov=document.createElement('div'); ov.id='lucasSinSaldo';
+      ov.style.cssText='position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,2,2,.66);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
+      var c=document.createElement('div');
+      c.style.cssText='width:min(420px,100%);border-radius:22px;padding:26px 24px 20px;text-align:center;color:#fff;background:linear-gradient(160deg,#1a0707,#0a0303);border:2px solid #ff4d4d;box-shadow:0 0 30px rgba(255,77,77,.55),0 0 80px rgba(255,176,32,.2);animation:recIn .45s cubic-bezier(.2,1.4,.4,1);';
+      c.innerHTML='<div style="font-size:52px;line-height:1;filter:drop-shadow(0 0 12px #ff4d4d)">🔋</div><div style="margin-top:8px;font-size:12px;letter-spacing:4px;font-weight:900;color:#ff6b6b">SALDO AGOTADO</div><div style="margin:14px 0 6px;font-size:20px;font-weight:900;line-height:1.3">El asistente Lucas se ha quedado sin saldo</div><div style="font-size:14px;color:#ffd0d0">Contacta con el administrador para recargar saldo.</div><div style="display:inline-block;margin-top:12px;padding:5px 14px;border-radius:999px;border:1px solid #ffb020;color:#ffb020;font-weight:800;font-size:13px">Saldo: '+saldoTxt(SALDO||0)+' €</div>';
+      var ok=document.createElement('button'); ok.type='button'; ok.textContent='ENTENDIDO';
+      ok.style.cssText='display:block;width:100%;margin-top:18px;border:none;border-radius:14px;padding:14px;font-size:16px;font-weight:900;letter-spacing:1px;cursor:pointer;color:#1a0505;background:linear-gradient(90deg,#ff4d4d,#ffb020);box-shadow:0 0 22px rgba(255,77,77,.55);';
+      ok.onclick=function(){ try{ ov.remove(); }catch(e){} };
+      if(!document.getElementById('recCss')){ var st=document.createElement('style'); st.id='recCss'; st.textContent='@keyframes recIn{0%{opacity:0;transform:translateY(30px) scale(.9)}100%{opacity:1;transform:none}}'; document.head.appendChild(st); }
+      c.appendChild(ok); ov.appendChild(c); document.body.appendChild(ov);
+    }catch(e){}
+  }
+  // solo cobra los mensajes escritos (los botones pasan por B.pick y no cobran)
+  var handleBase = B.handle;
+  B.handle = function(raw, done){
+    if(B._enHandle || B._porBoton) return handleBase(raw, done);
+    if(SALDO!=null && SALDO<COSTE) return sinSaldo(done);
+    B._enHandle = true;
+    try{ handleBase(raw, done); } finally{ B._enHandle = false; }
+    saldoConsumir();
+  };
+  var pickBase = B.pick;
+  B.pick = function(v, done){ B._porBoton = true; try{ return pickBase(v, done); } finally{ B._porBoton = false; } };
 })();

@@ -52,6 +52,7 @@
     ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
     ['TEST4', 'PRUEBA EL FICHAJE DE SALIDA DE LA TARDE (19:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-S', 'SALIDA DE LA TARDE', say); }],
     ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIAN, JORGE Y MAICOL)', function(a, say){ fichMenuEmp(say); }],
+    ['RECHARGE', 'RECARGA EL SALDO DEL ASISTENTE LUCAS (SE SUMA AL QUE YA HAY)', function(a, say){ recPaso1(say); }],
     ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }],
     ['EDIT', 'TRAS LISTAR FICHAJES: MUESTRA [ELIMINAR] AL LADO DE CADA REGISTRO', function(a, say){ fichEdit(say); }],
     ['SCRIPT', 'SCRIPTS DE TAMPERMONKEY: ELIGES UNO Y SE COPIA PARA PEGARLO', function(a, say){ scrMenu(say); }],
@@ -129,6 +130,32 @@
       row.appendChild(t); row.appendChild(b);
       CON.q.push({ node: row }); if(!CON.typing) conPump();
     });
+  }
+  // ---------- RECARGA DEL SALDO DEL ASISTENTE (milésimas de euro en el servidor) ----------
+  function eurTxt(m){ return (Math.floor(Math.max(0, m)/10)/100).toFixed(2).replace('.', ','); }
+  function recPaso1(say){
+    say('>> RECARGA DE SALDO 💳', 'g big', 20);
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        say('   SALDO ACTUAL: ' + (r && r.ok ? eurTxt(r.saldo) + ' €' : 'NO DISPONIBLE'), 'y', 10);
+        say('>> ¿CUÁNTO QUIERES RECARGAR? ESCRIBE LA CANTIDAD EN FORMATO XXX,XX Y PULSA ENTER.', 'g', 16);
+        CON.ask = 'recarga';
+      }).withFailureHandler(function(){ say('   NO SE HA PODIDO LEER EL SALDO. PRUEBA OTRA VEZ.', 'r', 10); errTone(); }).apiSaldoVer();
+    }catch(e){ say('   NO SE HA PODIDO LEER EL SALDO.', 'r', 10); errTone(); }
+  }
+  function recPaso2(m){
+    var mil = parseInt(m[1], 10) * 1000 + (m[2] ? (m[2].length === 1 ? parseInt(m[2], 10) * 100 : parseInt(m[2], 10) * 10) : 0);
+    if(!(mil > 0)){ say('LA CANTIDAD TIENE QUE SER MAYOR QUE 0.', 'r', 12); errTone(); CON.ask = 'recarga'; return; }
+    say('   RECARGANDO ' + eurTxt(mil) + ' €…', 'd', 10);
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        if(!r || !r.ok){ say('   NO SE HA PODIDO RECARGAR' + (r && r.error ? ': ' + String(r.error).toUpperCase() : '') + '.', 'r', 10); errTone(); return; }
+        say('>> RECARGA HECHA ✅  +' + eurTxt(mil) + ' €', 'g big', 22);
+        say('   SALDO ACTUAL: ' + eurTxt(r.saldo) + ' €', 'y', 10);
+        tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+        try{ if(window.LucasBrain && window.LucasBrain.saldoSet) window.LucasBrain.saldoSet(r.saldo); }catch(e){}
+      }).withFailureHandler(function(){ say('   NO SE HA PODIDO RECARGAR. PRUEBA OTRA VEZ.', 'r', 10); errTone(); }).apiSaldoRecargar(mil);
+    }catch(e){ say('   NO SE HA PODIDO RECARGAR.', 'r', 10); errTone(); }
   }
   // ---------- SEMILLAS: marcas guardadas solo en este ordenador ----------
   var SEMILLAS = [
@@ -397,6 +424,12 @@
     if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }
     if(CON.ask === 'fichEmp'){ CON.ask = null; if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
     if(CON.ask === 'fich'){ CON.ask = null; if(/^[1-8]$/.test(cmd)){ fichListar(+cmd); return; } }
+    if(CON.ask === 'recarga'){ CON.ask = null;
+      if(/^(CANCELAR|SALIR|NO|NADA)$/.test(cmd)){ say('   RECARGA CANCELADA.', 'd', 10); return; }
+      var mR = cmd.replace(/\s|€|EUROS?/g, '').match(/^(\d{1,3})(?:[.,](\d{1,2}))?$/);
+      if(mR){ recPaso2(mR); return; }
+      say('IMPORTE NO VÁLIDO · ESCRIBE UNA CANTIDAD EN FORMATO XXX,XX (POR EJEMPLO 10 O 9,50).', 'r', 12); errTone(); CON.ask = 'recarga'; return;
+    }
     if(CON.ask === 'sem1'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso2(+cmd); return; } }
     if(CON.ask === 'sem2'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso3(+cmd); return; } }
     if(cmd === 'LIST' || cmd === 'LISTA' || cmd === 'HELP' || cmd === 'AYUDA'){
