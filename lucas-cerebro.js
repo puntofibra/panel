@@ -1257,13 +1257,14 @@ var lastPicks = {};
         var desde=d0(now.getFullYear(), now.getMonth(), now.getDate()-60), hasta=new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59,999);
         var l=contratos().filter(function(it){
           var k=ts(it['14']); if(!k || k<desde.getTime() || k>hasta.getTime()) return false;
+          if(String(it['2']||'').toUpperCase().indexOf('SIMYO')<0) return false;      // solo Simyo
           var e=String(it['44']==null?'':it['44']).replace(/\uFE0F/g,'').trim();
           return e==='' || e==='-' || e==='—' || e.indexOf('\u{1F613}')>=0;
         });
         render(l, { from:desde, to:hasta, label:'de los últimos 60 días' });
         var n=l.length;
-        return done({ say: n ? fill(pick('mb1',['Listo, {u}: {n} {c} para bajar líneas a 1 € (últimos 60 días, estado «-» o 😓).','Ahí tienes, {u}: {n} {c} de los últimos 60 días con estado «-» o 😓.','Filtro aplicado: {n} {c} para bajar a 1 €.']),{u:s.u.nombre,n:numU(n),c:plural(n,'contrato','contratos')})
-                                : 'No hay ningún contrato de los últimos 60 días con estado «-» o 😓. ¡Todo al día!' });
+        return done({ say: n ? fill(pick('mb1',['Listo, {u}: {n} {c} de Simyo para bajar líneas a 1 € (últimos 60 días, estado «-» o 😓).','Ahí tienes, {u}: {n} {c} de Simyo de los últimos 60 días con estado «-» o 😓.','Filtro aplicado: {n} {c} de Simyo para bajar a 1 €.']),{u:s.u.nombre,n:numU(n),c:plural(n,'contrato','contratos')})
+                                : 'No hay ningún contrato de Simyo de los últimos 60 días con estado «-» o 😓. ¡Todo al día!' });
       }
       if(id==='maicol_pausar0'){
         // el mes natural de hace 2 meses (si estamos en noviembre, septiembre entero), solo Simyo, estado «-», 😓, 🪙 o 🤑
