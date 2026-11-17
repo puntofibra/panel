@@ -88,7 +88,8 @@
   var SEMILLAS = [
     ['fichaje', 'SIN FICHAJES', 'LUCAS NO PREGUNTA A SEBASTIAN POR SU ENTRADA NI SU SALIDA EN ESTE ORDENADOR'],
     ['avisos',  'SIN AVISOS DE PENDIENTES', 'LUCAS NO RECUERDA LOS CONTRATOS PENDIENTES EN ESTE ORDENADOR'],
-    ['borradores', 'SIN AVISOS DE BORRADORES NUEVOS', 'LUCAS NO AVISA DE BORRADORES NUEVOS SIN ACTUALIZAR EN ESTE ORDENADOR']
+    ['borradores', 'SIN AVISOS DE BORRADORES NUEVOS', 'LUCAS NO AVISA DE BORRADORES NUEVOS SIN ACTUALIZAR EN ESTE ORDENADOR'],
+    ['contratos', 'AVISOS DE CONTRATOS NUEVOS', 'LUCAS AVISA EN ESTE ORDENADOR CUANDO SE FINALIZA UN CONTRATO NUEVO (SOLO FUNCIONA SI ESTÁ INSTALADA)']
   ];
   function semOn(k){ try{ return localStorage.getItem('pfSemilla_' + k) === '1'; }catch(e){ return false; } }
   function semSet(k, on){ try{ if(on) localStorage.setItem('pfSemilla_' + k, '1'); else localStorage.removeItem('pfSemilla_' + k); }catch(e){} }

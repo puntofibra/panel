@@ -628,6 +628,7 @@
   B.pick = function(v, done){
     v = String(v||'');
     if(v==='refreshB') return B._refreshB(done);
+    if(v==='refreshC') return B._refreshC(done);
     if(v==='fichOK'){ if(B.fichPending()) return B._fichAnswer(done); return done({ say: pick('fpas',['Ese aviso ya ha caducado, pero no pasa nada: el próximo te llegará a su hora.','Ya no hay ningún fichaje esperando confirmación ahora mismo.']) }); }
     if(v.indexOf('emp:')===0) return askTipo(v.slice(4), done);
     if(v.indexOf('tipo:')===0){ if(!flow || !flow.emp) return askEmp(done); return guardarManual(flow.emp, v.slice(5), done); }
@@ -691,5 +692,46 @@
       });
     }catch(e){}
     done({ say: 'Pulsa el botón 🔄 Actualizar de borradores para verlo.' });
+  };
+
+  /* =====================================================================
+     CONTRATOS NUEVOS (solo en los ordenadores con la semilla «contratos» instalada)
+     Compara el contador de contratos de hoy (se refresca solo) con los que ya se ven en esta pantalla.
+     ===================================================================== */
+  function hoyIsoL(){ return iso(new Date()); }
+  function contratosHoyLocal(){ var h = new Date(); h = new Date(h.getFullYear(), h.getMonth(), h.getDate()).getTime(); return contratos().filter(function(it){ return ts(it['14']) === h; }); }
+  var avisadoC = { dia:'', n:0 };
+  function vigilaContratos(){
+    try{
+      if(!semilla('contratos')) return;                         // semilla al revés: si no está instalada, no hace nada
+      var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+      if(!contratos().length) return;
+      var el = document.getElementById('countContratos'); if(!el) return;
+      var badge = parseInt(el.textContent, 10); if(isNaN(badge)) return;
+      var dia = hoyIsoL(); if(avisadoC.dia !== dia) avisadoC = { dia:dia, n:0 };
+      var local = contratosHoyLocal().length;
+      if(badge <= local || badge <= avisadoC.n) return;
+      avisadoC.n = badge;
+      var n = badge - local;
+      var msg = n===1
+        ? pick('cnew1',['¡Contrato nuevo! Se acaba de finalizar uno que tu pantalla todavía no muestra. Pulsa el botón para actualizar.','Buenas noticias: ha entrado un contrato nuevo. ¿Actualizo la lista para que lo veas?','Novedad en contratos: hay uno nuevo de hoy que aún no ves. Dale al botón y te lo enseño.'])
+        : fill(pick('cnewN',['¡Contratos nuevos! Se han finalizado {n} que tu pantalla todavía no muestra. Pulsa el botón para actualizar.','Buenas noticias: han entrado {n} contratos nuevos. ¿Actualizo la lista?','Novedad: {n} contratos nuevos de hoy sin ver. Dale al botón y los verás.']),{n:n});
+      B.duckSay(msg, [{ t:'🔄 Actualizar contratos', v:'refreshC' }]);
+    }catch(e){}
+  }
+  setInterval(vigilaContratos, 30000);
+  B._refreshC = function(done){
+    var antes = {}; contratosHoyLocal().forEach(function(it){ antes[firmaB(it)] = 1; });
+    try{ if(typeof goView==='function') goView('contratos'); }catch(e){}
+    try{
+      if(typeof loadContratos==='function') return loadContratos(function(){
+        var nuevos = contratosHoyLocal().filter(function(it){ return !antes[firmaB(it)]; });
+        var det = '';
+        if(nuevos.length===1){ var it=nuevos[0]; det = ' Es el de ' + titleCase(String(it['21']||'').trim()) + (it['2'] ? ' (' + compName(it['2']) + ')' : '') + '.'; }
+        else if(nuevos.length>1) det = ' Son ' + nuevos.length + ' nuevos: ' + nuevos.slice(0,3).map(function(it){ return titleCase(String(it['21']||'').trim()); }).join(', ') + (nuevos.length>3 ? '…' : '') + '.';
+        done({ say: pick('cok',['Listo, contratos actualizados.','Hecho: lista de contratos al día.','Actualizado.']) + det });
+      });
+    }catch(e){}
+    done({ say: 'Pulsa el botón 🔄 Actualizar de contratos para verlo.' });
   };
 })();
