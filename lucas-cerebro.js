@@ -1267,18 +1267,19 @@ var lastPicks = {};
                                 : 'No hay ningún contrato de Simyo de los últimos 60 días con estado «-» o 😓. ¡Todo al día!' });
       }
       if(id==='maicol_pausar0'){
-        // el mes natural de hace 2 meses (si estamos en noviembre, septiembre entero), solo Simyo, estado «-», 😓, 🪙 o 🤑
+        // el mes natural de hace 2 meses (si estamos en noviembre, septiembre entero), solo Simyo, estado «-», 😓 o 🪙 (los 🤑 ya están a 0 €)
         var mr=monthRange(now.getFullYear(), now.getMonth()-2);
         var l2=contratos().filter(function(it){
           var k=ts(it['14']); if(!k || k<mr.from.getTime() || k>mr.to.getTime()) return false;
           if(String(it['2']||'').toUpperCase().indexOf('SIMYO')<0) return false;
           var e=String(it['44']==null?'':it['44']).replace(/\uFE0F/g,'').trim();
-          return e==='' || e==='-' || e==='—' || e.indexOf('\u{1F613}')>=0 || e.indexOf('\u{1FA99}')>=0 || e.indexOf('\u{1F911}')>=0;
+          if(e.indexOf('\u{1F911}')>=0) return false;                                   // 🤑 = ya pausadas a 0 €
+          return e==='' || e==='-' || e==='—' || e.indexOf('\u{1F613}')>=0 || e.indexOf('\u{1FA99}')>=0;
         });
         render(l2, { from:mr.from, to:mr.to, label:'de '+mr.label });
         var n2=l2.length, mes=MESES[mr.m];
-        return done({ say: n2 ? fill(pick('mp0',['Listo, {u}: {n} {c} de Simyo de {m} para pausar a 0 € (estado «-», 😓, 🪙 o 🤑).','Ahí tienes, {u}: {n} {c} de Simyo de {m} para pausar.','Filtro aplicado: {n} {c} de Simyo de {m} para pausar las líneas a 0 €.']),{u:s.u.nombre,n:numU(n2),c:plural(n2,'contrato','contratos'),m:mes})
-                               : 'No hay contratos de Simyo de '+mes+' con estado «-», 😓, 🪙 o 🤑.' });
+        return done({ say: n2 ? fill(pick('mp0',['Listo, {u}: {n} {c} de Simyo de {m} para pausar a 0 € (estado «-», 😓 o 🪙).','Ahí tienes, {u}: {n} {c} de Simyo de {m} para pausar.','Filtro aplicado: {n} {c} de Simyo de {m} para pausar las líneas a 0 €.']),{u:s.u.nombre,n:numU(n2),c:plural(n2,'contrato','contratos'),m:mes})
+                               : 'No hay contratos de Simyo de '+mes+' con estado «-», 😓 o 🪙.' });
       }
       done({ say: 'Ese filtro todavía no está preparado.' });
     });
