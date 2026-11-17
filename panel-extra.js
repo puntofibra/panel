@@ -43,7 +43,7 @@
     ['TEST2', 'PRUEBA EL FICHAJE DE SALIDA DE LA MAÑANA (13:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('M-S', 'SALIDA DE LA MAÑANA', say); }],
     ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
     ['TEST4', 'PRUEBA EL FICHAJE DE SALIDA DE LA TARDE (19:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-S', 'SALIDA DE LA TARDE', say); }],
-    ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS DE SEBASTIÁN', function(a, say){ fichMenu(say); }],
+    ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIÁN, JORGE Y MAICOL)', function(a, say){ fichMenuEmp(say); }],
     ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }]
   ];
   // ---------- SEMILLAS: marcas guardadas solo en este ordenador ----------
@@ -94,9 +94,17 @@
     fichTimers[id] = setTimeout(function(){ if(window.LucasBrain && window.LucasBrain.fichTest) window.LucasBrain.fichTest(id); }, 60000);
   }
   var FICH_OPC = [null, 'HOY', 'AYER', 'ÚLTIMOS 7 DÍAS', 'MES ACTUAL', 'MES PASADO', 'ÚLTIMOS 3 MESES', 'ESTE AÑO', 'AÑO PASADO'];
+  var FICH_EMP = ['Sebastián', 'Jorge', 'Maicol'], fichEmp = 'Sebastián';
+  function fichMenuEmp(say){
+    CON.ask = 'fichEmp';
+    say('>> REGISTRO DE FICHAJES 🕘', 'g big', 20);
+    say('   ¿DE QUIÉN QUIERES VER LOS FICHAJES?', 'w', 12);
+    FICH_EMP.forEach(function(n, i){ say('   ' + (i+1) + ' - ' + n.toUpperCase(), 'y', 0, true); });
+    say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
+  }
   function fichMenu(say){
     CON.ask = 'fich';
-    say('>> REGISTRO DE FICHAJES · SEBASTIÁN', 'g big', 20);
+    say('>> FICHAJES DE ' + fichEmp.toUpperCase(), 'g big', 20);
     say('   ¿QUÉ PERIODO QUIERES CONSULTAR?', 'w', 12);
     for(var i=1;i<FICH_OPC.length;i++) say('   ' + i + ' - ' + FICH_OPC[i], 'y', 0, true);
     say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
@@ -122,10 +130,47 @@
   function minsOf(h){ var p = String(h||'').split(':'); return (+p[0])*60 + (+p[1]||0); }
   function fichListar(n){
     var r = fichRango(n); if(!r){ say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 8.', 'r', 12); errTone(); CON.ask = 'fich'; return; }
-    say('>> ' + FICH_OPC[n] + ' · CONSULTANDO EL REGISTRO…', 'g', 16);
+    say('>> ' + fichEmp.toUpperCase() + ' · ' + FICH_OPC[n] + ' · CONSULTANDO EL REGISTRO…', 'g', 16);
+    var fold = function(x){ return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+    var flexible = fichEmp !== 'Sebastián';      // Jorge y Maicol: horario flexible, sin marcar retrasos
+    var finFlex = function(items){     // Jorge / Maicol: varias entradas y salidas al día (máx. 5)
+      var porDia = {};
+      (items||[]).forEach(function(x){ if(fold(x.empleado || 'Sebastián') !== fold(fichEmp)) return; (porDia[x.fecha] = porDia[x.fecha] || []).push(x); });
+      var hoyIso = isoD(new Date()), p2 = function(v){ return ('0'+v).slice(-2); };
+      var dias = 0, tot = 0, abiertas = 0, minsTot = 0;
+      Object.keys(porDia).sort().reverse().forEach(function(fi){
+        var lst = porDia[fi].sort(function(a, b){ return a.hora < b.hora ? -1 : a.hora > b.hora ? 1 : (a.tipo === 'ENTRADA' ? -1 : 1); });
+        var dd = new Date(fi + 'T12:00:00'), fTxt = DIAS3[dd.getDay()] + ' ' + p2(dd.getDate()) + '/' + p2(dd.getMonth()+1) + '/' + dd.getFullYear();
+        dias++; say('', '', 0, true);
+        var abierta = null, nE = 0, minsDia = 0;
+        var cierraSinSalida = function(){
+          if(fi === hoyIso){ say(fTxt + '  ·  SALIDA ' + nE + '   ·  — EN CURSO (ENTRÓ A LAS ' + abierta + ')', 'd', 0, true); }
+          else { abiertas++; say(fTxt + '  ·  SALIDA ' + nE + '   ·  ✖ NO HA FICHADO LA SALIDA', 'r', 0, true); }
+        };
+        lst.forEach(function(x){
+          tot++;
+          if(x.tipo === 'ENTRADA'){
+            if(abierta) cierraSinSalida();
+            nE++; abierta = x.hora; say(fTxt + '  ·  ENTRADA ' + nE + '  ·  ' + x.hora, 'g', 0, true);
+          } else {
+            if(abierta){ var dm = minsOf(x.hora) - minsOf(abierta); if(dm > 0) minsDia += dm; say(fTxt + '  ·  SALIDA ' + nE + '   ·  ' + x.hora + (dm > 0 ? '   (' + Math.floor(dm/60) + 'h ' + p2(dm%60) + 'min)' : ''), 'g', 0, true); abierta = null; }
+            else say(fTxt + '  ·  SALIDA      ·  ' + x.hora + '   ⚠ SIN ENTRADA PREVIA', 'y', 0, true);
+          }
+        });
+        if(abierta) cierraSinSalida();
+        minsTot += minsDia;
+        if(minsDia) say('   TIEMPO TRABAJADO ESE DÍA: ' + Math.floor(minsDia/60) + 'h ' + p2(minsDia%60) + 'min', 'w', 0, true);
+      });
+      say('', '', 0, true);
+      if(!dias){ say('   ' + fichEmp.toUpperCase() + ' NO TIENE FICHAJES EN ESTE PERIODO.', 'd', 0, true); return; }
+      say('------------------------------------------', 'd', 0, true);
+      say('RESUMEN · ' + dias + ' ' + (dias === 1 ? 'DÍA CON FICHAJES' : 'DÍAS CON FICHAJES') + ' · ' + tot + ' ' + (tot === 1 ? 'FICHAJE' : 'FICHAJES') + ' · ' + abiertas + ' ' + (abiertas === 1 ? 'SALIDA SIN FICHAR' : 'SALIDAS SIN FICHAR') + ' · TOTAL ' + Math.floor(minsTot/60) + 'h ' + ('0'+(minsTot%60)).slice(-2) + 'min', 'w', 0, true);
+      tone(1500, 2200, 0.12, 'square', 0.04);
+    };
     var fin = function(items, err){
       if(err){ say('ERROR AL LEER EL REGISTRO: ' + err, 'r', 10); errTone(); return; }
-      var map = {}; (items||[]).forEach(function(x){ map[x.fecha+'|'+x.turno+'|'+x.tipo] = x.hora; });
+      if(flexible) return finFlex(items);
+      var map = {}; (items||[]).forEach(function(x){ var e = x.empleado || 'Sebastián'; if(fold(e) !== fold(fichEmp)) return; map[x.fecha+'|'+x.turno+'|'+x.tipo] = x.hora; });
       var now = new Date(), nowM = now.getHours()*60 + now.getMinutes(), hoyIso = isoD(now);
       var ok = 0, falta = 0, tarde = 0, dias = 0, p2 = function(v){ return ('0'+v).slice(-2); };
       for(var d = new Date(r[1]); d >= r[0]; d.setDate(d.getDate()-1)){
@@ -139,9 +184,9 @@
           if(h){
             ok++;
             var extra = '';
-            if(t[1] === 'ENTRADA'){ var dif = minsOf(h) - minsOf(t[2]); if(dif > 5){ tarde++; extra = '   ⚠ +' + dif + ' MIN'; } }
+            if(t[1] === 'ENTRADA' && !flexible){ var dif = minsOf(h) - minsOf(t[2]); if(dif > 5){ tarde++; extra = '   ⚠ +' + dif + ' MIN'; } }
             say(fTxt + '  ·  ' + etq + '  ·  ' + h + extra, extra ? 'y' : 'g', 0, true);
-          } else if(fi === hoyIso && nowM < minsOf(t[2]) + 60){
+          } else if(fi === hoyIso && nowM < (flexible ? (t[0] === 'MAÑANA' ? 15*60 : 22*60) : minsOf(t[2]) + 60)){
             say(fTxt + '  ·  ' + etq + '  ·  — PENDIENTE', 'd', 0, true);
           } else { falta++; say(fTxt + '  ·  ' + etq + '  ·  ✖ NO HA FICHADO', 'r', 0, true); }
         });
@@ -255,6 +300,7 @@
     if(conLine){ var cu = conLine.querySelector('.cur'); if(cu) cu.remove(); var tx = conLine.querySelector('#pfconTx'); if(tx){ tx.textContent = raw.toUpperCase(); tx.removeAttribute('id'); } }
     conIn.value = ''; CON.busy = true; conScroll(true);
     if(!cmd){ say('', '', 0, true); return; }
+    if(CON.ask === 'fichEmp'){ CON.ask = null; if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } }
     if(CON.ask === 'fich'){ CON.ask = null; if(/^[1-8]$/.test(cmd)){ fichListar(+cmd); return; } }
     if(CON.ask === 'sem1'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso2(+cmd); return; } }
     if(CON.ask === 'sem2'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso3(+cmd); return; } }

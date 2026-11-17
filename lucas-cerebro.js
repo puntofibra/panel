@@ -283,7 +283,7 @@
     if(/\bque hora es\b|\bhora es\b|\bdime la hora\b/.test(t)) return 'Son '+horaTxt(now)+'.';
     if(/\bque dia es\b|\ba que (dia )?estamos\b|\bque fecha es\b|\bfecha de hoy\b/.test(t)) return 'Hoy es '+DIAS[now.getDay()]+', '+now.getDate()+' de '+MESES[now.getMonth()]+' de '+now.getFullYear()+'.';
     if(/\b(chiste|algo gracioso|hazme reir)\b/.test(t)) return pick('joke',['¿Por qué el router fue al médico? Porque tenía mala conexión.','Mi fibra favorita es la óptica: nunca me deja colgado.','Le pedí a la nube que me guardara un secreto… y lo compartió con todo el mundo.','¿Qué le dice un cable a otro? Somos los mejores conductores.']);
-    if(/\b(ayuda|que sabes hacer|que puedes hacer|que haces|como funcionas|comandos|instrucciones)\b/.test(t)) return 'Puedo hacer cosas como estas:\n• «Muéstrame los contratos de enero» (o de enero de 2025, de hace 3 meses, del mes pasado…)\n• «Contratos de Raquel» o por DNI\n• «Contratos con la cuenta que termina en 1234»\n• «¿Cuántos contratos llevo este mes de Simyo?»\n• «¿Qué contratos tengo para cambiar?» o «para dar de baja»\n• «¿Cuántos borradores tengo?»\n• «Quita los filtros»\nY de lunes a viernes, en horario de tienda, te recuerdo los pendientes de hoy.';
+    if(/\b(ayuda|que sabes hacer|que puedes hacer|que haces|como funcionas|comandos|instrucciones)\b/.test(t)) return 'Puedo hacer cosas como estas:\n• «Muéstrame los contratos de enero» (o de enero de 2025, de hace 3 meses, del mes pasado…)\n• «Contratos de Raquel» o por DNI\n• «Contratos con la cuenta que termina en 1234»\n• «¿Cuántos contratos llevo este mes de Simyo?»\n• «¿Qué contratos tengo para cambiar?» o «para dar de baja»\n• «¿Cuántos borradores tengo?»\n• «Quita los filtros»\n• «Fichar» (Jorge y Maicol registran su entrada o salida)\nY de lunes a viernes, en horario de tienda, te recuerdo los pendientes de hoy.';
     if(/\b(quita|quitame|limpia|limpiame|borra|resetea|elimina)\b.*\bfiltros?\b|\bsin filtros\b/.test(t)) return '__CLEAR__';
     return null;
   }
@@ -295,6 +295,7 @@
     var now = new Date();
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
+    if(B._fichFlow && B._fichFlow(fold(raw), done)) return;   // fichaje manual (Jorge / Maicol)
     if(!t){ return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
     var greet = isGreeting(t) || /^lucas$/.test(t);
@@ -517,7 +518,7 @@
           fichAsk(f, r2.n, false);
         };
         try{
-          google.script.run.withSuccessHandler(function(res){ var h=null; (res&&res.items||[]).forEach(function(x){ if(x.turno===f.turno && x.tipo===f.tipo) h=x.hora; }); go(h); })
+          google.script.run.withSuccessHandler(function(res){ var h=null; (res&&res.items||[]).forEach(function(x){ if(x.turno===f.turno && x.tipo===f.tipo && (!x.empleado || fold(x.empleado)===fold(EMPLEADO))) h=x.hora; }); go(h); })
             .withFailureHandler(function(){ go(null); }).apiFichajeLucasDia(iso(now));
         }catch(e){ go(null); }
       });
@@ -525,4 +526,86 @@
   }, 15000);
   // pruebas desde la consola (no se guardan)
   B.fichTest = function(id){ var f=fichById(id); if(f) fichAsk(f, 1, true); };
+
+  /* =====================================================================
+     FICHAJE MANUAL POR EL CHAT: escribir "fichar" → ¿quién eres? → ¿entrada o salida?
+     ===================================================================== */
+  var EMPLEADOS_CHAT = ['Jorge', 'Maicol'];
+  var flow = null;   // {paso:'emp'|'tipo', emp}
+  function turnoAhora(d){ return d.getHours() < 15 ? 'MAÑANA' : 'TARDE'; }
+  function sugerencia(d){
+    var m = d.getHours()*60 + d.getMinutes();
+    if((m >= 9*60 && m <= 11*60+30) || (m >= 16*60+30 && m <= 18*60+30)) return 'ENTRADA';
+    if((m >= 13*60 && m <= 14*60+30) || (m >= 19*60 && m <= 21*60)) return 'SALIDA';
+    return null;
+  }
+  function empDe(t){ for(var i=0;i<EMPLEADOS_CHAT.length;i++){ var n=fold(EMPLEADOS_CHAT[i]); if((' '+t+' ').indexOf(' '+n+' ')>=0 || (n==='maicol' && /\b(michael|maikol|maicoll|mailcol)\b/.test(t))) return EMPLEADOS_CHAT[i]; } return null; }
+  function tipoDe(t){ if(/\bentrada|\bentrar|\bentro\b|\bllego\b|\bempiezo\b/.test(t)) return 'ENTRADA'; if(/\bsalida|\bsalir|\bsalgo\b|\bme voy\b|\bacabo\b|\btermino\b/.test(t)) return 'SALIDA'; return null; }
+  function askEmp(done){
+    flow = { paso:'emp', t:Date.now() };
+    done({ say: pick('fq1',['¡Vamos a fichar! ¿Quién eres?','Claro, te ayudo a fichar. Primero dime: ¿quién eres?','Perfecto, registro tu fichaje ahora mismo. ¿Eres Jorge o Maicol?','Sin problema. ¿Quién va a fichar?']),
+      buttons: EMPLEADOS_CHAT.map(function(n){ return { t:'👤 '+n, v:'emp:'+n }; }) });
+  }
+  var MAX_TURNOS = 5;
+  // estado de hoy de un empleado: cuántas entradas lleva y si tiene una abierta
+  function estadoHoy(emp, cb){
+    var now=new Date();
+    try{
+      google.script.run.withSuccessHandler(function(res){
+        var lst=(res&&res.items||[]).filter(function(x){ return fold(x.empleado||'')===fold(emp); }).sort(function(a,b){ return a.hora<b.hora?-1:a.hora>b.hora?1:(a.tipo==='ENTRADA'?-1:1); });
+        var nE=0, abierta=null; lst.forEach(function(x){ if(x.tipo==='ENTRADA'){ nE++; abierta=x.hora; } else abierta=null; });
+        cb({nE:nE, abierta:abierta, ok:true});
+      }).withFailureHandler(function(){ cb({nE:0, abierta:null, ok:false}); }).apiFichajeLucasDia(iso(now));
+    }catch(e){ cb({nE:0, abierta:null, ok:false}); }
+  }
+  var BTN_E={ t:'🟢 Entrada', v:'tipo:ENTRADA' }, BTN_S={ t:'🔴 Salida', v:'tipo:SALIDA' };
+  function askTipo(emp, done){
+    flow = { paso:'tipo', emp:emp, t:Date.now() };
+    estadoHoy(emp, function(st){
+      if(st.abierta) return done({ say: fill(pick('fqA',['Hola, {e}. Tienes una entrada abierta desde las {h}. ¿Registro tu salida?','{e}, entraste a las {h} y todavía no has salido. ¿Fichamos la salida?','Muy bien, {e}. Veo tu entrada de las {h}: ¿te vas ya? Ficho la salida cuando me digas.']),{e:emp,h:st.abierta}), buttons:[BTN_S, BTN_E] });
+      if(st.nE>=MAX_TURNOS){ flow=null; return done({ say: fill(pick('fqM',['{e}, hoy ya has completado las {m} entradas y salidas que se permiten. Si es un error, avisa a Manu.','Hoy ya llevas {m} entradas y salidas, {e}: es el máximo diario.']),{e:emp,m:MAX_TURNOS}) }); }
+      var txt = st.nE ? fill(pick('fqV',['¡Hola de nuevo, {e}! ¿Vuelves? Registro tu entrada número {n} de hoy.','Bienvenido otra vez, {e}. ¿Ficho tu entrada? Sería la {n}ª de hoy.']),{e:emp,n:st.nE+1})
+                      : fill(pick('fq2',['Hola, {e}. ¿Vienes a fichar la entrada?','Perfecto, {e}. ¿Registro tu entrada de hoy?','Muy bien, {e}. ¿Entrada o salida?']),{e:emp});
+      done({ say: txt, buttons:[BTN_E, BTN_S] });
+    });
+  }
+  function guardarManual(emp, tipo, done){
+    estadoHoy(emp, function(st){
+      if(tipo==='ENTRADA' && st.abierta){ flow={paso:'tipo',emp:emp,t:Date.now()}; return done({ say: fill(pick('fwE',['Espera, {e}: ya tienes una entrada abierta desde las {h}. Primero ficha la salida.','{e}, todavía no has salido desde las {h}. ¿Querías fichar la salida?']),{e:emp,h:st.abierta}), buttons:[BTN_S] }); }
+      if(tipo==='SALIDA' && !st.abierta && st.ok){ flow={paso:'tipo',emp:emp,t:Date.now()}; return done({ say: fill(pick('fwS',['{e}, no tienes ninguna entrada abierta hoy, así que no puedo registrar una salida. ¿Quieres fichar la entrada?','Ojo, {e}: no veo ninguna entrada sin cerrar. ¿Te ficho la entrada?']),{e:emp}), buttons:[BTN_E] }); }
+      if(tipo==='ENTRADA' && st.nE>=MAX_TURNOS){ flow=null; return done({ say: fill('{e}, hoy ya has llegado al máximo de {m} entradas. Si es un error, avisa a Manu.',{e:emp,m:MAX_TURNOS}) }); }
+      flow = null;
+      var now=new Date(), h=hhmm(now), turno=turnoAhora(now);
+      var dur=''; if(tipo==='SALIDA' && st.abierta){ var dm=(now.getHours()*60+now.getMinutes())-(+st.abierta.split(':')[0]*60+ +st.abierta.split(':')[1]); if(dm>0) dur=' Has estado '+(dm>=60?Math.floor(dm/60)+' h y ':'')+(dm%60)+' min.'; }
+      var okE=['¡Gracias, {e}! Se ha registrado tu entrada a las {h}. Que vaya muy bien.','Hecho, {e}: entrada registrada a las {h}. ¡A por ello!','Perfecto, {e}. Tu entrada queda guardada a las {h}.'];
+      var okS=['¡Gracias, {e}! Se ha registrado tu salida a las {h}.{d} ¡Hasta luego!','Hecho, {e}: salida registrada a las {h}.{d}','Perfecto, {e}. Tu salida queda guardada a las {h}.{d} ¡Buen descanso!'];
+      try{
+        google.script.run
+          .withSuccessHandler(function(r){
+            if(r && r.ok) done({ say: fill(pick('fman'+tipo, tipo==='ENTRADA'?okE:okS),{e:emp,h:h,d:dur}) });
+            else done({ say: 'Uy, no he podido guardar el fichaje ('+((r&&r.error)||'error')+'). Escribe «fichar» y lo intentamos otra vez.' });
+          })
+          .withFailureHandler(function(){ done({ say: 'Uy, no he podido guardar el fichaje. Revisa la conexión y escribe «fichar» otra vez.' }); })
+          .apiFichajeLucasGuardar(iso(now), turno, tipo, h, emp);
+      }catch(e){ done({ say: 'No he podido guardar el fichaje ahora mismo.' }); }
+    });
+  }
+  // botones del chat
+  B.pick = function(v, done){
+    v = String(v||'');
+    if(v.indexOf('emp:')===0) return askTipo(v.slice(4), done);
+    if(v.indexOf('tipo:')===0){ if(!flow || !flow.emp) return askEmp(done); return guardarManual(flow.emp, v.slice(5), done); }
+  };
+  // texto escrito: "fichar", o seguir la conversación escribiendo en vez de pulsar
+  B._fichFlow = function(t, done){
+    if(flow && Date.now() - flow.t > 5*60000) flow = null;
+    var isF = /\bfich(a|ar|o|aje|ajes|e|ad|en)?\b/.test(t);
+    var emp = empDe(t), tipo = tipoDe(t);
+    if(flow && flow.paso==='emp' && emp){ if(tipo) { guardarManual(emp, tipo, done); return true; } askTipo(emp, done); return true; }
+    if(flow && flow.paso==='tipo' && tipo){ guardarManual(flow.emp, tipo, done); return true; }
+    if(!isF) return false;
+    if(emp && tipo){ guardarManual(emp, tipo, done); return true; }
+    if(emp){ askTipo(emp, done); return true; }
+    askEmp(done); return true;
+  };
 })();
