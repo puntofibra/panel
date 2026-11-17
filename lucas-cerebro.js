@@ -364,7 +364,7 @@ var lastPicks = {};
     if(/\bque hora es\b|\bhora es\b|\bdime la hora\b/.test(t)) return 'Son '+horaTxt(now)+'.';
     if(/\bque dia es\b|\ba que (dia )?estamos\b|\bque fecha es\b|\bfecha de hoy\b/.test(t)) return 'Hoy es '+DIAS[now.getDay()]+', '+now.getDate()+' de '+MESES[now.getMonth()]+' de '+now.getFullYear()+'.';
     if(/\b(chiste|algo gracioso|hazme reir)\b/.test(t)) return pick('joke',['¿Por qué el router fue al médico? Porque tenía mala conexión.','Mi fibra favorita es la óptica: nunca me deja colgado.','Le pedí a la nube que me guardara un secreto… y lo compartió con todo el mundo.','¿Qué le dice un cable a otro? Somos los mejores conductores.']);
-    if(/\b(ayuda|que sabes hacer|que puedes hacer|que haces|como funcionas|comandos|instrucciones)\b/.test(t)) return 'Puedo hacer cosas como estas:\n• «Muéstrame los contratos de enero» (o de enero de 2025, de hace 3 meses, del mes pasado…)\n• «Contratos de Raquel» o por DNI\n• «Contratos con la cuenta que termina en 1234»\n• «¿Cuántos contratos llevo este mes de Simyo?»\n• «¿Qué contratos tengo para cambiar?» o «para dar de baja»\n• «¿Cuántos borradores tengo?»\n• «Quita los filtros»\n• «Fichar» (Jorge y Maicol registran su entrada o salida)\nY de lunes a viernes, en horario de tienda, te recuerdo los pendientes de hoy.';
+    if(/\b(ayuda|que sabes hacer|que puedes hacer|que haces|como funcionas|comandos|instrucciones)\b/.test(t)) return '__AYUDA__';
     if(/\b(quita|quitame|limpia|limpiame|borra|resetea|elimina)\b.*\bfiltros?\b|\bsin filtros\b/.test(t)) return '__CLEAR__';
     return null;
   }
@@ -424,7 +424,7 @@ var lastPicks = {};
 
     var st = smallTalk(rest||t, now);
     if(st==='__CLEAR__'){ ensureContratos(function(){ try{ clearSearch(); }catch(e){ render(contratos(),null); } done({ say: pick('clear',['Filtros quitados. Ya ves todos los contratos.','Listo, tabla limpia.','Hecho, sin filtros.']) }); }); return; }
-    if(st && typeof st==='string' && st.indexOf('Puedo hacer cosas como estas')===0) return done({ say: pick('ayudaQ',['Aquí tienes los accesos rápidos. Pulsa uno y te lo saco:','Atajos rápidos, pulsa el que quieras:','Toma, accesos directos. Dale a uno:']), buttons: B.AYUDA_BTNS });
+    if(st && typeof st==='string' && st==='__AYUDA__') return done({ say: pick('ayudaQ',['Aquí tienes los accesos rápidos. Pulsa uno y te lo saco:','Atajos rápidos, pulsa el que quieras:','Toma, accesos directos. Dale a uno:']), buttons: B.AYUDA_BTNS });
     if(st) return done({ say: st });
 
     if(/\bborrador/.test(rest||t)) return borradores(rest||t, done);
