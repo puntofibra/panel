@@ -952,9 +952,10 @@ var lastPicks = {};
   var DP_KEY = 'pfDoblePausaUltAviso';
   B._dpLast = [];
   // fecha en que toca dar de baja un ⏸️⏸️: fecha de doble pausa (ID 52) + 90 días; si no la tiene, instalación (ID 15) + 270 días
+  function tsOK(v){ var k=ts(v); if(!k) return 0; var y=new Date(k).getFullYear(); return (y>=2000 && y<=2100) ? k : 0; }   // fuera fechas vacías tipo 00-00-0000
   function dpVence(it){
-    var f=ts(it['52']); if(f) return f + 90*86400000;
-    var fi=ts(it['15']); if(fi) return fi + 270*86400000;
+    var f=tsOK(it['52']); if(f) return f + 90*86400000;
+    var fi=tsOK(it['15']); if(fi) return fi + 270*86400000;
     return 0;
   }
   function dpListaFechas(l, hoy0){
@@ -968,11 +969,11 @@ var lastPicks = {};
         var dias = v ? Math.round((v-hoy0)/86400000) : null;
         var cuando = v==null||!v ? 'sin fecha' : (dias<0 ? 'hace '+(-dias)+' '+plural(-dias,'día','días') : (dias===0 ? 'hoy' : 'en '+dias+' '+plural(dias,'día','días')));
         var ico = !v ? '❔' : (dias<=0 ? '⚠️' : '⏳');
-        row.textContent = ico+' '+(v?fmtD(new Date(v)):'--/--/----')+' · '+titleCase(String(it['21']||'').trim()||'—')+(it['2']?' ('+compName(it['2'])+')':'')+' · '+cuando+(ts(it['52'])?'':' *');
+        row.textContent = ico+' '+(v?fmtD(new Date(v)):'--/--/----')+' · '+titleCase(String(it['21']||'').trim()||'—')+(it['2']?' ('+compName(it['2'])+')':'')+' · '+cuando+(tsOK(it['52'])?'':' *');
         if(v && dias<=0) row.style.color='#ff8a8a';
         wrap.appendChild(row);
       });
-      if(l.some(function(it){ return !ts(it['52']); })){ var nt=document.createElement('div'); nt.textContent='* sin fecha de doble pausa guardada: se calcula con la instalación + 270 días'; nt.style.cssText='margin-top:6px;opacity:.7;font-size:11px;'; wrap.appendChild(nt); }
+      if(l.some(function(it){ return !tsOK(it['52']); })){ var nt=document.createElement('div'); nt.textContent='* sin fecha de doble pausa guardada: se calcula con la instalación + 270 días'; nt.style.cssText='margin-top:6px;opacity:.7;font-size:11px;'; wrap.appendChild(nt); }
       box.appendChild(wrap); box.scrollTop=box.scrollHeight;
     }catch(e){}
   }
