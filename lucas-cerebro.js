@@ -211,6 +211,10 @@ var lastPicks = {};
    'quincena quincenas semanas lunes martes miercoles jueves viernes sabado domingo '+
    'compania companias operadora operadoras operador vende venden vendemos vendio ranking mejor peor mas menos comparado comparar comparacion cuando fue '+
    'esta estado entrado entro llegado llego venido vino salido salio fichado fichaje fichajes hora horas ordena ordename ordenar orden recientes antiguos antiguas viejos primero primeros '+
+   'estoy estas estamos estan soy eres somos tengo tienes tenemos cansado cansada harto harta liado liada agotado agotada sueno estres vaya largo larga dias noche manana tarde '+
+   'chiste chistes gracioso graciosa reir risa jajaja jeje bueno buena buenisimo genial guay perfecto estupendo fenomenal acuerdo entendido claro listo hecho correcto exacto '+
+   'mejor crack maquina genio fiera listo trabajo quiero encantas increible tonto inutil torpe idiota burro sirves malo enteras entiendes sigues oyes escuchas haces andas '+
+   'gracias favor porfavor perdona perdon disculpa siento oye mira venga vamos otro otra cuentame dime '+
    'grafica graficas grafico graficos estadistica estadisticas diagrama diagramas barras tarta quesito histograma curva dibuja dibujame visualiza visualizame pintame pinta imagen visual comparame compara comparar instalaciones '+
    'vuelve volver atras antes busqueda tramitar cancelar congelar tecnico router portas porta portabilidad portabilidades firmamos firme alturas vamos llevamos movil').split(' ').forEach(function(w){ STOPSET[w]=1; });
 
@@ -603,14 +607,48 @@ var lastPicks = {};
   }
 
   // ---------- charla ----------
+  var JOKES=[
+    '¿Por qué el router fue al médico? Porque tenía mala conexión.',
+    'Mi fibra favorita es la óptica: nunca me deja colgado.',
+    'Le pedí a la nube que me guardara un secreto… y lo compartió con todo el mundo.',
+    '¿Qué le dice un cable a otro? Somos los mejores conductores.',
+    '¿Por qué el móvil llevaba gafas? Porque había perdido sus contactos.',
+    '¿Cómo se despiden los químicos? Ácido un placer.',
+    '¿Qué hace un robot en la playa? Tomar el sol… hasta que se oxida.',
+    'Me han dicho que soy muy rápido contando contratos. Es que tengo un procesador de los buenos.',
+    '¿Por qué el ordenador fue al psicólogo? Porque tenía demasiadas ventanas abiertas.',
+    '¿Cuál es el colmo de un técnico de fibra? Tener una relación a distancia y que no llegue la señal.',
+    'Intenté contar un chiste sobre el wifi… pero no tuvo cobertura.',
+    '¿Qué le dijo el uno al diez? Para ser como yo, tienes que ser sincero.',
+    '¿Sabes por qué los robots nunca tienen miedo? Porque tienen nervios de acero.',
+    'Mi jefe dice que soy un asistente de diez. Yo creo que de cien… megas simétricos.'
+  ];
   function smallTalk(t, now){
+    // risas y reacciones
+    if(/^(j[aeiou]){2,}j?[aeiou]?h*$|^(j+a+)+$|^(ja ?)+$|^(je ?)+$|^(ji ?)+$|^(xd+|lol|lmao|buah+|buf+|jaj\w*|jej\w*|muy bueno|que bueno|buenisimo|que gracioso|que gracia|me meo|me parto|me muero|jajajaja\w*)$/.test(t) || /^(ja){2,}/.test(t)){
+      return pick('risa', Date.now()-(B._lastJoke||0)<5*60000
+        ? ['¡Sabía que te iba a gustar! ¿Quieres otro?','Jeje, tengo más. Di «otro» y te cuento uno.','Me alegro de que te rías. Mis circuitos también se ríen.','¡Ese es de mis favoritos! ¿Otro?']
+        : ['Jeje, me alegra verte de buen humor.','¡Ja, ja! ¿Qué te hace tanta gracia?','Me contagias la risa. ¿Te cuento un chiste?','Así me gusta, con alegría. ¿En qué te ayudo?']);
+    }
+    if(/^(vale|ok|okey|okay|perfecto|genial|guay|estupendo|fenomenal|de acuerdo|entendido|muy bien|bien|bueno|listo|hecho|correcto|exacto|eso es|claro|sip|si|vale gracias|ok gracias|perfecto gracias|genial gracias)$/.test(t))
+      return pick('ack',['¡Perfecto! Aquí estoy si necesitas algo más.','Genial. ¿Algo más?','Estupendo. Tú dirás.','Vale, me quedo atento.','De acuerdo. Cuando quieras, pregúntame.','👍 Aquí sigo.']);
+    if(/^(no|nada|no nada|nada mas|no gracias|de momento no|por ahora nada|eso es todo|ya esta|nada nada)$/.test(t))
+      return pick('nada',['Vale, aquí me quedo por si me necesitas.','Perfecto. Si surge algo, ya sabes dónde estoy.','De acuerdo, me quedo de guardia.','Muy bien, descansa un poco de mí.']);
+    if(/\b(eres (el|un) (mejor|crack|maquina|genio|maquinon|fiera)|que listo|que crack|buen trabajo|bien hecho|muy bien lucas|te quiero|me encantas|eres un sol|eres genial|eres increible)\b/.test(t))
+      return pick('elogio',['¡Gracias! Me pongo colorado… bueno, verde neón.','¡Tú sí que eres un crack!','Me vas a fundir los circuitos de la emoción.','Gracias, jefe. Hacemos buen equipo.','¡Qué bonito! Esto me lo guardo en memoria.']);
+    if(/\b(tonto|inutil|torpe|idiota|burro|no sirves|eres malo|que malo eres|no te enteras|no entiendes nada)\b/.test(t))
+      return pick('insulto',['Vaya, perdona. Todavía estoy aprendiendo. Dímelo de otra forma y lo intento.','Uy, me he quedado sin batería de orgullo. ¿Me das otra oportunidad?','Lo siento, a veces se me cruzan los cables. ¿Lo repetimos?']);
+    if(/\b(estoy cansado|estoy cansada|que sueno|tengo sueno|estoy agotado|que dia mas largo|vaya dia|estoy harto|estoy liado|que estres)\b/.test(t))
+      return pick('animo',['Ánimo, que ya queda menos. ¿Te ayudo a ir más rápido con algo?','Respira hondo, que lo tienes controlado. ¿Qué te saco?','Tómate un café, que yo vigilo los contratos.']);
+    if(/\b(que haces|en que andas|estas ahi|sigues ahi|me oyes|me escuchas|hola\?|lucas\?)\b/.test(t))
+      return pick('ahi',['¡Aquí estoy! Vigilando los contratos.','Sí, sí, te escucho. ¿Qué necesitas?','Siempre al pie del cañón. Dime.']);
     if(/\b(gracias|muchas gracias|te lo agradezco|genial gracias|mil gracias)\b/.test(t)) return pick('thx',['¡De nada! Aquí estoy para lo que necesites.','Para eso estoy.','¡Un placer!','No hay de qué. ¿Algo más?','A mandar.']);
     if(/^(adios|adeu|hasta luego|hasta manana|hasta pronto|hasta la vista|hasta otra|hasta ahora|hasta despues|chao|chau|ciao|xao|bye|bye bye|agur|nos vemos|me voy|me piro|me marcho|bueno me voy|venga me voy|hasta el lunes|buen finde|feliz finde|que descanses)\b/.test(t)) return B.bye(now);
     if(/\b(quien eres|como te llamas|que eres|tu nombre)\b/.test(t)) return pick('who',['Soy Lucas, el asistente de Puntofibra. Busco contratos, clientes y te recuerdo lo pendiente.','Me llamo Lucas, tu robot ayudante. Pídeme contratos por fechas, clientes o compañías.','Lucas, para servirte. Mi especialidad: encontrar contratos en un segundo.']);
     if(/\b(como estas|que tal estas|como vas|que tal te va|como andas)\b/.test(t)) return pick('how',['¡Con las pilas cargadas al cien por cien!','Muy bien, engrasado y listo. ¿Y tú?','Funcionando perfectamente, gracias por preguntar.','De maravilla, sin un solo cortocircuito.']);
     if(/\bque hora es\b|\bhora es\b|\bdime la hora\b/.test(t)) return 'Son '+horaTxt(now)+'.';
     if(/\bque dia es\b|\ba que (dia )?estamos\b|\bque fecha es\b|\bfecha de hoy\b/.test(t)) return 'Hoy es '+DIAS[now.getDay()]+', '+now.getDate()+' de '+MESES[now.getMonth()]+' de '+now.getFullYear()+'.';
-    if(/\b(chiste|algo gracioso|hazme reir)\b/.test(t)) return pick('joke',['¿Por qué el router fue al médico? Porque tenía mala conexión.','Mi fibra favorita es la óptica: nunca me deja colgado.','Le pedí a la nube que me guardara un secreto… y lo compartió con todo el mundo.','¿Qué le dice un cable a otro? Somos los mejores conductores.']);
+    if(/\b(chiste|chistes|algo gracioso|hazme reir|alegrame el dia)\b/.test(t) || (/^(otro|otra|otro mas|otra mas|mas|cuentame otro|dime otro|venga otro|otro chiste)$/.test(t) && Date.now()-(B._lastJoke||0)<5*60000)){ B._lastJoke=Date.now(); return pick('joke',JOKES); }
     if(/\b(ayuda|que sabes hacer|que puedes hacer|que haces|como funcionas|comandos|instrucciones)\b/.test(t)) return '__AYUDA__';
     if(/\b(quita|quitame|limpia|limpiame|borra|resetea|elimina)\b.*\bfiltros?\b|\bsin filtros\b/.test(t)) return '__CLEAR__';
     return null;
