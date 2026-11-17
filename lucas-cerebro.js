@@ -627,6 +627,7 @@
   // botones del chat
   B.pick = function(v, done){
     v = String(v||'');
+    if(v==='refreshB') return B._refreshB(done);
     if(v==='fichOK'){ if(B.fichPending()) return B._fichAnswer(done); return done({ say: pick('fpas',['Ese aviso ya ha caducado, pero no pasa nada: el próximo te llegará a su hora.','Ya no hay ningún fichaje esperando confirmación ahora mismo.']) }); }
     if(v.indexOf('emp:')===0) return askTipo(v.slice(4), done);
     if(v.indexOf('tipo:')===0){ if(!flow || !flow.emp) return askEmp(done); return guardarManual(flow.emp, v.slice(5), done); }
@@ -642,5 +643,53 @@
     if(emp && tipo){ guardarManual(emp, tipo, done); return true; }
     if(emp){ askTipo(emp, done); return true; }
     askEmp(done); return true;
+  };
+
+  /* =====================================================================
+     BORRADORES NUEVOS: si en el servidor hay borradores que esta pantalla aún no muestra, avisa
+     ===================================================================== */
+  function firmaB(it){ return [String(it['14']||'').trim(), String(it['20']||'').trim().toUpperCase(), fold(it['21']), String(it['2']||'').trim().toUpperCase(), String(it['22']||'').replace(/\D/g,'')].join('|'); }
+  var knownB = null, avisadosB = {};
+  function localB(){ try{ return (typeof BORRADORES!=='undefined' && BORRADORES) ? BORRADORES : []; }catch(e){ return []; } }
+  function vigilaBorradores(){
+    try{
+      var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+      if(semilla('borradores')) return;
+      google.script.run.withSuccessHandler(function(res){
+        if(!res || !res.ok || !res.items) return;
+        var loc = localB();
+        if(!knownB){ knownB = {}; (loc.length ? loc : res.items).forEach(function(it){ knownB[firmaB(it)] = 1; }); return; }
+        loc.forEach(function(it){ knownB[firmaB(it)] = 1; });       // lo que ya se ve en pantalla
+        var nuevos = res.items.filter(function(it){ var k = firmaB(it); return !knownB[k] && !avisadosB[k]; });
+        if(!nuevos.length) return;
+        nuevos.forEach(function(it){ avisadosB[firmaB(it)] = 1; });
+        var n = nuevos.length, it0 = nuevos[0];
+        var quien = titleCase(String(it0['21']||'').trim()), comp = compName(it0['2']);
+        var msg = n===1
+          ? fill(pick('bnew1',[
+              'Ojo: acaba de entrar un borrador nuevo{q}{c}. Tu pantalla todavía no lo muestra: pulsa el botón para actualizar borradores.',
+              'Tienes un borrador nuevo{q}{c} que aún no ves en pantalla. ¿Actualizo borradores?',
+              'Novedad en borradores: ha llegado uno nuevo{q}{c}. Dale al botón y te lo pongo a la vista.'
+            ]),{q: quien ? ' de '+quien : '', c: comp ? ' ('+comp+')' : ''})
+          : fill(pick('bnewN',[
+              'Ojo: han entrado {n} borradores nuevos que tu pantalla todavía no muestra. Pulsa el botón para actualizarlos.',
+              'Tienes {n} borradores nuevos sin ver. ¿Actualizo la lista de borradores?',
+              'Novedad: {n} borradores nuevos acaban de llegar. Dale al botón y los verás en pantalla.'
+            ]),{n:n});
+        B.duckSay(msg, [{ t:'🔄 Actualizar borradores', v:'refreshB' }]);
+      }).withFailureHandler(function(){}).apiGetContratos('borradores');
+    }catch(e){}
+  }
+  setInterval(vigilaBorradores, 90000);
+  setTimeout(vigilaBorradores, 20000);
+  B._refreshB = function(done){
+    try{ if(typeof goView==='function') goView('borradores'); }catch(e){}
+    try{
+      if(typeof loadBorradores==='function') return loadBorradores(function(){
+        localB().forEach(function(it){ (knownB = knownB || {})[firmaB(it)] = 1; });
+        done({ say: pick('bok',['Listo, borradores actualizados. Ya lo tienes en pantalla.','Hecho: lista de borradores al día.','Actualizado. Ahí lo tienes.']) });
+      });
+    }catch(e){}
+    done({ say: 'Pulsa el botón 🔄 Actualizar de borradores para verlo.' });
   };
 })();
