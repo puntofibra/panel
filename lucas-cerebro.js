@@ -156,9 +156,20 @@ var lastPicks = {};
     var a=B._bajaAsk; B._bajaAsk=null;
     if(!a) return done({ say: pick('b2pX',['Esa pregunta ya ha caducado. Pídeme otra vez los contratos para dar de baja.','Ya no tengo esa lista a mano, vuelve a pedírmela.']) });
     if(!si) return done({ say: pick('b2pN',['Vale, los dejo todos en pantalla.','Perfecto, no quito ninguno.','De acuerdo, se quedan también los pausados por segunda vez.']) });
+    B._bajaLast = a;
     var l=a.list.filter(function(it){ return !esDoblePausa(it); });
     render(l, a.range);
-    return done({ say: fill(pick('b2pS',['Hecho. Quedan {n} {c} pendientes de dar de baja, sin los pausados por segunda vez.','Listo, quitados. Ahora ves {n} {c}.','Fuera los de segunda pausa: te quedan {n} {c} por dar de baja.']),{n:numU(l.length),c:plural(l.length,'contrato','contratos')}) });
+    return done({ say: fill(pick('b2pS',['Hecho. Quedan {n} {c} pendientes de dar de baja, sin los pausados por segunda vez.','Listo, quitados. Ahora ves {n} {c}.','Fuera los de segunda pausa: te quedan {n} {c} por dar de baja.']),{n:numU(l.length),c:plural(l.length,'contrato','contratos')}), buttons:[{t:'👁️ Volver a mostrar', v:'baja2P:ver'}] });
+  };
+  B._bajaLast = null;
+  B._bajaToggle = function(quitar, done){
+    var a=B._bajaLast;
+    if(!a) return done({ say: pick('b2pX2',['Ya no tengo esa lista a mano. Pídeme otra vez los contratos para dar de baja.','Se me ha perdido esa lista, vuelve a pedírmela.']) });
+    var l = quitar ? a.list.filter(function(it){ return !esDoblePausa(it); }) : a.list.slice();
+    render(l, a.range);
+    var c = plural(l.length,'contrato','contratos');
+    if(quitar) return done({ say: fill(pick('b2pQ',['Quitados otra vez. Ves {n} {c}.','Hecho, fuera de nuevo los de segunda pausa: {n} {c}.','Listo, borrados de la pantalla otra vez. Quedan {n} {c}.']),{n:numU(l.length),c:c}), buttons:[{t:'👁️ Volver a mostrar', v:'baja2P:ver'}] });
+    return done({ say: fill(pick('b2pV',['Ahí los tienes otra vez: {n} {c}, con los pausados por segunda vez.','Vueltos a mostrar. Ves {n} {c}.','Listo, otra vez todos: {n} {c}.']),{n:numU(l.length),c:c}), buttons:[{t:'🗑️ Borrar de nuevo', v:'baja2P:quitar'}] });
   };
   function render(list, range){
     try{
@@ -769,6 +780,8 @@ var lastPicks = {};
   B.pick = function(v, done){
     v = String(v||'');
     if(v.indexOf('fib:')===0) return B._fibAnswer(v.slice(4)==='fibra' ? 'fibra' : 'todos', done);
+    if(v==='baja2P:ver') return B._bajaToggle(false, done);
+    if(v==='baja2P:quitar') return B._bajaToggle(true, done);
     if(v.indexOf('baja2P:')===0) return B._baja2P(v.slice(7)==='si', done);
     if(v==='refreshB') return B._refreshB(done);
     if(v==='refreshC') return B._refreshC(done);
