@@ -418,6 +418,7 @@ var lastPicks = {};
   };
   function render(list, range, noSort){
     try{ B._filtroAviso(); }catch(e){}
+    try{ filtroIA(true); }catch(e){}
     try{
       var df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo'), q=document.getElementById('q');
       if(q) q.value='';
@@ -829,6 +830,7 @@ var lastPicks = {};
     if(ord){
       var asc = /\b(antiguos|viejos|antiguo|viejo)\b/.test(t);
       ensureContratos(function(){
+        try{ filtroIA(true); }catch(e){}
         try{ FILTERED.sort(function(a,b){ var x=ts(a['14']), y=ts(b['14']); return asc ? x-y : y-x; }); PAGE=1; renderContratosPage(); }catch(e){}
         done({ say: asc ? pick('ordA',['Ordenados: los más antiguos primero.','Listo, de más viejo a más nuevo.']) : pick('ordN',['Ordenados: los más nuevos primero.','Hecho, de más reciente a más antiguo.','Listo, arriba los últimos que entraron.']) });
       });
@@ -837,6 +839,7 @@ var lastPicks = {};
     // solo los de fibra (sobre lo que hay en pantalla)
     if(/^(y )?(solo|solamente|nada mas)?\s*(los |las )?(que tienen |de |con )fibras?$/.test(t) || /^(quita|quitame) (los|las) (que no tienen|sin) fibras?$/.test(t)){
       ensureContratos(function(){
+        try{ filtroIA(true); }catch(e){}
         try{ var base=(typeof FILTERED!=='undefined' && FILTERED && FILTERED.length) ? FILTERED : contratos(); FILTERED = base.filter(tieneFibra); PAGE=1; renderContratosPage(); var n=FILTERED.length; done({ say: fill(pick('solF',['De lo que tenías en pantalla, {n} {c} con fibra.','Listo, solo los de fibra: {n} {c}.','Filtrado: quedan {n} {c} con fibra.']),{n:numU(n),c:plural(n,'contrato','contratos')}) }); }catch(e){ done({ say:'No he podido filtrar la tabla ahora mismo.' }); }
       });
       return true;
@@ -1867,4 +1870,35 @@ var lastPicks = {};
   };
   var pickBase = B.pick;
   B.pick = function(v, done){ B._porBoton = true; try{ return pickBase(v, done); } finally{ B._porBoton = false; } };
+
+  /* =====================================================================
+     BOTÓN «LIMPIAR IA» al lado de LIMPIAR: parpadea en verde si hay filtros
+     puestos por el asistente; gris y desactivado si no los hay.
+     ===================================================================== */
+  var FIA=false;
+  function filtroIA(on){ FIA=!!on; pintarBtnIA(); }
+  B._setFiltroIA = filtroIA;
+  function pintarBtnIA(){
+    try{
+      var b=document.getElementById('btnLimpiarIA');
+      if(!b){
+        var lim=document.querySelector('.dateRow button[onclick*="clearSearch"]'); if(!lim) return;
+        if(!document.getElementById('iaBtnCss')){ var st=document.createElement('style'); st.id='iaBtnCss';
+          st.textContent='#btnLimpiarIA{transition:background .2s,color .2s,box-shadow .2s,opacity .2s}'+
+            '#btnLimpiarIA:disabled{opacity:.45;filter:grayscale(1);cursor:not-allowed;box-shadow:none}'+
+            '#btnLimpiarIA.iaOn{color:#04140a!important;background:#17ff5f!important;border-color:#17ff5f!important;cursor:pointer;animation:iaBlink 1.1s ease-in-out infinite}'+
+            '@keyframes iaBlink{0%,100%{box-shadow:0 0 6px rgba(23,255,95,.5);filter:brightness(1)}50%{box-shadow:0 0 22px rgba(23,255,95,1),0 0 42px rgba(23,255,95,.55);filter:brightness(1.15)}}';
+          document.head.appendChild(st); }
+        b=document.createElement('button'); b.id='btnLimpiarIA'; b.type='button'; b.className=lim.className; b.textContent='LIMPIAR IA';
+        b.title='Quitar los filtros que ha puesto el asistente Lucas';
+        b.onclick=function(){ if(!FIA) return; try{ clearSearch(); }catch(e){} filtroIA(false); };
+        lim.parentNode.insertBefore(b, lim.nextSibling);
+        // si tocas tú los filtros a mano, el filtro de Lucas deja de estar activo
+        ['q','companyFilter','dateFrom','dateTo'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.addEventListener('input', function(){ filtroIA(false); }); el.addEventListener('change', function(){ filtroIA(false); }); } });
+      }
+      if(typeof window.clearSearch==='function' && !window.clearSearch.__ia){ var cs=window.clearSearch; window.clearSearch=function(){ var r=cs.apply(this, arguments); FIA=false; pintarBtnIA(); return r; }; window.clearSearch.__ia=true; }
+      b.classList.toggle('iaOn', FIA); b.disabled=!FIA;
+    }catch(e){}
+  }
+  setTimeout(pintarBtnIA, 1000); setInterval(pintarBtnIA, 1500);
 })();
