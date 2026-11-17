@@ -43,12 +43,50 @@
     ['TEST2', 'PRUEBA EL FICHAJE DE SALIDA DE LA MAÑANA (13:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('M-S', 'SALIDA DE LA MAÑANA', say); }],
     ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
     ['TEST4', 'PRUEBA EL FICHAJE DE SALIDA DE LA TARDE (19:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-S', 'SALIDA DE LA TARDE', say); }],
-    ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIÁN, JORGE Y MAICOL)', function(a, say){ fichMenuEmp(say); }],
-    ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }]
+    ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIAN, JORGE Y MAICOL)', function(a, say){ fichMenuEmp(say); }],
+    ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }],
+    ['EDIT', 'TRAS LISTAR FICHAJES: MUESTRA [ELIMINAR] AL LADO DE CADA REGISTRO', function(a, say){ fichEdit(say); }],
+    ['SEBASTIAN', 'ATAJO: FICHAJES DE SEBASTIAN', function(a, say){ fichEmp = 'Sebastián'; fichMenu(say); }],
+    ['JORGE', 'ATAJO: FICHAJES DE JORGE', function(a, say){ fichEmp = 'Jorge'; fichMenu(say); }],
+    ['MAICOL', 'ATAJO: FICHAJES DE MAICOL', function(a, say){ fichEmp = 'Maicol'; fichMenu(say); }]
   ];
+  var lastFich = null;
+  function fichEdit(say){
+    if(!lastFich){ say('PRIMERO LISTA UNOS FICHAJES (ESCRIBE FICHAJES, O JORGE / MAICOL / SEBASTIAN) Y LUEGO EDIT.', 'y', 10); errTone(); return; }
+    var lst = lastFich.items.slice().sort(function(a, b){ return a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : (a.hora < b.hora ? -1 : a.hora > b.hora ? 1 : 0); });
+    say('>> MODO EDICIÓN · ' + lastFich.emp.toUpperCase() + ' · ' + FICH_OPC[lastFich.n] + ' ✏️', 'g big', 20);
+    if(!lst.length){ say('   NO HAY REGISTROS QUE BORRAR EN ESTE LISTADO.', 'd', 0, true); return; }
+    say('   PULSA [ ELIMINAR ] Y CONFIRMA CON UN SEGUNDO CLIC. SE BORRA EL REGISTRO COMPLETO DEL SHEET.', 'd', 0, true);
+    var p2 = function(v){ return ('0'+v).slice(-2); };
+    lst.forEach(function(x){
+      var dd = new Date(x.fecha + 'T12:00:00');
+      var row = document.createElement('div'); row.className = 'g'; row.style.cssText = 'display:flex;gap:14px;align-items:center;flex-wrap:wrap';
+      var t = document.createElement('span');
+      t.textContent = DIAS3[dd.getDay()] + ' ' + p2(dd.getDate()) + '/' + p2(dd.getMonth()+1) + '/' + dd.getFullYear() + '  ·  ' + (x.tipo === 'ENTRADA' ? 'ENTRADA' : 'SALIDA ') + ' ' + (lastFich.emp === 'Sebastián' ? (x.turno === 'MAÑANA' ? 'MAÑANA' : 'TARDE ') + '  ·  ' : ' ·  ') + x.hora;
+      var b = document.createElement('span'); b.textContent = '[ ELIMINAR ]';
+      b.style.cssText = 'color:#ff4a6a;text-shadow:0 0 6px rgba(255,74,106,.9);cursor:pointer;border:1px solid rgba(255,74,106,.6);border-radius:5px;padding:0 6px;font-size:.85em;user-select:none';
+      var armed = 0;
+      b.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+      b.addEventListener('click', function(e){
+        e.stopPropagation(); if(b.dataset.done) return;
+        if(!armed || Date.now() - armed > 4000){ armed = Date.now(); b.textContent = '[ ¿SEGURO? CLIC OTRA VEZ ]'; tone(700, 500, 0.12, 'square', 0.05); setTimeout(function(){ if(!b.dataset.done && Date.now() - armed >= 4000) b.textContent = '[ ELIMINAR ]'; }, 4100); return; }
+        b.dataset.done = '1'; b.textContent = '[ BORRANDO… ]';
+        try{
+          google.script.run.withSuccessHandler(function(r){
+            if(r && r.ok){ t.style.textDecoration = 'line-through'; t.style.opacity = '.45'; b.textContent = '✔ BORRADO'; b.style.color = '#35ff8a'; b.style.borderColor = 'rgba(53,255,138,.6)'; b.style.cursor = 'default';
+              lastFich.items = lastFich.items.filter(function(y){ return y !== x; }); tone(900, 200, 0.3, 'sawtooth', 0.06); }
+            else { delete b.dataset.done; armed = 0; b.textContent = '[ ERROR · ' + ((r && r.error) || 'NO SE PUDO') + ' ]'; errTone(); }
+          }).withFailureHandler(function(er){ delete b.dataset.done; armed = 0; b.textContent = '[ ERROR DE CONEXIÓN ]'; errTone(); })
+            .apiFichajeLucasBorrar(x.fecha, x.turno, x.tipo, x.hora, x.empleado || '');
+        }catch(er){ b.textContent = '[ ERROR ]'; }
+      });
+      row.appendChild(t); row.appendChild(b);
+      CON.q.push({ node: row }); if(!CON.typing) conPump();
+    });
+  }
   // ---------- SEMILLAS: marcas guardadas solo en este ordenador ----------
   var SEMILLAS = [
-    ['fichaje', 'SIN FICHAJES', 'LUCAS NO PREGUNTA A SEBASTIÁN POR SU ENTRADA NI SU SALIDA EN ESTE ORDENADOR'],
+    ['fichaje', 'SIN FICHAJES', 'LUCAS NO PREGUNTA A SEBASTIAN POR SU ENTRADA NI SU SALIDA EN ESTE ORDENADOR'],
     ['avisos',  'SIN AVISOS DE PENDIENTES', 'LUCAS NO RECUERDA LOS CONTRATOS PENDIENTES EN ESTE ORDENADOR']
   ];
   function semOn(k){ try{ return localStorage.getItem('pfSemilla_' + k) === '1'; }catch(e){ return false; } }
@@ -95,12 +133,13 @@
   }
   var FICH_OPC = [null, 'HOY', 'AYER', 'ÚLTIMOS 7 DÍAS', 'MES ACTUAL', 'MES PASADO', 'ÚLTIMOS 3 MESES', 'ESTE AÑO', 'AÑO PASADO'];
   var FICH_EMP = ['Sebastián', 'Jorge', 'Maicol'], fichEmp = 'Sebastián';
+  function U(x){ return String(x||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }   // en la consola, sin acentos
   function fichMenuEmp(say){
     CON.ask = 'fichEmp';
     say('>> REGISTRO DE FICHAJES 🕘', 'g big', 20);
     say('   ¿DE QUIÉN QUIERES VER LOS FICHAJES?', 'w', 12);
     FICH_EMP.forEach(function(n, i){ say('   ' + (i+1) + ' - ' + n.toUpperCase(), 'y', 0, true); });
-    say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
+    say('   ESCRIBE EL NÚMERO (O EL NOMBRE) Y PULSA ENTER.', 'd', 0, true);
   }
   function fichMenu(say){
     CON.ask = 'fich';
@@ -169,6 +208,7 @@
     };
     var fin = function(items, err){
       if(err){ say('ERROR AL LEER EL REGISTRO: ' + err, 'r', 10); errTone(); return; }
+      lastFich = { emp: fichEmp, n: n, items: (items||[]).filter(function(x){ return fold(x.empleado || 'Sebastián') === fold(fichEmp); }) };
       if(flexible) return finFlex(items);
       var map = {}; (items||[]).forEach(function(x){ var e = x.empleado || 'Sebastián'; if(fold(e) !== fold(fichEmp)) return; map[x.fecha+'|'+x.turno+'|'+x.tipo] = x.hora; });
       var now = new Date(), nowM = now.getHours()*60 + now.getMinutes(), hoyIso = isoD(now);
@@ -250,6 +290,7 @@
     var it = CON.q.shift();
     if(!it){ CON.typing = false; CON.skip = false; if(CON.on && CON.busy) conPrompt(); return; }
     CON.typing = true;
+    if(it.node){ conOut.appendChild(it.node); conScroll(); conTimer = setTimeout(conPump, 24); return; }
     var el = document.createElement('div'); if(it.cls) el.className = it.cls; conOut.appendChild(el);
     if(it.fast || !it.txt || CON.skip){ el.textContent = it.txt || ' '; conScroll(); if(CON.skip) conPump(); else conTimer = setTimeout(conPump, it.fast ? 28 : 60); return; }
     var i = 0, cur = document.createElement('span'); cur.className = 'cur'; cur.textContent = '_';
@@ -284,7 +325,7 @@
       say('FIBRA ÓPTICA ........ 1 Gbps', '', 0, true);
       say('ENLACE 5G ........... CONECTADO', 'g', 0, true);
       say('', '', 0, true);
-      say('SESIÓN ABIERTA ' + hoy() + '  ·  ESCRIBE LIST PARA VER LOS COMANDOS', 'y', 0, true);
+      say('SESIÓN ABIERTA ' + hoy(), 'y', 0, true);
     }, 650);
   }
   function closeConsole(){
@@ -300,7 +341,7 @@
     if(conLine){ var cu = conLine.querySelector('.cur'); if(cu) cu.remove(); var tx = conLine.querySelector('#pfconTx'); if(tx){ tx.textContent = raw.toUpperCase(); tx.removeAttribute('id'); } }
     conIn.value = ''; CON.busy = true; conScroll(true);
     if(!cmd){ say('', '', 0, true); return; }
-    if(CON.ask === 'fichEmp'){ CON.ask = null; if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } }
+    if(CON.ask === 'fichEmp'){ CON.ask = null; if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
     if(CON.ask === 'fich'){ CON.ask = null; if(/^[1-8]$/.test(cmd)){ fichListar(+cmd); return; } }
     if(CON.ask === 'sem1'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso2(+cmd); return; } }
     if(CON.ask === 'sem2'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso3(+cmd); return; } }
