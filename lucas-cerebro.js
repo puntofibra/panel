@@ -1882,7 +1882,13 @@ var lastPicks = {};
   function hayAlgunFiltro(){
     try{ var q=document.getElementById('q'), cf=document.getElementById('companyFilter'), df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo');
       if((q && q.value.trim()) || (cf && cf.value) || (df && df.value) || (dt && dt.value)) return true; }catch(e){}
-    try{ if(ICO_BASE!==null && estadoIconos()!==ICO_BASE) return true; }catch(e){}
+    // estado real de los filtros del panel (todos valen «apagado» al cargar)
+    try{ if(typeof BLINK_MODE!=='undefined' && BLINK_MODE) return true; }catch(e){}
+    try{ if(typeof CICLO_MODE!=='undefined' && CICLO_MODE) return true; }catch(e){}
+    try{ if(typeof VIP_MODE!=='undefined' && VIP_MODE) return true; }catch(e){}
+    try{ if(typeof FIBRA_MODE!=='undefined' && FIBRA_MODE) return true; }catch(e){}
+    try{ if(typeof OMITIR_MODE!=='undefined' && OMITIR_MODE) return true; }catch(e){}
+    try{ if(typeof ICON_FILTERS!=='undefined' && ICON_FILTERS && (ICON_FILTERS.col44 || ICON_FILTERS.col45)) return true; }catch(e){}
     return false;
   }
   // estado de los iconos de filtro con la tabla «limpia» (al cargar y después de limpiar)
