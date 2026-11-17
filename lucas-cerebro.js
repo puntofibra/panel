@@ -455,8 +455,19 @@ var lastPicks = {};
   B._fibAnswer = function(ch, done){
     var a=B._fibAsk; B._fibAsk=null;
     if(!a || Date.now()-a.at > 5*60000) return done({ say: pick('fibX',['Esa pregunta ya ha caducado. Pídemelo otra vez.','Se me ha pasado el momento, vuelve a pedírmelo.']) });
-    ensureContratos(function(){ B._fibChoice = ch; var r = contratoQuery(a.t, a.raw, new Date(), { contractWords:true }); B._fibChoice = null; done(r); });
+    ensureContratos(function(){ B._fibChoice = ch; var r = contratoQuery(a.t, a.raw, new Date(), { contractWords:true }); B._fibChoice = null; B._fibLast = { t:a.t, raw:a.raw, ch:ch }; var fb=fibBtn(); if(r && fb) r.buttons = (r.buttons||[]).concat(fb); done(r); });
   };
+  // botón para cambiar entre «solo con fibra» y «todos» (va y vuelve)
+  B._fibLast = null;
+  function fibBtn(){ var f=B._fibLast; if(!f) return null; return f.ch==='fibra' ? { t:'📋 Mostrar todos', v:'fib2:todos' } : { t:'🛜 Mostrar solo con fibra', v:'fib2:fibra' }; }
+  B._fibSwitch = function(ch, done){
+    var f=B._fibLast;
+    if(!f) return done({ say: pick('fibX2',['Ya no tengo esa lista a mano, pídemela otra vez.','Se me ha perdido esa lista, vuelve a pedírmela.']) });
+    B._fibAsk = { t:f.t, raw:f.raw, at:Date.now() };
+    return B._fibAnswer(ch, done);
+  };
+  // en las bajas, los botones de los ⏸️⏸️ también llevan el de fibra/todos
+  ['_baja2P','_bajaToggle'].forEach(function(k){ var f0=B[k]; B[k]=function(x, done){ return f0(x, function(r){ var fb=fibBtn(); if(r && fb && B._bajaLast) r.buttons=(r.buttons||[]).concat(fb); done(r); }); }; });
   // elegir cliente cuando hay varios con el mismo nombre
   B.pickClient = function(i, done){
     var lc=B._lastClients; if(!lc||!lc.list[i]) return;
@@ -786,6 +797,7 @@ var lastPicks = {};
   B.pick = function(v, done){
     v = String(v||'');
     if(v.indexOf('q:')===0) return B.handle(v.slice(2), done);
+    if(v.indexOf('fib2:')===0) return B._fibSwitch(v.slice(5)==='fibra' ? 'fibra' : 'todos', done);
     if(v.indexOf('fib:')===0) return B._fibAnswer(v.slice(4)==='fibra' ? 'fibra' : 'todos', done);
     if(v==='baja2P:ver') return B._bajaToggle(false, done);
     if(v==='baja2P:quitar') return B._bajaToggle(true, done);
