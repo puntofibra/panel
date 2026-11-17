@@ -53,6 +53,26 @@ var lastPicks = {};
     // fecha exacta 15/01/2025 o 15-01
     m = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
     if(m && +m[2]>=1 && +m[2]<=12){ var yy2 = m[3] ? (m[3].length===2?2000+(+m[3]):+m[3]) : y; var dd=d0(yy2,+m[2]-1,+m[1]); return dayRange(dd,'del '+fmtD(dd)); }
+    // del 3 al 15 (sin decir el mes: el mes actual)
+    m = t.match(/\b(?:del?|desde el)\s*(\d{1,2})\s+(?:al|hasta el)\s+(\d{1,2})\b/);
+    if(m && +m[1]>=1 && +m[1]<=31 && +m[2]>=+m[1] && +m[2]<=31){ return {from:d0(y,mo,+m[1]), to:new Date(y,mo,+m[2],23,59,59,999), label:'del '+m[1]+' al '+m[2]+' de '+MESES[mo]}; }
+    // el lunes / el viernes pasado (el más reciente)
+    m = t.match(/\b(?:el|del|este)\s+(lunes|martes|miercoles|jueves|viernes|sabado|domingo)(\s+pasado)?\b/);
+    if(m){ var wi=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'].indexOf(m[1]); var bk=(now.getDay()-wi+7)%7; if(m[2] && bk===0) bk=7; var dw=new Date(now); dw.setDate(dw.getDate()-bk); return dayRange(dw,'del '+DIAS[wi]+' '+dw.getDate()+' de '+MESES[dw.getMonth()]); }
+    // hace N días / hace N semanas
+    m = t.match(/\bhace\s+(\w+)\s+dias?\b/);
+    if(m){ var nd0=toNum(m[1])||1; var hd=new Date(now); hd.setDate(hd.getDate()-nd0); return dayRange(hd,'de hace '+nd0+' '+plural(nd0,'día','días')+' ('+fmtD(hd)+')'); }
+    m = t.match(/\bhace\s+(\w+)\s+semanas?\b/);
+    if(m){ var nw=toNum(m[1])||1; var wdh=(now.getDay()+6)%7; var monh=d0(y,mo,now.getDate()-wdh-7*nw); return {from:monh, to:new Date(monh.getFullYear(),monh.getMonth(),monh.getDate()+6,23,59,59,999), label:'de hace '+nw+' '+plural(nw,'semana','semanas')}; }
+    m = t.match(/\bultim[oa]s\s+(\w+)\s+semanas\b/);
+    if(m){ var nws=toNum(m[1])||2; var fw=new Date(now); fw.setDate(fw.getDate()-(7*nws-1)); return {from:d0(fw.getFullYear(),fw.getMonth(),fw.getDate()), to:new Date(y,mo,now.getDate(),23,59,59,999), label:'de las últimas '+nws+' semanas'}; }
+    // quincenas
+    m = t.match(new RegExp('\\b(primera|segunda)\\s+quincena(?:\\s+(?:de|del)\\s+'+MRE+')?'));
+    if(m){ var qm = m[2]!=null ? MES_IDX[m[2]] : mo, qy = yr||y, q1 = m[1]==='primera'; return {from:d0(qy,qm,q1?1:16), to: q1 ? new Date(qy,qm,15,23,59,59,999) : endOfMonth(qy,qm), label:'de la '+m[1]+' quincena de '+MESES[qm]}; }
+    if(/\besta quincena\b/.test(t)){ var q1b = now.getDate()<=15; return {from:d0(y,mo,q1b?1:16), to:new Date(y,mo,now.getDate(),23,59,59,999), label:'de esta quincena'}; }
+    if(/\bquincena pasada\b|\bultima quincena\b/.test(t)){ if(now.getDate()<=15){ var pm=monthRange(y,mo-1); return {from:d0(pm.y,pm.m,16), to:pm.to, label:'de la quincena pasada'}; } return {from:d0(y,mo,1), to:new Date(y,mo,15,23,59,59,999), label:'de la quincena pasada'}; }
+    // trimestre pasado
+    if(/\btrimestre pasado\b|\bultimo trimestre\b|\btrimestre anterior\b/.test(t)){ var qp=Math.floor(mo/3)-1, yqp=y; if(qp<0){ qp=3; yqp--; } return {from:d0(yqp,qp*3,1), to:endOfMonth(yqp,qp*3+2), label:'del trimestre pasado'}; }
     // el 15 de enero
     m = t.match(new RegExp('\\b(?:el|dia)\\s+(\\d{1,2})\\s+de\\s+'+MRE));
     if(m){ var dd2=d0(yr||y,MES_IDX[m[2]],+m[1]); return dayRange(dd2,'del '+m[1]+' de '+MESES[MES_IDX[m[2]]]+' de '+dd2.getFullYear()); }
@@ -128,6 +148,163 @@ var lastPicks = {};
   var STOP = ('vip vips ciclo fibra fibras doble segunda vez veces pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
     'necesito mira mirame consulta busqueda encuentra encuentrame nombre nombres llamado llamada llama persona personas gente hola buenas buenos noches tardes dias gracias anterior actual va como quien donde cuando hacia trimestre primer segundo tercer cuarto').split(' ');
   var STOPSET={}; STOP.forEach(function(w){ STOPSET[w]=1; }); MESES.concat(['setiembre']).forEach(function(w){ STOPSET[w]=1; }); Object.keys(NUM).forEach(function(w){ STOPSET[w]=1; });
+
+  /* =====================================================================
+     COMPRENSIÓN DEL LENGUAJE (NLU sin IA)
+     1) diccionario de sinónimos   2) palabras que no son nombres
+     3) números escritos con letra  4) corrección de errores al escribir
+     5) nombres reales de la hoja   6) memoria de la conversación
+     Para que Lucas entienda una forma nueva de decir algo, se añade aquí.
+     ===================================================================== */
+  // 1) DICCIONARIO: frase que entiende Lucas  <=  otras formas de decirlo (todo sin tildes y en minúsculas)
+  B.DICCIONARIO = {
+    'contratos':            ['ventas','venta','operaciones','operacion','contrataciones','contratacion','altas nuevas'],
+    'cuantos':              ['que cantidad de','cantidad de','cuantas veces','que numero de'],
+    'anteayer':             ['antes de ayer','antier','antesdeayer'],
+    'mes pasado':           ['mes previo','el otro mes','mes ultimo'],
+    'ano pasado':           ['ano anterior','el otro ano'],
+    'semana pasada':        ['semana previa','la otra semana'],
+    'hoy':                  ['en el dia de hoy','hoy mismo'],
+    'este mes':             ['en lo que llevamos de mes','lo que llevamos de mes','en lo que va de mes'],
+    'este ano':             ['en lo que llevamos de ano','lo que llevamos de ano'],
+    'pendientes de instalar':['sin montar','por montar','pendientes de montar','falta por montar','faltan por montar','sin conectar','pendientes de conectar'],
+    'clientes vip':         ['clientes top','clientes premium','mejores clientes','clientes especiales'],
+    'quita los filtros':    ['limpia la tabla','borra la busqueda','quita la busqueda','quita todo','resetea la tabla'],
+    'ayuda':                ['que me puedes decir','en que me ayudas','que sabes','menu de opciones','opciones'],
+    'muestrame':            ['ensenamelos','ensenamelas','muestramelos','muestramelas','sacamelos','sacamelas','damelos','damelas','pasamelos','pasamelas','ponmelos','ponmelas','listamelos']
+  };
+  // 2) palabras que nunca son nombres de clientes (verbos y relleno)
+  ('hice hicimos hiciste hicisteis vendi vendimos vendiste vendido vendidos vendidas cerre cerramos cerrado cerrados cerradas meti metimos metido metidos metidas '+
+   'realizado realizados realizamos firmado firmados firmamos conseguimos conseguido sacamos sacado sacados entraron entrado entrados registrados registramos apuntados apuntamos '+
+   'pasame pasa dejame deja ensenarme mostrarme sacarme decirme dimelo listar salen sale aparecen aparece tienes son eran fueron estan queda quedan cantidad '+
+   'mostrame porfi plis please oye venga totales resumen nuevos nuevas otra otro otros otras tambien ahora mismo bien vale entonces pues '+
+   'ensenamelos ensenamelas muestramelos muestramelas sacamelos sacamelas damelos damelas pasamelos pasamelas ponmelos ponmelas listamelos '+
+   'quincena quincenas semanas lunes martes miercoles jueves viernes sabado domingo').split(' ').forEach(function(w){ STOPSET[w]=1; });
+
+  // 3) números escritos con letra -> cifras («del uno al quince de enero», «hace tres semanas»)
+  var NUMW = { 'treinta y uno':31, dieciseis:16, diecisiete:17, dieciocho:18, diecinueve:19, veintiuno:21, veintidos:22, veintitres:23, veinticuatro:24, veinticinco:25, veintiseis:26, veintisiete:27, veintiocho:28, veintinueve:29, trece:13, catorce:14, quince:15, veinte:20, treinta:30, once:11, doce:12, diez:10, nueve:9, ocho:8, siete:7, seis:6, cinco:5, cuatro:4, tres:3, dos:2 };
+  function numerosATexto(t){
+    Object.keys(NUMW).sort(function(a,b){ return b.length-a.length; }).forEach(function(w){ t = t.replace(new RegExp('\\b'+w+'\\b','g'), String(NUMW[w])); });
+    t = t.replace(/\b(del|el|al|dia|ciclo|desde el|hasta el)\s+(uno|primero)\b/g, '$1 1').replace(/\b(uno|primero)\s+(al|de)\b/g, '1 $2');
+    return t;
+  }
+
+  function aplicarDiccionario(t){
+    var pares=[];
+    Object.keys(B.DICCIONARIO).forEach(function(k){ B.DICCIONARIO[k].forEach(function(f){ pares.push([f,k]); }); });
+    pares.sort(function(a,b){ return b[0].length-a[0].length; });
+    var s=' '+t+' ';
+    pares.forEach(function(p){ var re=new RegExp('(^|\\s)'+p[0].replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?=\\s|$)','g'); s=s.replace(re,'$1'+p[1]); });
+    return s.replace(/\s+/g,' ').trim();
+  }
+
+  // 4) corrección de errores (distancia de Damerau: «contartos» -> «contratos», «garsia» -> «garcia»)
+  function dist(a,b,max){
+    var la=a.length, lb=b.length; if(Math.abs(la-lb)>max) return max+1;
+    var d=[], i, j;
+    for(i=0;i<=la;i++){ d[i]=[i]; }
+    for(j=0;j<=lb;j++){ d[0][j]=j; }
+    for(i=1;i<=la;i++){
+      var rowMin=max+1;
+      for(j=1;j<=lb;j++){
+        var c = a.charAt(i-1)===b.charAt(j-1) ? 0 : 1;
+        d[i][j]=Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+c);
+        if(i>1 && j>1 && a.charAt(i-1)===b.charAt(j-2) && a.charAt(i-2)===b.charAt(j-1)) d[i][j]=Math.min(d[i][j], d[i-2][j-2]+1);
+        if(d[i][j]<rowMin) rowMin=d[i][j];
+      }
+      if(rowMin>max) return max+1;
+    }
+    return d[la][lb];
+  }
+  var VOCAB=null;
+  function vocabulario(){
+    if(VOCAB) return VOCAB;
+    var v={};
+    Object.keys(STOPSET).forEach(function(w){ if(w.length>=4) v[w]=1; });
+    Object.keys(MES_IDX).forEach(function(w){ v[w]=1; });
+    Object.keys(COMP_ALIAS).forEach(function(a){ a.split(' ').forEach(function(w){ if(w.length>=4) v[w]=1; }); v[COMP_ALIAS[a]]=1; });
+    Object.keys(B.DICCIONARIO).forEach(function(k){ (k+' '+B.DICCIONARIO[k].join(' ')).split(' ').forEach(function(w){ if(w.length>=4) v[w]=1; }); });
+    ('borrador borradores fichar fichaje ayuda chiste gracias adios hasta luego manana fibra fibras instalar instalacion pausa pausar pausados baja bajas cambiar cambio titular '+
+     'clientes cliente contratos contrato cuantos cuantas muestrame ensename sacame filtros filtro quita limpia doble segunda ciclo trimestre semana quincena pasado pasada').split(' ').forEach(function(w){ v[w]=1; });
+    VOCAB=Object.keys(v);
+    return VOCAB;
+  }
+  // 5) nombres reales: palabras de los titulares de la hoja (se recalcula si cambia el número de contratos)
+  var NOMBRES=null, NOMBRES_N=-1;
+  function nombresHoja(){
+    var l=contratos(); if(NOMBRES && NOMBRES_N===l.length) return NOMBRES;
+    var v={}; l.forEach(function(it){ fold(it['21']).split(/[\s\-]+/).forEach(function(w){ if(w.length>=3 && /^[a-z]+$/.test(w)) v[w]=1; }); });
+    companies().forEach(function(c){ fold(c).split(/[\s\-]+/).forEach(function(w){ if(w.length>=3) v[w]=1; }); });
+    NOMBRES=v; NOMBRES_N=l.length; return NOMBRES;
+  }
+  function corregir(w){
+    if(w.length<4 || !/^[a-z]+$/.test(w)) return w;
+    var noms=nombresHoja(), voc=vocabulario();
+    if(noms[w] || voc.indexOf(w)>=0) return w;               // ya es una palabra conocida o un nombre real
+    var max = w.length>=8 ? 2 : 1, best=null, bd=max+1;
+    voc.forEach(function(x){ if(w.length===4 && x.charAt(0)!==w.charAt(0)) return; var dd=dist(w,x,max); if(dd<bd){ bd=dd; best=x; } });
+    var bestN=null, bdN=max+1;
+    Object.keys(noms).forEach(function(x){ if(x.charAt(0)!==w.charAt(0)) return; var dd=dist(w,x,max); if(dd<bdN){ bdN=dd; bestN=x; } });
+    if(bestN && bdN<bd) return bestN;                         // en empate gana el vocabulario
+    var r = best || bestN || w;
+    if(r!==w){ var cp=0; while(cp<w.length && w.charAt(cp)===r.charAt(cp)) cp++; var FIN=/^(s|es|a|o|as|os|e|)$/; if(cp>=3 && FIN.test(w.slice(cp)) && FIN.test(r.slice(cp))) return w; }   // plurales y femeninos (primera/primer, ultimas/ultimos) no se tocan
+    return r;
+  }
+
+  // ---- entender: limpia la frase antes de pasarla al motor ----
+  function entender(t){
+    t = numerosATexto(t);
+    t = t.split(' ').map(corregir).join(' ');
+    t = aplicarDiccionario(t);
+    return t.replace(/\s+/g,' ').trim();
+  }
+  B.entender = entender;                                      // para probar en la consola: LucasBrain.entender('...')
+
+  // 6) MEMORIA: «¿y en noviembre?», «¿y los de Rosa?», «¿y de Simyo?», «¿cuántos son?», «enséñamelos»
+  B._ctx = null;
+  var MRE_S='(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)';
+  function quitarFechas(t){
+    var R=[
+      new RegExp('\\b(?:del?|desde el)?\\s*\\d{1,2}\\s+(?:al|a|hasta el)\\s+\\d{1,2}(?:\\s+de\\s+'+MRE_S+')?','g'),
+      /\b\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?\b/g,
+      new RegExp('\\b(?:el|dia)\\s+\\d{1,2}\\s+de\\s+'+MRE_S,'g'),
+      new RegExp('\\b(?:primera|segunda)\\s+quincena(?:\\s+(?:de|del)\\s+'+MRE_S+')?','g'),
+      new RegExp('\\b(?:de|desde|entre|en|del?)?\\s*'+MRE_S+'(?:\\s*(?:,|a|hasta|y)\\s*'+MRE_S+')*(?:\\s+(?:de|del)\\s+(?:20)?\\d\\d)?\\b','g'),
+      /\b(?:en |del |de )?(?:20\d\d)\b/g,
+      /\b(?:el|del|este)\s+(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?:\s+pasado)?\b/g,
+      /\b(?:de |en )?(?:hace|ultim[oa]s)\s+\w+\s+(?:dias?|semanas?|mes(?:es)?)\b/g,
+      /\b(?:primer|1er|1|segundo|2|tercer|3er|3|cuarto|4)\s*(?:o\s*)?trimestre\b/g,
+      /\b(?:de |del |en )?(?:esta |la |el )?(?:anteayer|ayer|hoy|de este dia|este mes|mes actual|mes pasado|ultimo mes|mes anterior|pasado mes|lo que va de mes|en el mes|del mes|semana pasada|pasada semana|semana anterior|esta semana|semana actual|ultima semana|esta ultima semana|este trimestre|trimestre actual|trimestre pasado|ultimo trimestre|trimestre anterior|esta quincena|quincena pasada|ultima quincena|este ano|ano pasado|pasado ano|en lo que va de ano)\b/g
+    ];
+    R.forEach(function(re){ t=t.replace(re,' '); });
+    return t.replace(/\s+/g,' ').trim();
+  }
+  function nombreTokens(t){
+    var out=[]; var comps=findCompanies(t).map(fold);
+    t.split(' ').forEach(function(w){ if(w.length>=3 && /^[a-z]+$/.test(w) && !STOPSET[w] && !COMP_ALIAS[w] && !comps.some(function(c){ return c.indexOf(w)>=0; }) && !Object.keys(COMP_ALIAS).some(function(a){ return a.split(' ').indexOf(w)>=0 || COMP_ALIAS[a]===w; })) out.push(w); });
+    return out;
+  }
+  function seguimiento(t){
+    var c=B._ctx; if(!c || Date.now()-c.at > 10*60000) return null;
+    var esMostrar = /^(muestrame|ensename|sacame|dame|pasame)( todos| todas)?$/.test(t);
+    var esCuantos = /^(cuantos|cuantas|y cuantos|y cuantas)( son| hay| salen| serian| tengo| llevo)?$/.test(t);
+    var m = t.match(/^(?:y|e|y que tal|que tal|y si|y ahora|ahora|tambien|y tambien|solo|y solo)\s+(.*)$/);
+    if(!esMostrar && !esCuantos && !m) return null;
+    var L=c.t;
+    if(esMostrar) return L.replace(/\b(cuant[oa]s|numero de|total de)\b/g,' ').replace(/\s+/g,' ').trim();
+    if(esCuantos) return /\bcuant[oa]s\b/.test(L) ? L : ('cuantos '+L);
+    var n = m[1].replace(/^(los|las|el|la)\s+(de|del)\s+/,'de ').replace(/^(con|para|por)\s+/,'$1 ').trim();
+    if(!n) return null;
+    if(/^(cuant[oa]s)\b/.test(n) && !/\bcuant[oa]s\b/.test(L)) L='cuantos '+L;
+    if(parseDates(n, new Date())) L=quitarFechas(L);
+    var nc=findCompanies(n);
+    if(nc.length){ findCompanies(L).forEach(function(oc){ var f=fold(oc); L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?=\\s)','g'),' ').trim(); }); Object.keys(COMP_ALIAS).forEach(function(a){ L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+a+'(?=\\s)','g'),' ').trim(); }); }
+    if(/\bciclo\b/.test(n)) L=L.replace(/\bciclo (de )?(\d{1,2}|uno|veinte)\b/g,' ');
+    var nn=nombreTokens(n);
+    if(nn.length){ var on=nombreTokens(L); on.forEach(function(w){ L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+w+'(?=\\s)','g'),' ').trim(); }); }
+    return (L+' '+n).replace(/\s+/g,' ').trim();
+  }
+  B._seguimiento = seguimiento;
 
   // ---------- respuestas variadas ----------
   function saludoHora(now){ var h=now.getHours(); return h>=6&&h<13?'Buenos días':(h>=13&&h<21?'Buenas tardes':'Buenas noches'); }
@@ -444,8 +621,10 @@ var lastPicks = {};
     if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
     if(!t){ return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
+    try{ var tN = entender(t); if(tN && tN!==t){ t = tN; raw = tN; } }catch(e){ console.warn('[Lucas] entender', e); }
     var greet = isGreeting(t) || /^lucas$/.test(t);
     var rest = t.replace(/^(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|ey|saludos|buen dia)( lucas)?\s*/,'').trim();
+    try{ var sg = seguimiento(rest||t); if(sg){ rest = sg; t = sg; raw = sg; greet = false; } }catch(e){ console.warn('[Lucas] seguimiento', e); }
 
     var st = smallTalk(rest||t, now);
     if(st==='__CLEAR__'){ ensureContratos(function(){ try{ clearSearch(); }catch(e){ render(contratos(),null); } done({ say: pick('clear',['Filtros quitados. Ya ves todos los contratos.','Listo, tabla limpia.','Hecho, sin filtros.']) }); }); return; }
@@ -461,6 +640,7 @@ var lastPicks = {};
 
     ensureContratos(function(){
       var r = contratoQuery(rest||t, raw, now, ctx);
+      if(!r.notUnderstood && (r.say || r.clients)) B._ctx = { t: rest||t, at: Date.now() };   // memoria para «¿y en noviembre?»
       if(r.notUnderstood){
         if(greet) return done({ say: B.greetReply(t, now) });
         return done({ say: pick('noentiendo',NO_ENTIENDO) });
