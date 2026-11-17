@@ -187,6 +187,7 @@ var lastPicks = {};
    'quincena quincenas semanas lunes martes miercoles jueves viernes sabado domingo '+
    'compania companias operadora operadoras operador vende venden vendemos vendio ranking mejor peor mas menos comparado comparar comparacion cuando fue '+
    'esta estado entrado entro llegado llego venido vino salido salio fichado fichaje fichajes hora horas ordena ordename ordenar orden recientes antiguos antiguas viejos primero primeros '+
+   'grafica graficas grafico graficos estadistica estadisticas diagrama diagramas barras tarta quesito histograma curva dibuja dibujame visualiza visualizame pintame pinta imagen visual comparame compara comparar instalaciones '+
    'vuelve volver atras antes busqueda tramitar cancelar congelar tecnico router portas porta portabilidad portabilidades firmamos firme alturas vamos llevamos movil').split(' ').forEach(function(w){ STOPSET[w]=1; });
 
   // 3) números escritos con letra -> cifras («del uno al quince de enero», «hace tres semanas»)
@@ -668,7 +669,63 @@ var lastPicks = {};
   B._hist = [];
   function guardarHist(q){ var h=B._hist; if(h[h.length-1]!==q) h.push(q); if(h.length>20) h.shift(); }
 
+  /* ---------- GRÁFICAS: solo si la frase lo pide (gráfica, estadística, diagrama, barras…) ---------- */
+  var RE_GRAF = /\b(grafic\w*|grafico\w*|estadistic\w*|diagrama\w*|chart|barras|tarta|quesito|histograma|curva|dibuja\w*|visualiza\w*|en plan visual|en imagen|pintame|pinta)\b/;
+  B.esGrafica = function(t){ return RE_GRAF.test(t); };
+  function pintarGrafica(titulo, sub, datos){
+    var box=document.getElementById('iaChatMsgs'); if(!box || !datos.length) return;
+    var W=600, H=270, L=34, R=10, T=18, Bt=datos.length>12?56:40, max=0;
+    datos.forEach(function(d){ if(d.v>max) max=d.v; }); if(!max) max=1;
+    var paso = max<=5?1:(max<=10?2:(max<=25?5:(max<=60?10:Math.ceil(max/50)*10))); var top=Math.ceil(max/paso)*paso;
+    var iw=W-L-R, ih=H-T-Bt, n=datos.length, bw=iw/n, gap=Math.min(10, bw*0.25);
+    var svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lgG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17ff5f"/><stop offset="1" stop-color="#00a86b"/></linearGradient><linearGradient id="lgM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00d4ff"/><stop offset="1" stop-color="#0077ff"/></linearGradient></defs>';
+    for(var g=0; g<=top; g+=paso){ var y=T+ih-(g/top)*ih; svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="#17ff5f" stroke-opacity=".12"/><text x="'+(L-6)+'" y="'+(y+3)+'" font-size="10" fill="#7fb894" text-anchor="end">'+g+'</text>'; }
+    var cada = n>16 ? Math.ceil(n/16) : 1, imax=0; datos.forEach(function(d,i){ if(d.v>datos[imax].v) imax=i; });
+    datos.forEach(function(d,i){
+      var h=(d.v/top)*ih, x=L+i*bw+gap/2, y=T+ih-h, w=Math.max(2,bw-gap);
+      svg+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="'+Math.min(5,w/3).toFixed(1)+'" fill="url(#'+(i===imax?'lgM':'lgG')+')" style="transform-origin:'+(x+w/2).toFixed(1)+'px '+(T+ih)+'px;transform:scaleY(0);transition:transform .7s cubic-bezier(.2,1.2,.4,1) '+(i*0.035).toFixed(2)+'s" class="lgBar"><title>'+esc0(d.l)+': '+d.v+'</title></rect>';
+      if(d.v && (n<=20 || i===imax)) svg+='<text x="'+(x+w/2).toFixed(1)+'" y="'+(y-4).toFixed(1)+'" font-size="'+(n>20?9:11)+'" font-weight="800" fill="'+(i===imax?'#00d4ff':'#d9ffe6')+'" text-anchor="middle">'+d.v+'</text>';
+      if(i%cada===0){ var lx=(x+w/2).toFixed(1), ly=T+ih+14; svg+= n>12 ? '<text x="'+lx+'" y="'+ly+'" font-size="10" fill="#9fdcb7" text-anchor="end" transform="rotate(-40 '+lx+' '+ly+')">'+esc0(d.l)+'</text>' : '<text x="'+lx+'" y="'+ly+'" font-size="11" fill="#9fdcb7" text-anchor="middle">'+esc0(d.l)+'</text>'; }
+    });
+    svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+(T+ih)+'" y2="'+(T+ih)+'" stroke="#17ff5f" stroke-opacity=".5"/></svg>';
+    var c=document.createElement('div');
+    c.style.cssText='margin:4px 0 12px;max-width:96%;border:1px solid #17ff5f;border-radius:16px;padding:12px 12px 6px;background:linear-gradient(160deg,#07140d,#040a0b);box-shadow:0 0 18px rgba(23,255,95,.25);';
+    c.innerHTML='<div style="font-weight:900;color:#17ff5f;font-size:13px;letter-spacing:.5px">📊 '+esc0(titulo)+'</div><div style="font-size:11px;color:#7fb894;margin:2px 0 6px">'+esc0(sub)+'</div>'+svg;
+    box.appendChild(c); box.scrollTop=box.scrollHeight;
+    setTimeout(function(){ c.querySelectorAll('.lgBar').forEach(function(b){ b.style.transform='scaleY(1)'; }); }, 60);
+  }
+  B.pintarGrafica = pintarGrafica;
+  function grafica(t, now, done){
+    ensureContratos(function(){
+      var inst = /\binstal\w*\b/.test(t);
+      var r = parseDates(t, now);
+      if(!r){ var mm=t.match(/\bultim[oa]s\s+(\d+)\s+mes(es)?\b/); if(mm){ var nm=+mm[1]; r={from:d0(now.getFullYear(),now.getMonth()-(nm-1),1), to:new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999), label:'de los últimos '+nm+' meses'}; } }
+      if(!r && /\b(por meses|cada mes|mes a mes|meses)\b/.test(t)){ r={from:d0(now.getFullYear(),now.getMonth()-5,1), to:new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999), label:'de los últimos 6 meses'}; }
+      if(!r){ r=monthRange(now.getFullYear(), now.getMonth()); r.label='de este mes'; }
+      var comps=findCompanies(t), col = inst ? '15' : '14', f=r.from.getTime(), to=r.to.getTime();
+      var l=contratos().filter(function(it){ var k=tsOK(it[col]); if(!k || k<f || k>to || !enMeses(k, r)) return false; if(comps.length && comps.map(function(c){ return c.toUpperCase().trim(); }).indexOf(String(it['2']||'').toUpperCase().trim())<0) return false; if(/\bfibras?\b/.test(t) && !tieneFibra(it)) return false; return true; });
+      var porComp = /\b(compania|companias|operadora|operadoras|operador|por compania|cada compania)\b/.test(t);
+      var meses = (r.to.getFullYear()-r.from.getFullYear())*12 + r.to.getMonth()-r.from.getMonth();
+      var datos=[], modo;
+      if(porComp){ modo='compañía'; datos=porCompania(l).map(function(x){ return { l:compName(x.c), v:x.n }; }); }
+      else if(meses>=1){ modo='mes';
+        for(var k=0;k<=meses;k++){ var dm=new Date(r.from.getFullYear(), r.from.getMonth()+k, 1); var key=dm.getFullYear()+'-'+dm.getMonth(); if(r.meses && r.meses.indexOf(key)<0) continue; var cnt=l.filter(function(it){ var d=new Date(tsOK(it[col])); return d.getFullYear()===dm.getFullYear() && d.getMonth()===dm.getMonth(); }).length; datos.push({ l: MESES[dm.getMonth()].slice(0,3)+(dm.getFullYear()!==now.getFullYear()?' '+String(dm.getFullYear()).slice(2):''), v:cnt }); } }
+      else { modo='día'; var d1=new Date(r.from), d2=new Date(Math.min(r.to.getTime(), now.getTime())); if(d2<d1) d2=new Date(r.to);
+        for(var dd=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()); dd<=d2; dd=new Date(dd.getFullYear(),dd.getMonth(),dd.getDate()+1)){ var iso0=iso(dd); datos.push({ l:String(dd.getDate()), v:l.filter(function(it){ return iso(new Date(tsOK(it[col])))===iso0; }).length }); } }
+      if(!inst) render(l, r);
+      var que = inst ? 'instalaciones' : 'contratos', total=l.length;
+      if(!total){ return done({ say: 'No hay '+que+' '+r.label+(comps.length?' de '+comps.map(compName).join(' y '):'')+', así que la gráfica saldría vacía.' }); }
+      var best=datos.slice().sort(function(a,b){ return b.v-a.v; })[0];
+      var titulo = cap(que)+' por '+modo+' '+r.label+(comps.length?' · '+comps.map(compName).join(', '):'');
+      var frase = modo==='compañía' ? fill(pick('grC',['Aquí tienes la gráfica: {b} va en cabeza con {v} {q}, de {n} en total.','Gráfica lista. Gana {b} con {v} {q} ({n} en total).']),{b:best.l,v:best.v,q:que,n:total})
+                : fill(pick('grT',['Aquí tienes la gráfica de {q} {d}: {n} en total, y el pico es {b} con {v}.','Gráfica lista: {n} {q} {d}. El pico fue {b}, con {v}.']),{q:que,d:r.label,n:total,b:(modo==='día'?'el día '+best.l:best.l),v:best.v,m:modo});
+      done({ say: frase });
+      pintarGrafica(titulo, total+' '+que+' en total'+(inst?' (por fecha de instalación)':' (por fecha de solicitud)'), datos);
+    });
+  }
+
   function extras(t, now, done){
+    if(B.esGrafica(t)){ grafica(t, now, done); return true; }
     // volver atrás
     if(/^(vuelve atras|volver atras|atras|lo de antes|lo anterior|la anterior|la busqueda anterior|busqueda anterior|deshaz|deshacer|vuelve a lo de antes|lo que tenia antes)$/.test(t)){
       var h=B._hist; if(h.length<2) return done({ say: pick('atr0',['No tengo ninguna búsqueda anterior a la que volver.','Esta es la primera búsqueda que me has pedido, no hay nada antes.']) }), true;
@@ -777,11 +834,259 @@ var lastPicks = {};
     return false;
   }
 
+  /* =====================================================================
+     RECORDATORIOS (se guardan en la hoja RECORDATORIOS; avisan solo en los
+     ordenadores con la semilla de esa persona)
+     ===================================================================== */
+  var REC_PERS = [ ['Manu','recManu'], ['Sebastián','recSebastian'], ['Jorge','recJorge'], ['Maicol','recMaicol'] ];
+  var REC_AVISOS = [ [1440,'1 día antes'], [120,'2 horas antes'], [60,'1 hora antes'], [30,'Media hora antes'], [0,'A la misma hora'] ];
+  var REC_INSISTE = 30*60000;            // si no pulsa «Enterado», vuelve a avisar cada media hora
+  function plano(s){ return String(s||'').toLowerCase().replace(/[áàâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i').replace(/[óòôö]/g,'o').replace(/[úùûü]/g,'u').replace(/ñ/g,'n'); }
+  var REC_TRIG = /^[\s¡!¿,.]*(?:(?:oye|eh|hola|hey|buenas|venga)[\s,]+)?(?:lucas[\s,]+)?(?:por favor[\s,]+|porfa[\s,]+)?(recuerdamelo|recuerdame|recuerdale|recuerdales|recuerda|acuerdame|avisame|avisale|avisales|apuntame|anotame|ponme un recordatorio|pon un recordatorio|creame un recordatorio|crea un recordatorio|hazme un recordatorio|haz un recordatorio|nuevo recordatorio|un recordatorio|recordatorio|no me dejes olvidar|que no se me olvide|que no se me pase)(?=[\s,.:;!?]|$)[\s,:]*/;
+  var NOMBRE_PERS = { manu:'Manu', manuel:'Manu', sebastian:'Sebastián', sebas:'Sebastián', jorge:'Jorge', maicol:'Maicol', michael:'Maicol', maikol:'Maicol' };
+  var NUMR = { un:1, una:1, media:0.5, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8, nueve:9, diez:10, once:11, doce:12, quince:15, veinte:20, treinta:30, cuarenta:40, 'cuarenta y cinco':45 };
+  function nR(w){ return /^\d+$/.test(w) ? parseInt(w,10) : (NUMR[w]!=null ? NUMR[w] : 0); }
+  var DIAS_P = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  function addD(d,n){ var x=new Date(d.getFullYear(),d.getMonth(),d.getDate()+n); return x; }
+
+  // entiende día y hora SIEMPRE hacia delante: «el 23» = el próximo 23, «el lunes» = el próximo lunes, «el 23 de enero» = el próximo 23 de enero
+  function recParse(raw, now){
+    var p = plano(raw), spans=[], day=null, hh=null, mi=0, tod=null, exact=null;
+    function find(re){ var r=re.exec(p); if(r){ spans.push([r.index, r.index+r[0].length]); p = p.slice(0,r.index)+new Array(r[0].length+1).join(' ')+p.slice(r.index+r[0].length); } return r; }
+    var m;
+    m = find(/\b(?:de|por) la (manana|tarde|noche)\b|\bpor la mananita\b/); if(m) tod = (m[1]==='tarde'?'tarde':(m[1]==='noche'?'noche':'manana'));
+    // dentro de / en N minutos, horas, días, semanas, meses
+    m = find(/\b(?:en|dentro de)\s+(\d+|un|una|media|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta y cinco|cuarenta)\s*(minutos?|mins?|horas?|h|dias?|semanas?|mes(?:es)?)(\s+y media)?\b/);
+    if(m){ var n=nR(m[1]), u=m[2]; if(m[1]==='media' && /^h/.test(u)){ n=30; u='min'; } if(m[3]) n+=0.5;
+      if(/^m(in|inuto)/.test(u)) exact=new Date(now.getTime()+n*60000);
+      else if(/^h/.test(u)) exact=new Date(now.getTime()+n*3600000);
+      else if(/^d/.test(u)) day=addD(now,Math.round(n));
+      else if(/^s/.test(u)) day=addD(now,Math.round(n*7));
+      else { day=new Date(now.getFullYear(),now.getMonth()+Math.round(n),now.getDate()); } }
+    if(!exact && find(/\b(?:en|dentro de) un rato\b|\bluego\b|\bmas tarde\b/)) exact=new Date(now.getTime()+30*60000);
+    if(!exact && find(/\ben media hora\b/)) exact=new Date(now.getTime()+30*60000);
+    // hora
+    m = find(/\b(?:a|sobre|hacia|para|desde|antes de)\s+(?:las|la)\s+(\d{1,2}|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)(?:(?::|\.|h)(\d{2}))?(?:\s+y\s+(media|cuarto|\d{1,2})|\s+menos\s+(cuarto|\d{1,2}))?(?:\s*(?:h|horas|hrs))?\b/) || find(/\b(\d{1,2})[:h](\d{2})\b/);
+    if(m){ hh = nR(m[1]); mi = m[2]?parseInt(m[2],10):0; if(m[3]) mi = m[3]==='media'?30:(m[3]==='cuarto'?15:parseInt(m[3],10)); if(m[4]){ hh -= 1; mi = 60-(m[4]==='cuarto'?15:parseInt(m[4],10)); } }
+    if(hh==null && find(/\ba mediodia\b|\bal mediodia\b/)){ hh=14; mi=0; }
+    if(hh==null && find(/\ba primera hora\b/)){ hh=10; mi=0; }
+    if(hh==null && find(/\ba ultima hora\b/)){ hh=19; mi=30; }
+    if(hh!=null){ if((tod==='tarde'||tod==='noche') && hh<12) hh+=12; else if(!tod && hh>=1 && hh<=7) hh+=12; if(hh>23) hh=23; }
+    // día
+    if(!day){
+      if(find(/\bpasado manana\b/)) day=addD(now,2);
+      else if(find(/\bmanana\b/)) day=addD(now,1);
+      else if((m=find(/\besta (manana|tarde|noche)\b/))){ day=addD(now,0); tod=tod||m[1]; }
+      else if(find(/\bhoy\b/)) day=addD(now,0);
+      else if(find(/\b(?:la )?(?:semana que viene|proxima semana)\b/)){ var bw=(8-now.getDay())%7||7; day=addD(now,bw); }
+      else if((m=find(/\b(?:el\s+|este\s+)?(?:proximo\s+)?(lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?:\s+que viene|\s+proximo)?\b/))){ var wi=DIAS_P.indexOf(m[1]); var bk=(wi-now.getDay()+7)%7; if(bk===0) bk=7; day=addD(now,bk); }
+      else if((m=find(/\b(?:el\s+)?(?:dia\s+)?(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:\s+(?:de|del)\s+(\d{4}))?\b/))){
+        var dM=+m[1], mM=MES_IDX[m[2]], yM=m[3]?+m[3]:now.getFullYear(); day=new Date(yM,mM,dM); if(!m[3] && day<addD(now,0)) day=new Date(yM+1,mM,dM); }
+      else if((m=find(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/))){
+        var yN=m[3]?(m[3].length===2?2000+(+m[3]):+m[3]):now.getFullYear(); day=new Date(yN,+m[2]-1,+m[1]); if(!m[3] && day<addD(now,0)) day=new Date(yN+1,+m[2]-1,+m[1]); }
+      else if((m=find(/\b(?:el\s+dia|el|dia)\s+(\d{1,2})\b/))){
+        var dd=+m[1]; if(dd>=1 && dd<=31){ var y0=now.getFullYear(), m0=now.getMonth(); if(dd<now.getDate()) m0++; for(var k=0;k<14;k++){ var c=new Date(y0,m0+k,dd); if(c.getDate()===dd){ day=c; break; } } } }
+    }
+    var when=null, defHora=false;
+    if(exact){ when=exact; if(day){ when=new Date(day.getFullYear(),day.getMonth(),day.getDate(),exact.getHours(),exact.getMinutes()); } }
+    else if(hh!=null){ var base=day||addD(now,0); when=new Date(base.getFullYear(),base.getMonth(),base.getDate(),hh,mi); if(!day && when<=now) when=new Date(when.getTime()+86400000); }
+    else if(day){ var H = tod==='tarde'?17:(tod==='noche'?21:10); when=new Date(day.getFullYear(),day.getMonth(),day.getDate(),H,0); defHora=true;
+      if(when<=now){ var t5=new Date(now.getTime()+60*60000); t5.setMinutes(Math.ceil(t5.getMinutes()/5)*5,0,0); when=t5; } }
+    return { when:when, defHora:defHora, spans:spans };
+  }
+  function recTexto(raw, trigLen, spans){
+    var s=raw.split('');
+    for(var i=0;i<trigLen && i<s.length;i++) s[i]=' ';
+    spans.forEach(function(sp){ for(var j=sp[0]; j<sp[1] && j<s.length; j++) s[j]=' '; });
+    var t=s.join('').replace(/\s+/g,' ').replace(/\s+([,.;:!?])/g,'$1').trim();
+    for(var r=0;r<4;r++){ t=t.replace(/^[\s,.:;¡!¿?\-]+/,'').replace(/^(que|de que|para|de|a|el|y)\s+/i,'').replace(/[\s,.:;¡!¿?\-]+$/,'').replace(/\s+(y|que|de|a|para|el|la)$/i,''); }
+    t=t.replace(/,\s*,/g,',').trim();
+    return t ? t.charAt(0).toUpperCase()+t.slice(1) : 'Recordatorio';
+  }
+  function fechaBonita(d, now){
+    now=now||new Date(); var hoy=addD(now,0), dd=addD(d,0), diff=Math.round((dd-hoy)/86400000);
+    var hora=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    var dia = diff===0?'hoy':(diff===1?'mañana':(diff===2?'pasado mañana':('el '+DIAS[d.getDay()]+' '+d.getDate()+' de '+MESES[d.getMonth()]+(d.getFullYear()!==now.getFullYear()?' de '+d.getFullYear():''))));
+    return dia+' a las '+hora;
+  }
+  function falta(ms){ var m=Math.round(ms/60000); if(m<=0) return m>-2?'ahora mismo':'hace '+(-m>=60?Math.round(-m/60)+' h':(-m)+' min'); if(m<60) return 'en '+m+' '+plural(m,'minuto','minutos'); var h=Math.round(m/60); if(h<24) return 'en '+h+' '+plural(h,'hora','horas'); var d=Math.round(h/24); return 'en '+d+' '+plural(d,'día','días'); }
+
+  // casillas en el chat (una o varias) + botón
+  function renderChecks(opts, btnTxt, cb){
+    var box=document.getElementById('iaChatMsgs'); if(!box) return;
+    var wrap=document.createElement('div'); wrap.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;max-width:95%;align-items:center;';
+    var sel={}, cerrado=false;
+    opts.forEach(function(o){
+      var b=document.createElement('button'); b.type='button';
+      var pinta=function(){ var on=!!sel[o.v]; b.textContent=(on?'☑ ':'☐ ')+o.t; b.style.background=on?'#17ff5f':'#0f1512'; b.style.color=on?'#04140a':(o.off?'#5d6b62':'#d9ffe6'); b.style.boxShadow=on?'0 0 16px rgba(23,255,95,.7)':'0 0 8px rgba(23,255,95,.25)'; };
+      b.style.cssText='border:1px solid '+(o.off?'#2c3a31':'#17ff5f')+';border-radius:12px;padding:9px 14px;font-size:13px;font-weight:800;cursor:'+(o.off?'not-allowed':'pointer')+';transition:transform .12s, background .15s;';
+      if(o.on && !o.off) sel[o.v]=1;
+      pinta();
+      b._v=o.v;
+      b.onclick=function(){ if(cerrado || o.off) return; if(sel[o.v]) delete sel[o.v]; else sel[o.v]=1; b.style.transform='scale(1.08)'; setTimeout(function(){ b.style.transform=''; },120); pinta(); };
+      if(o.off) b.title='Esa hora ya ha pasado';
+      wrap.appendChild(b);
+    });
+    var ok=document.createElement('button'); ok.type='button'; ok.textContent=btnTxt;
+    ok.style.cssText='border:none;border-radius:999px;padding:10px 18px;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(90deg,#17ff5f,#00d4ff);color:#03110a;box-shadow:0 0 18px rgba(0,212,255,.55);margin-left:4px;';
+    ok.onclick=function(){
+      if(cerrado) return; var lista=opts.filter(function(o){ return sel[o.v]; }).map(function(o){ return o.v; });
+      if(!lista.length){ ok.animate && ok.animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],{duration:260}); if(window.__lucasSay) window.__lucasSay(pick('recSel0',['Marca al menos una opción.','Elige una por lo menos.'])); return; }
+      cerrado=true; wrap.querySelectorAll('button').forEach(function(x){ x.style.cursor='default'; if(x!==ok && !sel[x._v]) x.style.opacity='.45'; }); ok.style.opacity='.4';
+      cb(lista);
+    };
+    wrap.appendChild(ok);
+    box.appendChild(wrap); box.scrollTop=box.scrollHeight;
+  }
+  B.renderChecks = renderChecks;
+
+  B._recPend = null;
+  function recPreguntarPersonas(o, done){
+    var resumen = '«'+o.texto+'», '+fechaBonita(o.when)+(o.defHora?' (no me dijiste hora, te pongo esa)':'')+'.';
+    done({ say: pick('recQ1',['Vale, apunto: ','Entendido: ','Perfecto, recordatorio: '])+resumen+' '+pick('recQ2',['¿Para quién es el recordatorio?','¿A quién se lo recuerdo?','¿Para quién es?']) });
+    renderChecks(REC_PERS.map(function(p){ return { t:p[0], v:p[0], on: o.pre && o.pre.indexOf(p[0])>=0 }; }), 'Siguiente ➜', function(pers){
+      o.personas=pers;
+      var ahora=Date.now(), sug=o.when.getTime()-ahora > 3*3600000 ? 60 : 0;
+      if(window.__lucasSay) window.__lucasSay(pick('recQ3',['¿Cuándo te lo recuerdo? Puedes marcar varias.','¿Con cuánta antelación aviso? Marca una o varias.','¿Cuándo quieres el aviso? Elige una o varias.']));
+      renderChecks(REC_AVISOS.map(function(a){ var at=o.when.getTime()-a[0]*60000; return { t:a[1], v:a[0], on:a[0]===sug, off: a[0]>0 && at<ahora-60000 }; }), 'Guardar ✅', function(av){
+        o.avisos=av.map(Number).sort(function(a,b){ return b-a; });
+        recGuardar(o);
+      });
+    });
+  }
+  function recGuardar(o){
+    var dime=function(t){ if(window.__lucasSay) window.__lucasSay(t); };
+    var pl={ texto:o.texto, cuando:o.when.getTime(), personas:o.personas, avisos:o.avisos };
+    try{
+      google.script.run.withSuccessHandler(function(res){
+        if(!res || !res.ok) return dime('Uy, no he podido guardar el recordatorio'+(res&&res.error?' ('+res.error+')':'')+'. Prueba otra vez.');
+        REC_CACHE=null; REC_CACHE_T=0;
+        var avTxt=o.avisos.map(function(m){ for(var i=0;i<REC_AVISOS.length;i++) if(REC_AVISOS[i][0]===m) return REC_AVISOS[i][1].toLowerCase(); return ''; });
+        dime(fill(pick('recOK',['¡Apuntado! Se lo recordaré a {p} {a}.','Hecho. Aviso a {p} {a}.','Guardado: {p} recibirá el aviso {a}.']),{p:listaTxt(o.personas),a:listaTxt(avTxt)})+' '+pick('recOK2',['Si no pulsáis «Enterado», insisto cada media hora.','Y si nadie pulsa «Enterado», vuelvo a avisar cada media hora.']));
+      }).withFailureHandler(function(e){ dime('No he podido guardar el recordatorio: '+(e && e.message ? e.message : 'error de conexión')+'.'); }).apiRecCrear(pl);
+    }catch(e){ dime('No he podido guardar el recordatorio ahora mismo.'); }
+  }
+  function recNuevo(raw, mt, done){
+    var now=new Date(), resto=raw.slice(mt[0].length);
+    var pre=[], mA=plano(resto).match(/^\s*a\s+((?:manu|manuel|sebastian|sebas|jorge|maicol|michael|maikol)(?:\s*(?:,|y)\s*(?:manu|manuel|sebastian|sebas|jorge|maicol|michael|maikol))*)\b[\s,:]*(?:que\s+)?/);
+    var cut=mt[0].length;
+    if(mA){ mA[1].split(/\s*(?:,|y)\s*/).forEach(function(w){ var nm=NOMBRE_PERS[w]; if(nm && pre.indexOf(nm)<0) pre.push(nm); }); cut+=mA[0].length; }
+    if(/^recuerdame|^recuerdamelo|^acuerdame|^avisame|^apuntame|^anotame/.test(mt[1]) && !pre.length) pre=['Manu'];
+    var pr=recParse(raw, now);
+    var o={ texto: recTexto(raw, cut, pr.spans.filter(function(sp){ return sp[0]>=cut; })), when: pr.when, defHora: pr.defHora, pre: pre };
+    if(!o.when){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: fill(pick('recCuando',['Vale, «{t}». ¿Para cuándo te lo recuerdo? Dime el día, la hora o las dos cosas.','Apuntado «{t}». ¿Qué día y a qué hora?','¿Y para cuándo es «{t}»? Por ejemplo: «mañana a las 10» o «el lunes».']),{t:o.texto}) }); }
+    if(o.when.getTime()<Date.now()){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: 'Esa hora ya ha pasado. ¿Para cuándo lo pongo?' }); }
+    recPreguntarPersonas(o, done);
+  }
+  function recPendiente(raw, done){
+    var rp=B._recPend; if(!rp || Date.now()-rp.at > 10*60000){ B._recPend=null; return false; }
+    var t=plano(raw).trim();
+    if(/^(nada|da igual|olvidalo|dejalo|cancela|cancelar|no|ninguno)\b/.test(t)){ B._recPend=null; done({ say: pick('recCanc',['Vale, lo dejo.','Cancelado, no apunto nada.']) }); return true; }
+    var pr=recParse(raw, new Date());
+    if(!pr.when || pr.when.getTime()<Date.now()){ rp.n++; if(rp.n>=2){ B._recPend=null; return false; } done({ say: pick('recNo',['No he pillado la fecha. Dime algo como «el 23 a las 10» o «mañana por la tarde».','Esa no la entiendo. Prueba con «el lunes a las 9» o «en 2 horas».']) }); return true; }
+    B._recPend=null; rp.o.when=pr.when; rp.o.defHora=pr.defHora; recPreguntarPersonas(rp.o, done); return true;
+  }
+
+  // lista de recordatorios pendientes (con botón para borrar)
+  var REC_CACHE=null, REC_CACHE_T=0;
+  function recCargar(cb, fuerza){
+    if(!fuerza && REC_CACHE && Date.now()-REC_CACHE_T<50000) return cb(REC_CACHE);
+    try{ google.script.run.withSuccessHandler(function(res){ REC_CACHE=(res&&res.items)||[]; REC_CACHE_T=Date.now(); cb(REC_CACHE); }).withFailureHandler(function(){ cb(REC_CACHE); }).apiRecListar(); }catch(e){ cb(REC_CACHE); }
+  }
+  function esListaRec(t){ return /\b(mis recordatorios|que recordatorios|recordatorios (pendientes|que hay|que tengo|tengo|guardados|apuntados)|lista de recordatorios|ver (los )?recordatorios|(ensename|muestrame|dime|sacame|dame) (los |mis )?recordatorios|(borra|borrar|quita|quitar|elimina|eliminar) (un |el |algun )?recordatorio)\b|^recordatorios$/.test(t); }
+  function recListar(done){
+    recCargar(function(l){
+      if(l==null) return done({ say:'No he podido leer los recordatorios ahora mismo.' });
+      var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000; }).sort(function(a,b){ return a.cuando-b.cuando; });
+      if(!fut.length) return done({ say: pick('recL0',['No hay ningún recordatorio pendiente.','No tienes recordatorios apuntados.','Nada apuntado por ahora.']) });
+      var txt=fut.slice(0,8).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'» ('+listaTxt(r.personas)+')'; }).join('\n');
+      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+'\nSi quieres borrar alguno, púlsalo:', buttons: fut.slice(0,8).map(function(r){ return { t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }; }) });
+    }, true);
+  }
+  function recBorrar(id, done){
+    try{ google.script.run.withSuccessHandler(function(res){ REC_CACHE=null; done({ say: res&&res.ok ? pick('recDel',['Borrado.','Recordatorio eliminado.','Hecho, ya no lo recordaré.']) : 'No he podido borrarlo.' }); }).withFailureHandler(function(){ done({ say:'No he podido borrarlo.' }); }).apiRecBorrar(id); }catch(e){ done({ say:'No he podido borrarlo.' }); }
+  }
+
+  // ---- avisos: solo para las personas con su semilla en ESTE ordenador ----
+  function misPersonas(){ return REC_PERS.filter(function(p){ return semilla(p[1]); }).map(function(p){ return p[0]; }); }
+  function nagGet(k){ try{ return +localStorage.getItem('recNag_'+k)||0; }catch(e){ return 0; } }
+  function nagSet(k,v){ try{ localStorage.setItem('recNag_'+k, String(v)); }catch(e){} }
+  var recEnPantalla={};
+  function recCartel(r, persona, test){
+    try{
+      var key=r.id+'|'+persona; if(recEnPantalla[key]) return;
+      if(!document.getElementById('recCss')){ var st=document.createElement('style'); st.id='recCss'; st.textContent='@keyframes recIn{0%{opacity:0;transform:translateY(30px) scale(.9)}100%{opacity:1;transform:none}}@keyframes recGlow{0%,100%{box-shadow:0 0 22px rgba(23,255,95,.55),0 0 60px rgba(0,212,255,.25)}50%{box-shadow:0 0 38px rgba(23,255,95,.9),0 0 90px rgba(0,212,255,.45)}}@keyframes recBell{0%,100%{transform:rotate(0)}15%{transform:rotate(18deg)}30%{transform:rotate(-16deg)}45%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}}@keyframes recScan{0%{background-position:0 0}100%{background-position:0 200px}}'; document.head.appendChild(st); }
+      var ov=document.createElement('div'); recEnPantalla[key]=ov;
+      ov.style.cssText='position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(2,8,5,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:16px;';
+      var c=document.createElement('div');
+      c.style.cssText='position:relative;width:min(440px,100%);border-radius:22px;padding:26px 24px 20px;background:linear-gradient(160deg,#07140d,#03080a);border:2px solid #17ff5f;color:#e6fff0;font-family:inherit;animation:recIn .45s cubic-bezier(.2,1.4,.4,1),recGlow 2s ease-in-out infinite;overflow:hidden;text-align:center;';
+      var scan=document.createElement('div'); scan.style.cssText='position:absolute;inset:0;pointer-events:none;opacity:.08;background:repeating-linear-gradient(0deg,#17ff5f 0 1px,transparent 1px 4px);animation:recScan 6s linear infinite;'; c.appendChild(scan);
+      var ms=r.cuando-Date.now();
+      c.insertAdjacentHTML('beforeend',
+        '<div style="font-size:54px;line-height:1;display:inline-block;animation:recBell 1.2s ease-in-out infinite;filter:drop-shadow(0 0 12px #17ff5f)">⏰</div>'+
+        '<div style="margin-top:8px;font-size:12px;letter-spacing:4px;font-weight:900;color:#17ff5f">RECORDATORIO'+(test?' · PRUEBA':'')+'</div>'+
+        '<div style="margin-top:4px;font-size:13px;color:#9fdcb7">Para <b style="color:#fff">'+esc0(persona)+'</b></div>'+
+        '<div style="margin:16px 0 10px;font-size:22px;font-weight:900;line-height:1.25;color:#fff;text-shadow:0 0 14px rgba(23,255,95,.45)">'+esc0(r.texto)+'</div>'+
+        '<div style="font-size:14px;color:#c9f7da">'+esc0(cap(fechaBonita(new Date(r.cuando))))+'</div>'+
+        '<div style="display:inline-block;margin-top:10px;padding:5px 12px;border-radius:999px;border:1px solid #00d4ff;color:#00d4ff;font-weight:800;font-size:13px">'+esc0(cap(falta(ms)))+'</div>');
+      var ok=document.createElement('button'); ok.type='button'; ok.textContent='✅ ENTERADO';
+      ok.style.cssText='display:block;width:100%;margin-top:20px;border:none;border-radius:14px;padding:15px;font-size:17px;font-weight:900;letter-spacing:1px;cursor:pointer;color:#03110a;background:linear-gradient(90deg,#17ff5f,#00d4ff);box-shadow:0 0 24px rgba(23,255,95,.6);';
+      var luego=document.createElement('div'); luego.textContent='Si no lo aceptas, te lo vuelvo a recordar en 30 minutos'; luego.style.cssText='margin-top:10px;font-size:11px;color:#6f9c80;';
+      var x=document.createElement('button'); x.type='button'; x.textContent='×'; x.title='Cerrar (volverá a avisar en 30 min)'; x.style.cssText='position:absolute;top:10px;right:14px;background:none;border:none;color:#6f9c80;font-size:26px;cursor:pointer;';
+      var cerrar=function(){ ov.style.transition='opacity .25s'; ov.style.opacity='0'; setTimeout(function(){ try{ ov.remove(); }catch(e){} delete recEnPantalla[key]; },260); };
+      ok.onclick=function(){ cerrar(); recEnterado(r.id, persona, test, function(t){ if(window.__lucasSay) window.__lucasSay(t); }); };
+      x.onclick=cerrar;
+      c.appendChild(ok); c.appendChild(luego); c.appendChild(x); ov.appendChild(c); document.body.appendChild(ov);
+    }catch(e){ console.warn('[Lucas] cartel', e); }
+  }
+  function esc0(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
+  function recEnterado(id, persona, test, cb){
+    var key=id+'|'+persona; if(recEnPantalla[key]){ try{ recEnPantalla[key].remove(); }catch(e){} delete recEnPantalla[key]; }
+    var frase=pick('recEnt',['Perfecto, {p}, marcado como enterado.','Anotado: {p} está al tanto.','Genial, {p}. No insisto más con este aviso.']).replace('{p}',persona);
+    if(test) return cb(frase+' (era una prueba)');
+    (REC_CACHE||[]).forEach(function(r){ if(r.id===id){ r.ack=r.ack||{}; r.ack[persona]=Date.now(); } });
+    nagSet(key, Date.now());
+    try{ google.script.run.withSuccessHandler(function(){ cb(frase); }).withFailureHandler(function(){ cb('No he podido guardar el «Enterado». Te lo volveré a recordar.'); }).apiRecEnterado(id, persona); }catch(e){ cb(frase); }
+  }
+  function recAvisar(r, persona, test){
+    var ms=r.cuando-Date.now();
+    var msg = ms>-60000 ? fill(pick('recAv',['{p}, recordatorio: {t}, {f} ({x}).','Atención, {p}: {t}. Es {f}, {x}.','{p}, no te olvides: {t}, {f}.']),{p:persona,t:r.texto,f:fechaBonita(new Date(r.cuando)),x:falta(ms)})
+                        : fill(pick('recAvP',['{p}, era {f}: {t}. Aún no lo has marcado como enterado.','{p}, recordatorio pendiente: {t} ({f}).']),{p:persona,t:r.texto,f:fechaBonita(new Date(r.cuando))});
+    B.duckSay(msg, [{ t:'✅ Enterado', v:'rec:ok:'+r.id+':'+persona+(test?':test':'') }]);
+    setTimeout(function(){ recCartel(r, persona, test); }, 3400);
+  }
+  function recVigilar(){
+    var yo=misPersonas(); if(!yo.length) return;
+    var app=document.getElementById('app'); if(app && app.classList.contains('hidden')) return;
+    recCargar(function(l){
+      if(!l) return; var now=Date.now();
+      l.forEach(function(r){
+        if(now > r.cuando + 12*3600000) return;                               // 12 h después ya no insiste
+        (r.personas||[]).forEach(function(p){
+          if(yo.indexOf(p)<0) return;
+          var dues=(r.avisos||[]).map(function(m){ return r.cuando-m*60000; }).filter(function(d){ return d<=now; });
+          if(!dues.length) return;
+          var activo=Math.max.apply(null,dues), ack=(r.ack&&r.ack[p])||0, key=r.id+'|'+p;
+          if(ack>=activo) return;                                              // ya aceptado este aviso (o uno posterior)
+          var last=nagGet(key);
+          if(last<activo || now-last>=REC_INSISTE){ nagSet(key, now); recAvisar(r, p); }
+        });
+      });
+    });
+  }
+  setTimeout(recVigilar, 8000);
+  setInterval(recVigilar, 60000);
+  B.recTest = function(){ var yo=misPersonas(); var p=yo[0]||'Manu'; recAvisar({ id:'TEST', texto:'Esto es una prueba de recordatorio', cuando:Date.now()+3600000, personas:[p], avisos:[60] }, p, true); };
+  B._recParse = recParse; B._recTexto = recTexto;
+
   // ---------- entrada principal ----------
   B.handle = function(raw, done){
     var now = new Date();
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
+    if(B._recPend && recPendiente(raw, done)) return;                         // esperando el día/hora de un recordatorio
+    var mtR = plano(raw).match(REC_TRIG); if(mtR) return recNuevo(raw, mtR, done);   // «recuérdame el día 21 que tengo reunión…»
+    if(esListaRec(fold(raw))) return recListar(done);
     if(esPreguntaFichaje(fold(raw))) return fichajesHoy(fold(raw), done);   // «¿a qué hora ha entrado Sebastián?», «¿quién ha fichado hoy?»
     if(B._fichFlow && B._fichFlow(fold(raw), done)) return;
     if(B._fibAsk){ if(Date.now()-B._fibAsk.at > 5*60000) B._fibAsk=null; else { var fa=fold(raw).trim(); if(/\bfibras?\b/.test(fa)) return B._fibAnswer('fibra', done); if(/^(todos|todas|todo|los dos|ambos|todos los contratos|da igual)\b/.test(fa)) return B._fibAnswer('todos', done); B._fibAsk=null; } }
@@ -1176,6 +1481,8 @@ var lastPicks = {};
     if(v==='clearF:si' || v==='clearF:no') return B._clearF(v==='clearF:si', done);
     if(v==='dp:ver') return B._dpVer(done);
     if(v.indexOf('q:')===0) return B.handle(v.slice(2), done);
+    if(v.indexOf('rec:ok:')===0){ var pz=v.split(':'); return recEnterado(pz[2], pz[3], pz[4]==='test', function(t){ done({ say:t }); }); }
+    if(v.indexOf('rec:del:')===0) return recBorrar(v.slice(8), done);
     if(v.indexOf('fib2:')===0) return B._fibSwitch(v.slice(5)==='fibra' ? 'fibra' : 'todos', done);
     if(v.indexOf('fib:')===0) return B._fibAnswer(v.slice(4)==='fibra' ? 'fibra' : 'todos', done);
     if(v==='baja2P:ver') return B._bajaToggle(false, done);

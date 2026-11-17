@@ -39,6 +39,14 @@
       tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
       testTimer = setTimeout(function(){ if(window.LucasBrain && window.LucasBrain.remind) window.LucasBrain.remind(true); }, 60000);
     }],
+    ['TEST6', 'PRUEBA UN AVISO DE RECORDATORIO EN 1 MINUTO · NO SE GUARDA', function(arg, say){
+      clearTimeout(testTimer);
+      var at = new Date(Date.now() + 60000), p = function(n){ return ('0'+n).slice(-2); };
+      say('>> TEST PROGRAMADO ⏰', 'g big', 22);
+      say('   EL RECORDATORIO DE PRUEBA SALDRÁ A LAS ' + p(at.getHours()) + ':' + p(at.getMinutes()) + ':' + p(at.getSeconds()) + ' (DENTRO DE 60 s).', '', 10);
+      tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+      testTimer = setTimeout(function(){ if(window.LucasBrain && window.LucasBrain.recTest) window.LucasBrain.recTest(); }, 60000);
+    }],
     ['TEST1', 'PRUEBA EL FICHAJE DE ENTRADA DE LA MAÑANA (10:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('M-E', 'ENTRADA DE LA MAÑANA', say); }],
     ['TEST2', 'PRUEBA EL FICHAJE DE SALIDA DE LA MAÑANA (13:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('M-S', 'SALIDA DE LA MAÑANA', say); }],
     ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
@@ -128,7 +136,11 @@
     ['avisos',  'SIN AVISOS DE PENDIENTES', 'LUCAS NO RECUERDA LOS CONTRATOS PENDIENTES EN ESTE ORDENADOR'],
     ['borradores', 'SIN AVISOS DE BORRADORES NUEVOS', 'LUCAS NO AVISA DE BORRADORES NUEVOS SIN ACTUALIZAR EN ESTE ORDENADOR'],
     ['contratos', 'AVISOS DE CONTRATOS NUEVOS', 'LUCAS AVISA EN ESTE ORDENADOR CUANDO SE FINALIZA UN CONTRATO NUEVO (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
-    ['doblePausa', 'AVISOS DE DOBLE PAUSA', 'LUCAS AVISA EN ESTE ORDENADOR CUANDO UN CONTRATO EN ⏸️⏸️ YA TOCA DARLO DE BAJA, Y LO RECUERDA CADA HORA (SOLO FUNCIONA SI ESTÁ INSTALADA)']
+    ['doblePausa', 'AVISOS DE DOBLE PAUSA', 'LUCAS AVISA EN ESTE ORDENADOR CUANDO UN CONTRATO EN ⏸️⏸️ YA TOCA DARLO DE BAJA, Y LO RECUERDA CADA HORA (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
+    ['recManu', 'RECORDATORIOS DE MANU', 'LUCAS AVISA EN ESTE ORDENADOR DE LOS RECORDATORIOS DE MANU (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
+    ['recSebastian', 'RECORDATORIOS DE SEBASTIÁN', 'LUCAS AVISA EN ESTE ORDENADOR DE LOS RECORDATORIOS DE SEBASTIÁN (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
+    ['recJorge', 'RECORDATORIOS DE JORGE', 'LUCAS AVISA EN ESTE ORDENADOR DE LOS RECORDATORIOS DE JORGE (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
+    ['recMaicol', 'RECORDATORIOS DE MAICOL', 'LUCAS AVISA EN ESTE ORDENADOR DE LOS RECORDATORIOS DE MAICOL (SOLO FUNCIONA SI ESTÁ INSTALADA)']
   ];
   function semOn(k){ try{ return localStorage.getItem('pfSemilla_' + k) === '1'; }catch(e){ return false; } }
   function semSet(k, on){ try{ if(on) localStorage.setItem('pfSemilla_' + k, '1'); else localStorage.removeItem('pfSemilla_' + k); }catch(e){} }
