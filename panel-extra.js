@@ -52,6 +52,7 @@
     ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
     ['TEST4', 'PRUEBA EL FICHAJE DE SALIDA DE LA TARDE (19:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-S', 'SALIDA DE LA TARDE', say); }],
     ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIAN, JORGE Y MAICOL)', function(a, say){ fichMenuEmp(say); }],
+    ['PIN', 'EMPLEADOS CON PIN DEL ASISTENTE: VER Y EDITAR SU NOMBRE Y SU PIN', function(a, say){ pinMenu(say); }],
     ['RECHARGE', 'RECARGA EL SALDO DEL ASISTENTE LUCAS (SE SUMA AL QUE YA HAY)', function(a, say){ recPaso1(say); }],
     ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }],
     ['EDIT', 'TRAS LISTAR FICHAJES: MUESTRA [ELIMINAR] AL LADO DE CADA REGISTRO', function(a, say){ fichEdit(say); }],
@@ -130,6 +131,66 @@
       row.appendChild(t); row.appendChild(b);
       CON.q.push({ node: row }); if(!CON.typing) conPump();
     });
+  }
+  // ---------- PIN DE EMPLEADOS (los guarda el servidor cifrados; aquí solo se ven nombres) ----------
+  var pinEd = null;
+  function pinMenu(say){
+    say('>> EMPLEADOS CON PIN 🔐', 'g big', 20);
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        var l = (r && r.ok && r.items) || [];
+        if(!l.length){ say('   NO HAY NINGÚN EMPLEADO CON PIN.', 'd', 0, true); return; }
+        say('   PULSA [ EDITAR ] PARA CAMBIAR SU NOMBRE O SU PIN.', 'd', 0, true);
+        l.forEach(function(it){
+          var row = document.createElement('div'); row.className = 'g'; row.style.cssText = 'display:flex;gap:14px;align-items:center;flex-wrap:wrap';
+          var t = document.createElement('span'); t.textContent = '   ' + String(it.nombre || it.id).toUpperCase() + '  ·  PIN ••••';
+          var b = document.createElement('span'); b.textContent = '[ EDITAR ]';
+          b.style.cssText = 'color:#ffd84a;text-shadow:0 0 6px rgba(255,216,74,.9);cursor:pointer;border:1px solid rgba(255,216,74,.6);border-radius:5px;padding:0 6px;font-size:.85em;user-select:none';
+          b.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+          b.addEventListener('click', function(e){ e.stopPropagation(); pinEditar(it); try{ conIn.focus(); }catch(er){} });
+          row.appendChild(t); row.appendChild(b);
+          CON.q.push({ node: row }); if(!CON.typing) conPump();
+        });
+      }).withFailureHandler(function(){ say('   NO SE HA PODIDO LEER LA LISTA DE PIN.', 'r', 10); errTone(); }).apiPinesListar();
+    }catch(e){ say('   NO SE HA PODIDO LEER LA LISTA DE PIN.', 'r', 10); errTone(); }
+  }
+  function pinEditar(it){
+    pinEd = { id: it.id, nombre: it.nombre };
+    say('>> EDITANDO A ' + String(it.nombre).toUpperCase() + ' ✏️', 'g big', 20);
+    say('   ESCRIBE EL NUEVO NOMBRE (O PULSA ENTER PARA DEJAR «' + String(it.nombre).toUpperCase() + '»):', 'y', 10);
+    CON.ask = 'pinNom';
+  }
+  function pinPasoNom(raw){
+    if(!pinEd){ say('', '', 0, true); return; }
+    var n = String(raw || '').trim();
+    if(n){ pinEd.nombre = n.toLowerCase().replace(/(^|\s)(\S)/g, function(m, a, c){ return a + c.toUpperCase(); }).slice(0, 30); }
+    say('   NOMBRE: ' + pinEd.nombre.toUpperCase(), 'd', 0, true);
+    say('   ESCRIBE EL NUEVO PIN DE 4 CIFRAS (O PULSA ENTER PARA DEJAR EL ACTUAL):', 'y', 10);
+    CON.ask = 'pinNum';
+  }
+  function pinPasoNum(raw){
+    if(!pinEd){ say('', '', 0, true); return; }
+    var v = String(raw || '').trim();
+    if(v && !/^\d{4}$/.test(v)){ say('EL PIN TIENE QUE SER DE 4 CIFRAS. VUELVE A ESCRIBIRLO (O ENTER PARA DEJARLO IGUAL).', 'r', 12); errTone(); CON.ask = 'pinNum'; return; }
+    var enviar = function(hash){
+      var o = { id: pinEd.id, nombre: pinEd.nombre }; if(hash) o.hash = hash;
+      say('   GUARDANDO…', 'd', 10);
+      try{
+        google.script.run.withSuccessHandler(function(r){
+          if(!r || !r.ok){ say('   NO SE HA PODIDO GUARDAR' + (r && r.error ? ': ' + String(r.error).toUpperCase() : '') + '.', 'r', 10); errTone(); if(hash) CON.ask = 'pinNum'; return; }
+          say('>> GUARDADO ✅', 'g big', 22);
+          say('   NOMBRE: ' + pinEd.nombre.toUpperCase() + '  ·  PIN: ' + (hash ? 'CAMBIADO' : 'SIN CAMBIOS'), 'y', 10);
+          tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+          try{ if(window.LucasBrain && window.LucasBrain.pinesRecargar) window.LucasBrain.pinesRecargar(); }catch(e){}
+          pinEd = null;
+        }).withFailureHandler(function(){ say('   NO SE HA PODIDO GUARDAR. PRUEBA OTRA VEZ.', 'r', 10); errTone(); }).apiPinGuardar(o);
+      }catch(e){ say('   NO SE HA PODIDO GUARDAR.', 'r', 10); errTone(); }
+    };
+    if(!v) return enviar(null);
+    try{
+      crypto.subtle.digest('SHA-256', new TextEncoder().encode('lucasPin:' + v)).then(function(buf){ var h = ''; new Uint8Array(buf).forEach(function(b){ h += ('0' + b.toString(16)).slice(-2); }); enviar(h); })
+        .catch(function(){ say('   NO SE HA PODIDO CIFRAR EL PIN.', 'r', 10); errTone(); });
+    }catch(e){ say('   NO SE HA PODIDO CIFRAR EL PIN.', 'r', 10); errTone(); }
   }
   // ---------- RECARGA DEL SALDO DEL ASISTENTE (milésimas de euro en el servidor) ----------
   function eurTxt(m){ return (Math.floor(Math.max(0, m)/10)/100).toFixed(2).replace('.', ','); }
@@ -418,8 +479,10 @@
   function errTone(){ tone(140, 90, 0.3, 'square', 0.08); }
   function conRun(raw){
     var cmd = raw.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
-    if(conLine){ var cu = conLine.querySelector('.cur'); if(cu) cu.remove(); var tx = conLine.querySelector('#pfconTx'); if(tx){ tx.textContent = raw.toUpperCase(); tx.removeAttribute('id'); } }
+    if(conLine){ var cu = conLine.querySelector('.cur'); if(cu) cu.remove(); var tx = conLine.querySelector('#pfconTx'); if(tx){ tx.textContent = (CON.ask === 'pinNum' && raw.trim()) ? '••••' : raw.toUpperCase(); tx.removeAttribute('id'); } }
     conIn.value = ''; CON.busy = true; conScroll(true);
+    if(CON.ask === 'pinNom'){ CON.ask = null; pinPasoNom(raw); return; }
+    if(CON.ask === 'pinNum'){ CON.ask = null; pinPasoNum(raw); return; }
     if(!cmd){ say('', '', 0, true); return; }
     if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }
     if(CON.ask === 'fichEmp'){ CON.ask = null; if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }

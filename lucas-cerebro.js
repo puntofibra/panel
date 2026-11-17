@@ -1201,16 +1201,24 @@ var lastPicks = {};
      Los PIN se guardan cifrados (SHA-256 de «lucasPin:<pin>»), nunca en claro.
      Para añadir un filtro a un empleado: nuevo botón en su lista + su caso en pinFiltro().
      ===================================================================== */
-  var PINES = {};
-  PINES['3931a03ef66fe44020668adffd61b7f10c3d2f163c0f553cf636a998fc895b72'] = { nombre:'Maicol', filtros:[
-    { t:'📉 Bajar líneas a 1€', id:'maicol_bajar1' },
-    { t:'⏸️ Pausar líneas a 0€', id:'maicol_pausar0' }
-  ]};
+  // botones de filtros de cada empleado (por su id; el nombre y el PIN se cambian desde la consola)
+  var PERFILES = {
+    maicol: [
+      { t:'📉 Bajar líneas a 1€', id:'maicol_bajar1' },
+      { t:'⏸️ Pausar líneas a 0€', id:'maicol_pausar0' }
+    ]
+  };
+  // nombres y PIN cifrados: vienen del servidor (esto es solo por si no hay conexión)
+  var PIN_LISTA = [ { id:'maicol', nombre:'Maicol', hash:'3931a03ef66fe44020668adffd61b7f10c3d2f163c0f553cf636a998fc895b72' } ];
+  function pinesCargar(){ try{ google.script.run.withSuccessHandler(function(r){ if(r && r.ok && r.items && r.items.length) PIN_LISTA=r.items; }).withFailureHandler(function(){}).apiPinesListar(); }catch(e){} }
+  B.pinesRecargar = pinesCargar;
+  setTimeout(pinesCargar, 2500); setInterval(pinesCargar, 300000);
   B._pinAsk = null; B._pinUser = null;
   function pinHash(pin, cb){
     try{ crypto.subtle.digest('SHA-256', new TextEncoder().encode('lucasPin:'+pin)).then(function(buf){ var h=''; new Uint8Array(buf).forEach(function(b){ h+=('0'+b.toString(16)).slice(-2); }); cb(h); }).catch(function(){ cb(''); }); }catch(e){ cb(''); }
   }
   function pinPedir(done){
+    pinesCargar();                                   // por si han cambiado el PIN desde otro ordenador
     B._pinAsk = { at: Date.now(), n: 0 };
     done({ say: pick('pinQ',['🔐 Claro. ¿Cuál es tu PIN?','Modo seguro activado. Escribe tu PIN de 4 cifras.','Perfecto, identifícate: ¿cuál es tu PIN?','🔑 Dime tu PIN y te enseño tus filtros.','Acceso personal. Introduce tu PIN, por favor.','Vale, necesito tu PIN para continuar.','¡Entendido! ¿Me dices tu PIN?']) });
   }
@@ -1225,11 +1233,12 @@ var lastPicks = {};
     if(!/^\d{4}$/.test(t)){ done({ say: pick('pinF',['El PIN son 4 cifras. Escríbelo, por favor.','Necesito solo los 4 números de tu PIN.','Escribe tu PIN de 4 cifras (o «cancelar»).']) }); return true; }
     pinOcultar(t);
     pinHash(t, function(h){
-      var u=PINES[h];
-      if(!u){
+      var it=null; PIN_LISTA.forEach(function(x){ if(x.hash===h) it=x; });
+      var u = it ? { id:it.id, nombre:it.nombre, filtros:(PERFILES[it.id]||[]) } : null;
+      if(!u && it===null){
         a.n++;
-        if(a.n>=3){ B._pinAsk=null; return done({ say: pick('pinX',['⛔ Demasiados intentos. Vuelve a escribir «pin» para probar otra vez.','⛔ PIN incorrecto tres veces. Empieza de nuevo con «pin».']) }); }
-        return done({ say: pick('pinE',['❌ Ese PIN no es correcto. Prueba otra vez.','Mmm, ese PIN no me suena. ¿Lo repites?','PIN incorrecto. Inténtalo de nuevo.']) });
+        if(a.n>=3){ B._pinAsk=null; return done({ say: pick('pinX',['⛔ Ese PIN no existe y ya van tres intentos. Escribe «pin» para empezar de nuevo.','⛔ Tres PIN que no existen. Por seguridad, vuelve a empezar con «pin».','🔒 Demasiados intentos con PIN inexistentes. Escribe «pin» otra vez cuando quieras.']) }); }
+        return done({ say: pick('pinE',['❌ Ese PIN no existe. Prueba otra vez.','🚫 No tengo ningún PIN así registrado. ¿Lo repites?','Ese PIN no existe en el sistema. Inténtalo de nuevo.','❌ PIN desconocido: no corresponde a nadie. Vuelve a probar.','Mmm, ese PIN no existe. Revisa las cifras y escríbelo otra vez.','🔒 Acceso denegado: ese PIN no existe.','No encuentro a nadie con ese PIN. ¿Seguro que es el tuyo?']) });
       }
       B._pinAsk=null; B._pinUser={ u:u, at:Date.now() };
       done({ say: fill(pick('pinOK',['✅ Hola, {n}. ¿Qué filtro quieres usar?','Bienvenido, {n}. Elige tu filtro:','🔓 Acceso concedido, {n}. ¿Cuál te aplico?','¡Hey, {n}! Aquí tienes tus filtros personalizados:','Identificado: {n}. ¿Qué te muestro?']),{n:u.nombre}),
