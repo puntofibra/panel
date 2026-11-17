@@ -1263,8 +1263,8 @@ var lastPicks = {};
         });
         render(l, { from:desde, to:hasta, label:'de los últimos 60 días' });
         var n=l.length;
-        return done({ say: n ? fill(pick('mb1',['Listo, {u}: {n} {c} de Simyo para bajar líneas a 1 € (últimos 60 días, estado «-» o 😓).','Ahí tienes, {u}: {n} {c} de Simyo de los últimos 60 días con estado «-» o 😓.','Filtro aplicado: {n} {c} de Simyo para bajar a 1 €.']),{u:s.u.nombre,n:numU(n),c:plural(n,'contrato','contratos')})
-                                : 'No hay ningún contrato de Simyo de los últimos 60 días con estado «-» o 😓. ¡Todo al día!' });
+        return done({ say: n ? fill(pick('mb1',['Listo, {u}: {n} {c} de Simyo para bajar líneas a 1 €.','Ahí tienes, {u}: {n} {c} de Simyo para bajar a 1 €.','Filtro aplicado: {n} {c} de Simyo para bajar a 1 €.','Hecho, {u}. Tienes {n} {c} de Simyo para bajar líneas a 1 €.']),{u:s.u.nombre,n:numU(n),c:plural(n,'contrato','contratos')})
+                                : pick('mb0',['No hay ningún contrato de Simyo para bajar a 1 €. ¡Todo al día!','Nada que bajar a 1 € ahora mismo. ¡Todo al día!']) });
       }
       if(id==='maicol_pausar0'){
         // el mes natural de hace 2 meses (si estamos en noviembre, septiembre entero), solo Simyo, estado «-», 😓 o 🪙 (los 🤑 ya están a 0 €)
