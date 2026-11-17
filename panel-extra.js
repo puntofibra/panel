@@ -46,10 +46,48 @@
     ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIAN, JORGE Y MAICOL)', function(a, say){ fichMenuEmp(say); }],
     ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }],
     ['EDIT', 'TRAS LISTAR FICHAJES: MUESTRA [ELIMINAR] AL LADO DE CADA REGISTRO', function(a, say){ fichEdit(say); }],
+    ['SCRIPT', 'SCRIPTS DE TAMPERMONKEY: ELIGES UNO Y SE COPIA PARA PEGARLO', function(a, say){ scrMenu(say); }],
     ['SEBASTIAN', 'ATAJO: FICHAJES DE SEBASTIAN', function(a, say){ fichEmp = 'Sebastián'; fichMenu(say); }],
     ['JORGE', 'ATAJO: FICHAJES DE JORGE', function(a, say){ fichEmp = 'Jorge'; fichMenu(say); }],
     ['MAICOL', 'ATAJO: FICHAJES DE MAICOL', function(a, say){ fichEmp = 'Maicol'; fichMenu(say); }]
   ];
+  // ---------- SCRIPTS de Tampermonkey: se copian al portapapeles para pegarlos ----------
+  var SCRIPTS = [
+    ['Bajar volumen de YouTube y Spotify cuando Lucas habla', 'https://puntofibra.github.io/panel/lucas-musica.user.js']
+  ];
+  var scrCache = {};
+  function scrPrecarga(){ SCRIPTS.forEach(function(sc, i){ if(scrCache[i]) return; try{ fetch(sc[1] + '?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).then(function(t){ if(t) scrCache[i] = t; }).catch(function(){}); }catch(e){} }); }
+  function copiar(txt){
+    var ok = false;
+    try{ var ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0'; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, txt.length); ok = document.execCommand('copy'); ta.remove(); }catch(e){}
+    try{ if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).catch(function(){}); }catch(e){}
+    setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(e){} }, 50);
+    return ok;
+  }
+  function scrMenu(say){
+    scrPrecarga();
+    CON.ask = 'script';
+    say('>> SCRIPTS DE TAMPERMONKEY 📜', 'g big', 20);
+    SCRIPTS.forEach(function(sc, i){ say('   ' + (i+1) + ' - ' + sc[0].toUpperCase(), 'y', 0, true); });
+    say('   ESCRIBE EL NÚMERO Y PULSA ENTER: SE COPIA PARA PEGARLO EN TAMPERMONKEY.', 'd', 0, true);
+  }
+  function scrCopia(n){
+    var sc = SCRIPTS[n-1]; if(!sc){ say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL ' + SCRIPTS.length + '.', 'r', 12); errTone(); CON.ask = 'script'; return; }
+    var hecho = function(txt){
+      var ok = copiar(txt);
+      if(ok){
+        say('>> SCRIPT COPIADO ✔', 'g big', 22);
+        say('   «' + sc[0].toUpperCase() + '» (' + txt.split('\n').length + ' LÍNEAS) ESTÁ EN EL PORTAPAPELES.', '', 10);
+        say('   TAMPERMONKEY › CREAR UN NUEVO SCRIPT › BORRA LO QUE HAY › CTRL+V › ARCHIVO › GUARDAR.', 'd', 0, true);
+        tone(1200, 2000, 0.15, 'square', 0.05);
+      } else { say('NO SE HA PODIDO COPIAR AUTOMÁTICAMENTE. PRUEBA OTRA VEZ CON EL NÚMERO.', 'r', 10); errTone(); CON.ask = 'script'; }
+    };
+    if(scrCache[n-1]) return hecho(scrCache[n-1]);
+    say('   DESCARGANDO EL SCRIPT…', 'd', 0, true);
+    fetch(sc[1] + '?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.ok ? r.text() : Promise.reject(r.status); })
+      .then(function(t){ scrCache[n-1] = t; say('   LISTO. ESCRIBE OTRA VEZ ' + n + ' Y PULSA ENTER PARA COPIARLO.', 'y', 10); CON.ask = 'script'; })
+      .catch(function(e){ say('ERROR AL DESCARGAR EL SCRIPT (' + e + ').', 'r', 10); errTone(); });
+  }
   var lastFich = null;
   function fichEdit(say){
     if(!lastFich){ say('PRIMERO LISTA UNOS FICHAJES (ESCRIBE FICHAJES, O JORGE / MAICOL / SEBASTIAN) Y LUEGO EDIT.', 'y', 10); errTone(); return; }
@@ -343,6 +381,7 @@
     if(conLine){ var cu = conLine.querySelector('.cur'); if(cu) cu.remove(); var tx = conLine.querySelector('#pfconTx'); if(tx){ tx.textContent = raw.toUpperCase(); tx.removeAttribute('id'); } }
     conIn.value = ''; CON.busy = true; conScroll(true);
     if(!cmd){ say('', '', 0, true); return; }
+    if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }
     if(CON.ask === 'fichEmp'){ CON.ask = null; if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
     if(CON.ask === 'fich'){ CON.ask = null; if(/^[1-8]$/.test(cmd)){ fichListar(+cmd); return; } }
     if(CON.ask === 'sem1'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso2(+cmd); return; } }
