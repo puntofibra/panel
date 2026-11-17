@@ -190,7 +190,7 @@ var lastPicks = {};
     if(quitar) return done({ say: fill(pick('b2pQ',['Quitados otra vez. Ves {n} {c}.','Hecho, fuera de nuevo los de segunda pausa: {n} {c}.','Listo, borrados de la pantalla otra vez. Quedan {n} {c}.']),{n:numU(l.length),c:c}), buttons:[{t:'👁️ Volver a mostrar', v:'baja2P:ver'}] });
     return done({ say: fill(pick('b2pV',['Ahí los tienes otra vez: {n} {c}, con los pausados por segunda vez.','Vueltos a mostrar. Ves {n} {c}.','Listo, otra vez todos: {n} {c}.']),{n:numU(l.length),c:c}), buttons:[{t:'🗑️ Borrar de nuevo', v:'baja2P:quitar'}] });
   };
-  function render(list, range){
+  function render(list, range, noSort){
     try{ B._filtroAviso(); }catch(e){}
     try{
       var df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo'), q=document.getElementById('q');
@@ -198,7 +198,7 @@ var lastPicks = {};
       if(df) df.value = range ? iso(range.from) : '';
       if(dt) dt.value = range ? iso(range.to) : '';
       FILTERED = list.map(function(it){ var o={}; for(var k in it) o[k]=it[k]; if(o['14']) o['14']=formatDateDDMMYYYY(o['14']); if(o['15']) o['15']=formatDateDDMMYYYY(o['15']); return o; });
-      try{ sortFilteredBySolicitud(); }catch(e){}
+      if(!noSort){ try{ sortFilteredBySolicitud(); }catch(e){} }
       PAGE=1; renderContratosPage();
       try{ document.getElementById('view-contratos').scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
     }catch(e){ console.error('[Lucas] render', e); }
@@ -221,6 +221,7 @@ var lastPicks = {};
     if(/\bdar(los|las)? de baja\b|\bbajas?\b|\bdar baja\b/.test(t)) mode='baja';
     if(/\b(pendientes?|sin|por|falta\w*|queda\w*)( de)? instal\w*|\bno (estan |esta )?instalad[oa]s?\b/.test(t)) mode='instalar';
     if(typeof dobleP!=='undefined' && dobleP && mode==='pausa') mode=null;
+    if(typeof dobleP!=='undefined' && dobleP && mode==='baja') return dpPendientes(comps, /\bcuant[oa]s\b/.test(t));
     var count = /\bcuant[oa]s\b|\bnumero de\b|\btotal de\b|\bcuenta(me)? cuantos\b/.test(t);
 
     // documento / cuenta / telefono
@@ -950,6 +951,49 @@ var lastPicks = {};
      ===================================================================== */
   var DP_KEY = 'pfDoblePausaUltAviso';
   B._dpLast = [];
+  // fecha en que toca dar de baja un ⏸️⏸️: fecha de doble pausa (ID 52) + 90 días; si no la tiene, instalación (ID 15) + 270 días
+  function dpVence(it){
+    var f=ts(it['52']); if(f) return f + 90*86400000;
+    var fi=ts(it['15']); if(fi) return fi + 270*86400000;
+    return 0;
+  }
+  function dpListaFechas(l, hoy0){
+    try{
+      var box=document.getElementById('iaChatMsgs'); if(!box) return;
+      var wrap=document.createElement('div');
+      wrap.style.cssText='max-width:92%;margin:4px 0 10px;padding:10px 12px;border-radius:14px;background:#0f1512;border:1px solid #17ff5f;color:#d9ffe6;font-size:12.5px;line-height:1.45;box-shadow:0 0 10px rgba(23,255,95,.25);';
+      var h=document.createElement('div'); h.textContent='📅 FECHA PARA DAR DE BAJA'; h.style.cssText='font-weight:800;margin-bottom:6px;color:#17ff5f;'; wrap.appendChild(h);
+      l.forEach(function(it){
+        var v=dpVence(it), row=document.createElement('div');
+        var dias = v ? Math.round((v-hoy0)/86400000) : null;
+        var cuando = v==null||!v ? 'sin fecha' : (dias<0 ? 'hace '+(-dias)+' '+plural(-dias,'día','días') : (dias===0 ? 'hoy' : 'en '+dias+' '+plural(dias,'día','días')));
+        var ico = !v ? '❔' : (dias<=0 ? '⚠️' : '⏳');
+        row.textContent = ico+' '+(v?fmtD(new Date(v)):'--/--/----')+' · '+titleCase(String(it['21']||'').trim()||'—')+(it['2']?' ('+compName(it['2'])+')':'')+' · '+cuando+(ts(it['52'])?'':' *');
+        if(v && dias<=0) row.style.color='#ff8a8a';
+        wrap.appendChild(row);
+      });
+      if(l.some(function(it){ return !ts(it['52']); })){ var nt=document.createElement('div'); nt.textContent='* sin fecha de doble pausa guardada: se calcula con la instalación + 270 días'; nt.style.cssText='margin-top:6px;opacity:.7;font-size:11px;'; wrap.appendChild(nt); }
+      box.appendChild(wrap); box.scrollTop=box.scrollHeight;
+    }catch(e){}
+  }
+  function dpPendientes(comps, count){
+    var l = contratos().filter(function(it){ return esDoblePausa(it); });
+    if(comps && comps.length){ var cs=comps.map(function(c){ return c.toUpperCase().trim(); }); l = l.filter(function(it){ return cs.indexOf(String(it['2']||'').toUpperCase().trim())>=0; }); }
+    l.sort(function(a,b){ var va=dpVence(a)||9e15, vb=dpVence(b)||9e15; return va-vb; });
+    var n=l.length;
+    if(!n){ render(l, null, true); return { say: pick('dpP0',['No tienes ningún contrato en doble pausa.','Cero contratos en doble pausa, ¡todo limpio!']) }; }
+    var hoy=new Date(); var hoy0=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()).getTime();
+    var vencidos=l.filter(function(it){ var v=dpVence(it); return v && v<=hoy0; }).length;
+    var sig=null; l.some(function(it){ var v=dpVence(it); if(v && v>hoy0){ sig=v; return true; } return false; });
+    render(l, null, true);
+    setTimeout(function(){ dpListaFechas(l, hoy0); }, 400);   // lista con la fecha de baja de cada uno (escrita, no la lee en voz alta)
+    var c=plural(n,'contrato','contratos');
+    var txt = fill(pick('dpP',['Aquí tienes tus {n} {c} en doble pausa, ordenados de la baja más urgente a la menos.','Te enseño los {n} {c} en doble pausa, primero los que ya tocaba dar de baja.','Listo: {n} {c} en doble pausa, ordenados por fecha de baja.']),{n:numU(n),c:c});
+    if(vencidos) txt += ' ' + fill(pick('dpPv',['{k} ya {deb} estar dados de baja.','Ojo, {k} ya {pas} de fecha.','De ellos, {k} ya {deb} haberse dado de baja.']),{k:vencidos, deb:vencidos===1?'debería':'deberían', pas:vencidos===1?'se ha pasado':'se han pasado'}).replace(/^1 ya debería estar dados/,'1 ya debería estar dado');
+    if(sig) txt += ' ' + fill(pick('dpPs',['El siguiente toca el {f}.','El próximo, el {f}.']),{f:fmtD(new Date(sig))});
+    if(count) txt = fill('Tienes {n} {c} en doble pausa', {n:numU(n),c:c}) + (vencidos ? ', y '+vencidos+' ya '+(vencidos===1?'debería estar dado':'deberían estar dados')+' de baja.' : '.');
+    return { say: txt };
+  }
   function vigilaDobleP(force){
     try{
       if(!semilla('doblePausa')) return;
@@ -977,7 +1021,10 @@ var lastPicks = {};
       var rows={}; (B._dpLast||[]).forEach(function(x){ rows[x.row]=1; });
       var l=contratos().filter(function(it){ return rows[it.__row] && esDoblePausa(it); });
       if(!l.length) return done({ say: pick('dpV0',['Ya no queda ninguno pendiente. ¡Bien hecho!','Parece que ya los has dado todos de baja.']) });
-      render(l, null);
+      l.sort(function(x,y){ return (dpVence(x)||9e15)-(dpVence(y)||9e15); });
+      render(l, null, true);
+      var h0=new Date(); h0=new Date(h0.getFullYear(),h0.getMonth(),h0.getDate()).getTime();
+      setTimeout(function(){ dpListaFechas(l, h0); }, 400);
       done({ say: fill(pick('dpV',['Aquí los tienes: {n} {c} en doble pausa para dar de baja.','Te enseño los {n} {c} que toca dar de baja.']),{n:numU(l.length),c:plural(l.length,'contrato','contratos')}) });
     });
   };
