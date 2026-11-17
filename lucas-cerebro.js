@@ -1266,20 +1266,29 @@ var lastPicks = {};
         return done({ say: n ? fill(pick('mb1',['Listo, {u}: {n} {c} de Simyo para bajar líneas a 1 €.','Ahí tienes, {u}: {n} {c} de Simyo para bajar a 1 €.','Filtro aplicado: {n} {c} de Simyo para bajar a 1 €.','Hecho, {u}. Tienes {n} {c} de Simyo para bajar líneas a 1 €.']),{u:s.u.nombre,n:numU(n),c:plural(n,'contrato','contratos')})
                                 : pick('mb0',['No hay ningún contrato de Simyo para bajar a 1 €. ¡Todo al día!','Nada que bajar a 1 € ahora mismo. ¡Todo al día!']) });
       }
-      if(id==='maicol_pausar0'){
-        // el mes natural de hace 2 meses (si estamos en noviembre, septiembre entero), solo Simyo, estado «-», 😓 o 🪙 (los 🤑 ya están a 0 €)
-        var mr=monthRange(now.getFullYear(), now.getMonth()-2);
+      if(id==='maicol_pausar0' || id==='maicol_pausar0_mas'){
+        // mes natural de hace 2 meses (y, con «mostrar también», el de hace 1 mes); solo Simyo; estado «-», 😓 o 🪙 (🤑 = ya pausadas a 0 €)
+        var mas = id==='maicol_pausar0_mas';
+        var mr=monthRange(now.getFullYear(), now.getMonth()-2), mr1=monthRange(now.getFullYear(), now.getMonth()-1);
+        var desde2=mr.from, hasta2= mas ? mr1.to : mr.to;
         var l2=contratos().filter(function(it){
-          var k=ts(it['14']); if(!k || k<mr.from.getTime() || k>mr.to.getTime()) return false;
+          var k=ts(it['14']); if(!k || k<desde2.getTime() || k>hasta2.getTime()) return false;
           if(String(it['2']||'').toUpperCase().indexOf('SIMYO')<0) return false;
-          var e=String(it['44']==null?'':it['44']).replace(/\uFE0F/g,'').trim();
+          var e=String(it['44']==null?'':it['44']).replace(/️/g,'').trim();
           if(e.indexOf('\u{1F911}')>=0) return false;                                   // 🤑 = ya pausadas a 0 €
           return e==='' || e==='-' || e==='—' || e.indexOf('\u{1F613}')>=0 || e.indexOf('\u{1FA99}')>=0;
         });
-        render(l2, { from:mr.from, to:mr.to, label:'de '+mr.label });
-        var n2=l2.length, mes=MESES[mr.m];
-        return done({ say: n2 ? fill(pick('mp0',['Listo, {u}: {n} {c} de Simyo de {m} para pausar a 0 € (estado «-», 😓 o 🪙).','Ahí tienes, {u}: {n} {c} de Simyo de {m} para pausar.','Filtro aplicado: {n} {c} de Simyo de {m} para pausar las líneas a 0 €.']),{u:s.u.nombre,n:numU(n2),c:plural(n2,'contrato','contratos'),m:mes})
-                               : 'No hay contratos de Simyo de '+mes+' con estado «-», 😓 o 🪙.' });
+        var mes=MESES[mr.m], mes1=MESES[mr1.m], meses = mas ? mes+' y '+mes1 : mes;
+        render(l2, { from:desde2, to:hasta2, label:'de '+meses });
+        var n2=l2.length;
+        var txt = n2 ? fill(pick(mas?'mp0b':'mp0',['Listo, {u}: {n} {c} de Simyo de {m} para pausar a 0 €.','Ahí tienes, {u}: {n} {c} de Simyo de {m} para pausar.','Filtro aplicado: {n} {c} de Simyo de {m} para pausar las líneas a 0 €.']),{u:s.u.nombre,n:numU(n2),c:plural(n2,'contrato','contratos'),m:meses})
+                     : 'No hay contratos de Simyo de '+meses+' para pausar a 0 €.';
+        // del 27 al 31: propone añadir también el mes anterior (si Manu da el visto bueno)
+        if(!mas && now.getDate()>=27){
+          txt += ' ' + fill(pick('mp0q',['📅 Estamos a final de mes: pregunta a Manu si ya puedes pausar también las de {m1}.','📅 Ojo, {u}: ya es final de mes. Consulta con Manu si puedes pausar también las de {m1}.','📅 Fin de mes a la vista: pregúntale a Manu si toca pausar también las de {m1}.']),{u:s.u.nombre,m1:mes1});
+          return done({ say: txt, buttons:[{ t:'➕ Mostrar también '+mes1, v:'pinf:maicol_pausar0_mas' }] });
+        }
+        return done({ say: txt });
       }
       done({ say: 'Ese filtro todavía no está preparado.' });
     });
