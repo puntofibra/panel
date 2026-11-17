@@ -106,7 +106,7 @@ var lastPicks = {};
   }
 
   // ---------- vocabulario ----------
-  var STOP = ('vip vips ciclo pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
+  var STOP = ('vip vips ciclo fibra fibras pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
     'necesito mira mirame consulta busqueda encuentra encuentrame nombre nombres llamado llamada llama persona personas gente hola buenas buenos noches tardes dias gracias anterior actual va como quien donde cuando hacia trimestre primer segundo tercer cuarto').split(' ');
   var STOPSET={}; STOP.forEach(function(w){ STOPSET[w]=1; }); MESES.concat(['setiembre']).forEach(function(w){ STOPSET[w]=1; }); Object.keys(NUM).forEach(function(w){ STOPSET[w]=1; });
 
@@ -240,6 +240,14 @@ var lastPicks = {};
       base = ordenV.map(function(k){ return best[k]; });
     }
     if(ciclo){ base = base.filter(function(it){ return String(it['29']==null?'':it['29']).trim()===ciclo; }); }
+    // pausa / baja: preguntar si solo los que tienen fibra o todos
+    var fibChoice = B._fibChoice || (/\bfibras?\b/.test(t) ? 'fibra' : null); B._fibChoice = null;
+    if((mode==='pausa' || mode==='baja') && !fibChoice){
+      B._fibAsk = { t:t, raw:raw, at:Date.now() };
+      var qq = mode==='pausa' ? 'pausar' : 'dar de baja';
+      return { say: fill(pick('fibQ',['¿Quieres ver solo los que tienen fibra o todos los pendientes de {q}?','Antes de enseñártelos: ¿solo los que tienen fibra, o todos?','¿Te saco solo los contratos con fibra o todos los pendientes de {q}?','Una pregunta: ¿los que tienen fibra nada más, o todos?']),{q:qq}), buttons:[{t:'🛜 Solo con fibra', v:'fib:fibra'},{t:'📋 Todos', v:'fib:todos'}] };
+    }
+    if(fibChoice==='fibra' && mode!=='instalar') base = base.filter(tieneFibra);
     var doblePausa = (mode==='baja') ? base.filter(function(it){ return esDoblePausa(it); }).length : 0;
     if(dniM){ var dn=dniM[1]; base = base.filter(function(it){ return alnum(it['20'])===dn; }); }
     if(ibanFull){ base = base.filter(function(it){ var a=alnum(it['24']); return a && (a===ibanFull || a.indexOf(ibanFull)>=0 || digits(a).indexOf(digits(ibanFull))>=0); }); }
@@ -270,6 +278,7 @@ var lastPicks = {};
     else if(mode==='pausa') d.push('pendientes de pausar hasta la fecha (solicitados '+range.label+')');
     else if(mode==='instalar'){ d.push('pendientes de instalar'); if(range) d.push(range.label); }
     else if(range) d.push(range.label);
+    if(fibChoice==='fibra' && mode!=='instalar') d.push('con fibra');
     if(vip) d.push('de clientes VIP'+(ciclo?' de ciclo '+ciclo:''));
     else if(ciclo) d.push('de ciclo '+ciclo);
     if(nameUsed) d.push('de '+titleCase(nameUsed));
@@ -306,7 +315,8 @@ var lastPicks = {};
     }
     if(mode==='baja' && doblePausa){
       B._bajaAsk = { list: base, range: range, t: Date.now() };
-      var preg = fill(pick('bajaQ',['Estos son los contratos pendientes de dar de baja hasta la fecha: {n} {c}. De ellos, {k} siguen pausados por segunda vez. ¿Quieres que los quite de la lista?','Te enseño los pendientes de dar de baja hasta hoy: {n} {c}. Hay {k} que aún están pausados por segunda vez, ¿los quito de la pantalla?','Pendientes de baja hasta la fecha: {n} {c}. Ojo, {k} están todavía en segunda pausa. ¿Quieres que no te los muestre?']),{n:numU(n),c:cword,k:numU(doblePausa)});
+      var fibTxt = fibChoice==='fibra' ? ' con fibra' : '';
+      var preg = fill(pick('bajaQ',['Estos son los contratos pendientes de dar de baja hasta la fecha: {n} {c}. De ellos, {k} siguen pausados por segunda vez. ¿Quieres que los quite de la lista?','Te enseño los pendientes de dar de baja hasta hoy: {n} {c}. Hay {k} que aún están pausados por segunda vez, ¿los quito de la pantalla?','Pendientes de baja hasta la fecha: {n} {c}. Ojo, {k} están todavía en segunda pausa. ¿Quieres que no te los muestre?']),{n:numU(n),c:cword+fibTxt,k:numU(doblePausa)});
       return { say: preg, buttons:[{t:'✅ Sí',v:'baja2P:si'},{t:'❌ No',v:'baja2P:no'}] };
     }
     if(!desc) return { say: pick('todos',['Aquí tienes todos los contratos.','Te enseño todos los contratos.','Listo, todos los contratos a la vista.']) };
@@ -394,6 +404,7 @@ var lastPicks = {};
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
     if(B._fichFlow && B._fichFlow(fold(raw), done)) return;
+    if(B._fibAsk){ if(Date.now()-B._fibAsk.at > 5*60000) B._fibAsk=null; else { var fa=fold(raw).trim(); if(/\bfibras?\b/.test(fa)) return B._fibAnswer('fibra', done); if(/^(todos|todas|todo|los dos|ambos|todos los contratos|da igual)\b/.test(fa)) return B._fibAnswer('todos', done); B._fibAsk=null; } }
     if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
     if(!t){ return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
@@ -422,6 +433,13 @@ var lastPicks = {};
     });
   };
 
+  // respuesta a «¿solo con fibra o todos?»
+  B._fibAsk = null; B._fibChoice = null;
+  B._fibAnswer = function(ch, done){
+    var a=B._fibAsk; B._fibAsk=null;
+    if(!a || Date.now()-a.at > 5*60000) return done({ say: pick('fibX',['Esa pregunta ya ha caducado. Pídemelo otra vez.','Se me ha pasado el momento, vuelve a pedírmelo.']) });
+    ensureContratos(function(){ B._fibChoice = ch; var r = contratoQuery(a.t, a.raw, new Date(), { contractWords:true }); B._fibChoice = null; done(r); });
+  };
   // elegir cliente cuando hay varios con el mismo nombre
   B.pickClient = function(i, done){
     var lc=B._lastClients; if(!lc||!lc.list[i]) return;
@@ -750,6 +768,7 @@ var lastPicks = {};
   // botones del chat
   B.pick = function(v, done){
     v = String(v||'');
+    if(v.indexOf('fib:')===0) return B._fibAnswer(v.slice(4)==='fibra' ? 'fibra' : 'todos', done);
     if(v.indexOf('baja2P:')===0) return B._baja2P(v.slice(7)==='si', done);
     if(v==='refreshB') return B._refreshB(done);
     if(v==='refreshC') return B._refreshC(done);
