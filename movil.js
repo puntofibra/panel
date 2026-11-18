@@ -528,7 +528,7 @@
   $('pfmQ').addEventListener('keydown', function(e){
     if(e.key !== 'Enter') return;
     // «consola» + Intro abre la consola (respaldo por si el teclado del móvil no avisa al ir escribiendo)
-    if(/consola/i.test(this.value) && window.PFConsola){ this.value = this.value.replace(/consola/ig, ''); try{ this.dispatchEvent(new Event('input')); }catch(x){} try{ this.blur(); }catch(x){} window.PFConsola.abrir(); return; }
+    if(/consola/i.test(this.value) && window.PFConsola){ this.value = this.value.replace(/consola/ig, ''); try{ this.dispatchEvent(new Event('input')); }catch(x){} window.PFConsola.abrir(); return; }
     this.blur();
   });
   $('pfmQx').onclick = function(){ $('pfmQ').value = ''; $('pfmBusca').classList.remove('lleno'); ST.q = ''; pintarLista(true); $('pfmQ').focus(); };
