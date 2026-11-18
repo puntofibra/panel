@@ -376,7 +376,7 @@
       say('   1 - ' + (x.conPass ? 'CAMBIAR LA CONTRASEÑA' : 'PONER CONTRASEÑA'), 'y', 0, true);
       say('   2 - BORRAR LA CONTRASEÑA (NADIE PODRÁ ENTRAR EN ESTE PANEL)', 'y', 0, true);
       say('   3 - ' + (aqui ? 'QUITAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' DE ESTE ORDENADOR' : 'INSTALAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' EN ESTE ORDENADOR'), 'y', 0, true);
-      say('   4 - RECARGAR EL SALDO DE LUCAS DE ESTE PANEL', 'y', 0, true);
+      say('   4 - RECARGAR EL SALDO DE LUCAS DE ESTE PANEL (SE DESCUENTA DE TU SALDO)', 'y', 0, true);
       say('   5 - PONER O CAMBIAR EL PIN DE SUS TARJETAS', 'y', 0, true);
       say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
       CON.ask = 'pan2';
@@ -441,6 +441,7 @@
       PAN.sel = r.item;
       say('>> RECARGA HECHA ✅  +' + eurTxt(mil) + ' €', 'g big', 22);
       say('   SALDO DE LUCAS EN EL PANEL ' + x.nombre.toUpperCase() + ': ' + eurTxt(r.item.saldo) + ' €', 'y', 10);
+      if(r.item.saldoMio != null){ say('   TU SALDO QUEDA EN: ' + eurTxt(r.item.saldoMio) + ' €', 'd', 0, true); try{ if(window.LucasBrain && window.LucasBrain.saldoSet && !window.PF_SUB) window.LucasBrain.saldoSet(r.item.saldoMio); }catch(e){} }
       tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
     });
   }
