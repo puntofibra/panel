@@ -2452,6 +2452,7 @@ var lastPicks = {};
      en su ordenador (semillas chatManu / chatJorge / chatMaicol / chatSebas).
      ===================================================================== */
   (function(){
+    var PEND={};   // mensajes enseñados y sin aceptar: id -> { de, texto, ult, n }
     var PERS=[['Manu','chatManu'],['Jorge','chatJorge'],['Maicol','chatMaicol'],['Sebas','chatSebas']];
     function yo(){ return PERS.filter(function(p){ return semilla(p[1]); }).map(function(p){ return p[0]; }); }
     function nombreDe(t){ t=fold(t); var r=null; PERS.forEach(function(p){ if(new RegExp('\\b'+fold(p[0])+'\\b').test(t)) r=p[0]; }); if(!r && /\bsebastian\b/.test(t)) r='Sebas'; if(!r && /\b(michael|maikol)\b/.test(t)) r='Maicol'; return r; }
@@ -2497,6 +2498,7 @@ var lastPicks = {};
       if(v.indexOf('chat:para:')===0){ if(!yo().length) return preguntarA(done); return pedirTexto(v.slice(10), done); }
       if(v.indexOf('chat:ok:')===0 || v.indexOf('chat:resp:')===0){
         var pz=v.split(':'), id=pz[2], de=pz.slice(3).join(':'), resp=pz[1]==='resp';
+        delete PEND[id];
         try{ google.script.run.withFailureHandler(function(){}).apiChatLeido([id]); }catch(e){}
         if(resp) return pedirTexto(de, done);
         return done({ say: fill(pick('chatAck',['👍 Hecho, {d} sabrá que has recibido su mensaje.','👍 Perfecto, le aviso a {d} de que lo has leído.','👍 Listo, {d} verá que su mensaje te ha llegado.']),{d:de}) });
@@ -2512,9 +2514,12 @@ var lastPicks = {};
       try{
         google.script.run.withSuccessHandler(function(r){
           ocupado=false;
-          var items=(r && r.items)||[];
+          var items=(r && r.items)||[], vivos={};
+          items.forEach(function(m){ vivos[m.id]=1; });
+          Object.keys(PEND).forEach(function(id){ if(!vivos[id]) delete PEND[id]; });   // aceptado (aquí o en otro ordenador)
           items.forEach(function(m){
             if(vistos[m.id]) return; vistos[m.id]=1;
+            PEND[m.id]={ de:m.de, texto:m.texto, ult:Date.now(), n:0 };
             var intro=fill(pick('chatIn',['📩 Tienes un mensaje de {d}:','📩 {d} te ha escrito:','📩 Tengo un mensaje para ti de {d}:','📩 Mensaje nuevo de {d}:','📩 {d} te dice:','📩 Te escribe {d}:']),{d:m.de});
             var para = me.length>1 ? ' (para '+m.para+')' : '';
             var pide=fill(pick('chatPide',['Pulsa Aceptar para que {d} sepa que has recibido su mensaje.','Dale a Aceptar y {d} sabrá que lo has leído.','Pulsa Aceptar para avisar a {d} de que te ha llegado.']),{d:m.de});
@@ -2531,6 +2536,23 @@ var lastPicks = {};
         }).withFailureHandler(function(){ ocupado=false; }).apiChatPendientes(me);
       }catch(e){ ocupado=false; }
     }
-    setTimeout(recibir, 6000); setInterval(recibir, 15000);
+    // a los 5 minutos sin aceptar ni responder, Lucas lo recuerda (cada 5 minutos, hasta 3 veces)
+    function recordar(){
+      var ahora=Date.now();
+      Object.keys(PEND).forEach(function(id){
+        var p=PEND[id]; if(ahora-p.ult < 5*60000 || p.n>=3) return;
+        p.ult=ahora; p.n++;
+        var corto=String(p.texto||''); if(corto.length>70) corto=corto.slice(0,67)+'…';
+        var msg=fill(pick('chatRecu',[
+          '⏳ {d} seguramente esté esperando la confirmación de que has recibido su mensaje. Pulsa Aceptar y le diré que ya lo tienes.',
+          '⏳ Oye, {d} te escribió hace un rato: «{t}». Dale a Aceptar para que sepa que te ha llegado.',
+          '⏳ Tienes pendiente el mensaje de {d}. Pulsa Aceptar y le aviso de que lo has leído.',
+          '⏳ {d} todavía no sabe si has visto su mensaje. Pulsa Aceptar o respóndele y se lo hago saber.',
+          '⏳ Recordatorio: el mensaje de {d} sigue sin confirmar. Un toque en Aceptar y {d} se queda tranquilo.'
+        ]),{d:p.de,t:corto});
+        B.duckSay(msg, [{ t:'✅ Aceptar', v:'chat:ok:'+id+':'+p.de }, { t:'↩️ Responder a '+p.de, v:'chat:resp:'+id+':'+p.de }]);
+      });
+    }
+    setTimeout(recibir, 6000); setInterval(recibir, 15000); setInterval(recordar, 30000);
   })();
 })();
