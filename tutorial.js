@@ -202,6 +202,12 @@ var CSS = (function(){/*
 #pftut .tt-gira{margin:0 auto;width:150px;height:150px;position:relative;display:grid;place-items:center;background:#0f172a;border-radius:18px;color:#fff;font-size:11px;text-align:center;padding:12px}
 #pftut .tt-gira i{display:block;font-style:normal;font-size:46px;animation:ttRot 3s ease-in-out infinite}
 @keyframes ttRot{0%,25%{transform:rotate(0)}50%,75%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#pftut .tt-nar{position:absolute;top:28px;right:38px;z-index:30;height:32px;padding:0 14px;border-radius:99px;border:0;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font:700 12.5px "Segoe UI",system-ui,sans-serif;cursor:pointer;box-shadow:0 5px 14px rgba(37,99,235,.4);transition:transform .15s}
+#pftut .tt-nar:hover{transform:translateY(-2px)}
+#pftut .tt-pg.L .tt-nar{right:56px}
+#pftut .tt-book.sg .tt-nar{right:42px}
+#pftut .tt-nar.on{background:linear-gradient(135deg,#16a34a,#15803d);animation:ttNar 1.4s ease-in-out infinite}
+@keyframes ttNar{50%{box-shadow:0 0 0 7px rgba(22,163,74,.28)}}
 */}).toString().replace(/^[\s\S]*?\/\*/, '').replace(/\*\/[\s\S]*$/, '');
 
 CSS += '#pftut .bin>.tt-b{right:5px;top:5px}#pftut .tt-pg.tt-hard{background:none}#pftut .tt-pg.tt-hard::before{display:none}#pftut .m-prog{position:absolute;left:0;bottom:0;height:3px;background:#fff;width:0;border-radius:0 3px 3px 0}#pftut .tt-pg.vis .m-prog{animation:ttProg 3.4s ease-in-out infinite 2s}@keyframes ttProg{0%{width:0;opacity:1}72%{width:100%;opacity:1}100%{width:100%;opacity:0}}#pftut .m-blink{animation:ttGlow 1.4s ease-in-out infinite}@keyframes ttGlow{50%{box-shadow:0 0 0 4px rgba(22,163,74,.35)}}';
@@ -370,18 +376,18 @@ function addAll(){
     pg(n, c, 'Entrar en el panel', 'Sin usuarios ni complicaciones: solo necesitas tu contraseña.', shot2(mLogin()), ['Escribe tu <b>contraseña</b>. Si usas Google Authenticator, escribe en su lugar el <b>código de 6 cifras</b> que muestra la app.', 'Pulsa <b>ENTRAR</b> (o la tecla Enter).', 'Con una <b>llave NFC</b>: mantén pulsado ENTRAR 3 segundos; la barra se llena y entonces pasas la llave.', 'La sesión se cierra sola cada día a las <b>00:00</b>: al día siguiente vuelves a entrar.'], null)
   ]; });
   chapter('pc', '📒', 'Contratos', function(n, c){ return [
-    pg(n, c, 'La tabla de contratos', 'Aquí están todos tus contratos. Cada fila es un cliente y la compañía se reconoce por su color.', shot2(mContratos()), ['<b>➕ NUEVO CONTRATO</b> abre el formulario para dar de alta uno nuevo.', 'Pulsa la cabecera <b>Solicitud</b> para ordenar por fecha; la flecha indica el sentido.', 'La celda de <b>compañía</b> lleva el color de su operadora: se ve de un vistazo.', 'El <b>estado</b> se cambia pulsando su icono.', 'Abajo, la <b>paginación</b>: muestra hasta 500 contratos por página.'], 'Al final de cada fila tienes tres botones: 👀 ver la ficha · ✏️ editar · 🗑️ eliminar.'),
-    pg(n, c, 'Buscar y filtrar', 'Encuentra cualquier contrato en segundos combinando el buscador y los filtros.', shot2(mFiltros()), ['<b>Buscador:</b> escribe un nombre, documento o teléfono y la tabla se filtra mientras tecleas.', '<b>Iconos:</b> pulsa uno o varios para ver solo los contratos con esa marca.', '<b>Compañías:</b> elige qué operadoras quieres ver.', '<b>Fechas:</b> indica DESDE y HASTA para ver solo un periodo.', '<b>LIMPIAR FILTROS</b> parpadea en verde cuando hay filtros activos: púlsalo y vuelves a verlo todo.'], '♾️1 y ♾️20 filtran por ciclo 1 o ciclo 20, y VIP te muestra tus clientes VIP.')
+    pg(n, c, 'La tabla de contratos', 'Aquí están todos tus contratos. Cada fila es un cliente y la compañía se reconoce por su color.', shot2(mContratos()), ['<b>➕ NUEVO CONTRATO</b> abre el formulario para dar de alta uno nuevo.', 'Pulsa la cabecera <b>Solicitud</b> para ordenar por fecha; la flecha indica el sentido.', 'La celda de <b>compañía</b> lleva el color de su operadora: se ve de un vistazo.', 'El <b>estado</b> se cambia pulsando su icono.', 'Abajo, la <b>paginación</b>: muestra hasta 500 contratos por página.'], '<span data-voz="Al final de cada fila tienes tres botones: ver la ficha, editar y eliminar.">Al final de cada fila tienes tres botones: 👀 ver la ficha · ✏️ editar · 🗑️ eliminar.</span>'),
+    pg(n, c, 'Buscar y filtrar', 'Encuentra cualquier contrato en segundos combinando el buscador y los filtros.', shot2(mFiltros()), ['<b>Buscador:</b> escribe un nombre, documento o teléfono y la tabla se filtra mientras tecleas.', '<b>Iconos:</b> pulsa uno o varios para ver solo los contratos con esa marca.', '<b>Compañías:</b> elige qué operadoras quieres ver.', '<b>Fechas:</b> indica DESDE y HASTA para ver solo un periodo.', '<b>LIMPIAR FILTROS</b> parpadea en verde cuando hay filtros activos: púlsalo y vuelves a verlo todo.'], '<span data-voz="Los botones de ciclo uno y de ciclo veinte filtran por ciclo, y el botón vip te muestra tus clientes vip.">♾️1 y ♾️20 filtran por ciclo 1 o ciclo 20, y VIP te muestra tus clientes VIP.</span>')
   ]; });
   chapter('pc', '➕', 'Nuevo contrato y edición', function(n, c){ return [
     pg(n, c, 'Dar de alta un contrato', 'Pulsa ➕ NUEVO CONTRATO y rellena la ficha. Los datos se guardan primero como borrador.', shot2(mNuevo()), ['Elige la <b>compañía</b> y marca <b>PAGA EL SI</b> si el cliente paga el recibo.', 'Selecciona el tipo de <b>documento</b> (DNI, NIE o pasaporte) y escribe su número.', 'Rellena el <b>teléfono, la dirección y la cuenta</b>, además del nombre.', 'Indica la fecha de nacimiento y las <b>líneas, líneas extra y fibra</b> con los desplegables.', 'Pulsa <b>💾 GUARDAR BORRADOR</b>. Con <b>🧽 LIMPIAR</b> vacías todos los campos para empezar de cero.'], 'Los campos Avisos y Notas son libres: úsalos para recordar cualquier detalle del cliente.'),
-    pg(n, c, 'Editar un contrato', 'Cuando necesites cambiar algo, abre la ficha del contrato desde la tabla.', shot2(mEditar()), ['El botón <b>✏️</b> del final de la fila abre la edición (👀 solo enseña la ficha).', 'El campo de <b>compañía</b> toma el color de su operadora.', 'Cambia lo que necesites y pulsa <b>💾 Guardar</b>; con <b>Cancelar</b> sales sin tocar nada.'], 'Si cambias el documento, la fecha de nacimiento se toma de otros contratos de ese documento; si hay fechas distintas, el panel te pregunta cuál es la correcta.')
+    pg(n, c, 'Editar un contrato', 'Cuando necesites cambiar algo, abre la ficha del contrato desde la tabla.', shot2(mEditar()), ['<span data-voz="El botón de editar, al final de la fila, abre la edición. El botón de ver solo enseña la ficha.">El botón <b>✏️</b> del final de la fila abre la edición (👀 solo enseña la ficha).</span>', 'El campo de <b>compañía</b> toma el color de su operadora.', 'Cambia lo que necesites y pulsa <b>💾 Guardar</b>; con <b>Cancelar</b> sales sin tocar nada.'], 'Si cambias el documento, la fecha de nacimiento se toma de otros contratos de ese documento; si hay fechas distintas, el panel te pregunta cuál es la correcta.')
   ]; });
   chapter('pc', '🏷️', 'Estados e iconos', function(n, c){ return [
-    pg(n, c, 'Estados e iconos', 'Cada contrato lleva dos marcas: el <b>Estado</b> y la <b>Info</b>. Sirven para saber de un vistazo cómo va cada cliente.', shot2(mEstados()), ['Pulsa el icono de la fila y elige uno de la lista.', '<b>⏸️</b> marca una línea en pausa y <b>❌</b> una baja.', 'La marca <b>💀</b> pinta la fila entera de rojo claro.', 'Después puedes filtrar la tabla por cualquier icono (capítulo anterior).'], 'Usad las marcas con un criterio común en todo el equipo, para que todos lean la tabla igual.')
+    pg(n, c, 'Estados e iconos', 'Cada contrato lleva dos marcas: el <b>Estado</b> y la <b>Info</b>. Sirven para saber de un vistazo cómo va cada cliente.', shot2(mEstados()), ['Pulsa el icono de la fila y elige uno de la lista.', '<span data-voz="El icono de pausa marca una línea en pausa, y la equis roja marca una baja."><b>⏸️</b> marca una línea en pausa y <b>❌</b> una baja.</span>', '<span data-voz="La marca de la calavera pinta la fila entera de rojo claro.">La marca <b>💀</b> pinta la fila entera de rojo claro.</span>', 'Después puedes filtrar la tabla por cualquier icono (capítulo anterior).'], 'Usad las marcas con un criterio común en todo el equipo, para que todos lean la tabla igual.')
   ]; });
   chapter('pc', '🗒️', 'Borradores', function(n, c){ return [
-    pg(n, c, 'Borradores', 'Un borrador es un contrato a medias: guardado, pero todavía sin tramitar.', shot2(mBorradores()), ['<b>➕ Nuevo</b> abre el formulario de alta.', '<b>✏️</b> te deja completar los datos que falten.', 'Cuando está listo, <b>✅ Tramitar</b> lo convierte en contrato: pasa a la lista de Contratos con la fecha de solicitud de hoy.', '<b>🗑️</b> elimina el borrador.', 'El círculo rojo del menú cuenta cuántos tienes pendientes.'], '<b>🔄 Actualizar</b> trae los borradores más recientes, por si tu equipo ha añadido alguno.')
+    pg(n, c, 'Borradores', 'Un borrador es un contrato a medias: guardado, pero todavía sin tramitar.', shot2(mBorradores()), ['<b>➕ Nuevo</b> abre el formulario de alta.', '<span data-voz="El botón de editar te deja completar los datos que falten."><b>✏️</b> te deja completar los datos que falten.</span>', 'Cuando está listo, <b>✅ Tramitar</b> lo convierte en contrato: pasa a la lista de Contratos con la fecha de solicitud de hoy.', '<span data-voz="El botón de eliminar borra el borrador."><b>🗑️</b> elimina el borrador.</span>', 'El círculo rojo del menú cuenta cuántos tienes pendientes.'], '<b>🔄 Actualizar</b> trae los borradores más recientes, por si tu equipo ha añadido alguno.')
   ]; });
   chapter('pc', '💳', 'Tarjetas', function(n, c){ return [
     pg(n, c, 'Datos de tarjetas y cuentas', 'Guarda tus tarjetas y cuentas bancarias en un único sitio, protegidas con PIN.', shot2(mTarjetas()), ['<b>➕ Nueva tarjeta</b>: nombre, banco, número, fecha de caducidad y CVV.', '<b>➕ Nueva cuenta</b>: nombre, titular e IBAN.', 'Elige el <b>color</b> de cada tarjeta para reconocerla rápido.', '<b>🔑 Cambiar PIN</b>: te pide el PIN actual y después el nuevo, dos veces.'], 'Mantén el PIN en secreto: es lo que protege los datos de tus tarjetas. Cada tarjeta tiene también su botón 🗑️ Eliminar.')
@@ -390,13 +396,13 @@ function addAll(){
     pg(n, c, 'Notas con etiquetas', 'Un tablón para lo que no quieres olvidar, ordenado por colores.', shot2(mNotas()), ['<b>➕ Nueva nota</b> crea una nota y le asignas una etiqueta.', 'Las etiquetas son <b>URGENTE</b>, <b>NOTAS</b>, <b>INFORMACION</b> y <b>COMISIONES</b>, cada una con su color.', 'Los círculos del menú cuentan cuántas notas tiene cada etiqueta.', '<b>🏷️ Editar etiqueta</b> te deja cambiarle el nombre.'], null)
   ]; });
   chapter('pc', '🗓️', 'Agenda', function(n, c){ return [
-    pg(n, c, 'La agenda', 'Un calendario para tus citas y recordatorios.', shot2(mAgenda()), ['Cambia de mes con <b>‹ Anterior</b> y <b>Siguiente ›</b>, y vuelve al día actual con <b>Hoy</b>.', 'Alterna entre la vista <b>Mes</b> y la vista <b>Día</b>.', '<b>➕ Nuevo evento</b> abre el formulario.', 'Ponle <b>título</b>, hora (opcional), <b>color</b> y descripción, y pulsa <b>💾 Guardar</b>.', 'El número del botón AGENDA te dice cuántos eventos tienes hoy.'], 'Pulsa un evento para editarlo: puedes cambiarle la fecha con 📅 o borrarlo con 🗑️ Eliminar.')
+    pg(n, c, 'La agenda', 'Un calendario para tus citas y recordatorios.', shot2(mAgenda()), ['Cambia de mes con <b>‹ Anterior</b> y <b>Siguiente ›</b>, y vuelve al día actual con <b>Hoy</b>.', 'Alterna entre la vista <b>Mes</b> y la vista <b>Día</b>.', '<b>➕ Nuevo evento</b> abre el formulario.', 'Ponle <b>título</b>, hora (opcional), <b>color</b> y descripción, y pulsa <b>💾 Guardar</b>.', 'El número del botón AGENDA te dice cuántos eventos tienes hoy.'], '<span data-voz="Pulsa un evento para editarlo: puedes cambiarle la fecha o borrarlo con el botón eliminar.">Pulsa un evento para editarlo: puedes cambiarle la fecha con 📅 o borrarlo con 🗑️ Eliminar.</span>')
   ]; });
   chapter('pc', '💬', 'Chat en vivo', function(n, c){ return [
     pg(n, c, 'Chat en vivo', 'Habla con tu equipo sin salir del panel.', shot2(mChat()), ['Pulsa la barra verde <b>Chat en vivo</b> para abrirlo; vuelve a pulsarla para cerrarlo.', 'Escribe tu <b>nombre</b> para que los demás sepan quién eres.', 'Escribe tu mensaje y pulsa <b>enviar</b>: les llega al momento.', 'Escribe <b>cls</b> y envía para vaciar la pantalla del chat.'], '<b>cls</b> solo limpia lo que ves tú: no borra nada para los demás.')
   ]; });
   chapter('pc', '🤖', 'Asistente Lucas', function(n, c){ return [
-    pg(n, c, 'Lucas, tu asistente', 'Lucas entiende frases normales: no tienes que aprender comandos.', shot2(mLucas()), ['Pulsa a <b>Lucas</b> en la franja negra de abajo para abrir su chat; pulsa su cara para cerrarlo.', 'Escribe en la <b>caja de texto</b> lo que necesitas: «sácame los contratos de enero» filtra la tabla al instante. También puedes <b>pasarle imágenes</b> y pedirle <b>gráficas</b> y estadísticas (púlsalas para verlas en grande).', 'Arriba ves tu <b>saldo</b>. Algunas peticiones gastan crédito y otras no; las que lo gastan cuestan <b>menos de 2 céntimos</b> cada una.', 'El <b>altavoz</b> activa o silencia su voz.', 'El botón <b>Zzz</b> (con el chat cerrado) lo duerme.'], 'Lo que Lucas puede hacer depende de lo que tenga activado tu panel.')
+    pg(n, c, 'Lucas, tu asistente', 'Lucas entiende frases normales: no tienes que aprender comandos.', shot2(mLucas()), ['Pulsa a <b>Lucas</b> en la franja negra de abajo para abrir su chat; pulsa su cara para cerrarlo.', 'Escribe en la <b>caja de texto</b> lo que necesitas: «sácame los contratos de enero» filtra la tabla al instante. También puedes <b>pasarle imágenes</b> y pedirle <b>gráficas</b> y estadísticas (púlsalas para verlas en grande).', 'Arriba ves tu <b>saldo</b>. Algunas peticiones gastan crédito y otras no; las que lo gastan cuestan <b>menos de 2 céntimos</b> cada una.', 'El <b>altavoz</b> activa o silencia su voz.', '<span data-voz="El botón de dormir, que aparece con el chat cerrado, lo duerme.">El botón <b>Zzz</b> (con el chat cerrado) lo duerme.</span>'], 'Lo que Lucas puede hacer depende de lo que tenga activado tu panel.')
   ]; });
   chapter('pc', '⚡', 'Trucos y atajos', function(n, c){ return [
     pg(n, c, 'Trucos y atajos', 'Pequeños detalles que te ahorran tiempo.', cards([['🔄','Actualizar','Trae los datos más recientes sin recargar toda la página.'],['🚪','SALIR','Cierra tu sesión. Si no lo haces, se cierra sola a las 00:00.'],['🏷️','Versión','Justo encima de Actualizar y SALIR, en pequeño, ves la versión publicada con su fecha y hora.'],['🖼️','Logo','Triple clic sobre el logo para cambiarlo por el tuyo (PNG con fondo transparente, 1000 × 400).'],['🧹','cls','Escríbelo en el chat o en Lucas para vaciar la pantalla.'],['🔎','Filtros rápidos','Combina buscador, iconos, compañías y fechas para llegar a un contrato en segundos.'],['📱','Móvil','La web también funciona en el móvil: los últimos capítulos te lo explican.'],['📖','Tutorial','Vuelve cuando quieras desde el botón TUTORIAL del menú.']]), null, null)
@@ -414,7 +420,7 @@ function addAll(){
     pg(n, c, 'Editar desde el móvil', 'Corrige un dato sin sacar el ordenador.', phones(phEdit()), ['Cambia los <b>campos</b> que necesites tocándolos.', '<b>➕ Más datos</b> muestra el resto de la ficha.', '<b>Cancelar</b> sale sin guardar y <b>💾 Guardar</b> aplica los cambios.', 'Algunos campos solo se ven en el formato de ordenador.'], null, true)
   ]; });
   chapter('mv', '☰', 'Menú, Lucas y orientación', function(n, c){ return [
-    pg(n, c, 'Menú y orientación', 'Lo que hace falta saber para moverte por la web móvil.', phones(phMenu(), gira()), ['El botón <b>☰</b> abre el menú.', '<b>🖥️ Cambiar a formato normal</b> muestra la web completa del ordenador.', '<b>⟳ Actualizar datos</b> trae lo último.', '<b>⏻ Cerrar sesión</b> sale del panel.', 'La web móvil solo funciona en <b>vertical</b>: si giras el móvil verás el aviso «Gira el móvil».'], 'Lucas también se asoma abajo en el móvil: lo que le pidas filtra la lista.', true)
+    pg(n, c, 'Menú y orientación', 'Lo que hace falta saber para moverte por la web móvil.', phones(phMenu(), gira()), ['<span data-voz="El botón de las tres rayas abre el menú.">El botón <b>☰</b> abre el menú.</span>', '<b>🖥️ Cambiar a formato normal</b> muestra la web completa del ordenador.', '<b>⟳ Actualizar datos</b> trae lo último.', '<b>⏻ Cerrar sesión</b> sale del panel.', 'La web móvil solo funciona en <b>vertical</b>: si giras el móvil verás el aviso «Gira el móvil».'], 'Lucas también se asoma abajo en el móvil: lo que le pidas filtra la lista.', true)
   ]; });
   chapter('fin', '💚', '¿Necesitas ayuda?', function(n, c){ return [
     '<div class="tt-in"><div class="tt-cap"><span>' + n + '</span>AYUDA</div><h2>¿Necesitas ayuda?</h2><p class="tt-lead">Si algo no te queda claro o quieres proponer una mejora, escríbenos. Estaremos encantados de ayudarte.</p><div style="text-align:center;margin-top:30px"><div style="font-size:70px">💬</div><a class="tt-wa" href="https://wa.me/34633200100" target="_blank" rel="noopener">WhatsApp · 633 200 100</a></div><div class="tt-tip"><i>💡</i><span>Cuando haya novedades en el panel, este tutorial se actualizará: fíjate en la edición de la portada.</span></div></div><div class="tt-pn">@@</div>'
@@ -451,10 +457,72 @@ function snd(soft){
     s.connect(lp); lp.connect(hp); hp.connect(g); g.connect(AC.destination); s.start(t);
   }catch(e){}
 }
+
+var NAR = { btn: null, tok: 0, tried: 0 };
+var DIC = [[/Google Authenticator/g, 'Google Autentiqueitor'], [/PAGA EL SI/g, 'paga el ese i'], [/\bNFC\b/g, 'ene efe ce'], [/\bPIN\b/g, 'pin'], [/\bDNI\b/g, 'de ene i'], [/\bNIE\b/g, 'ene i e'], [/\bIBAN\b/g, 'ibán'], [/\bCVV\b/g, 'ce uve uve'], [/\bPDF\b/g, 'pe de efe'], [/\bPNG\b/g, 'pe ene ge'], [/\bVIP\b/g, 'vip'], [/WhatsApp/g, 'guasap'], [/\bZzz\b/g, 'dormir'], [/\bcls\b/gi, 'ce ele ese'], [/\bEsc\b/g, 'escape'], [/\b00:00\b/g, 'doce de la noche'], [/633 200 100/g, 'seis, tres, tres, dos, cero, cero, uno, cero, cero'], [/1000 × 400/g, 'mil por cuatrocientos píxeles'], [/€/g, ' euros'], [/\bX\b/g, 'equis']];
+function narText(page){
+  var inn = page.querySelector('.tt-in'); if (!inn) return '';
+  var c = inn.cloneNode(true);
+  [].forEach.call(c.querySelectorAll('.tt-shot,.ph,.tt-gira,ttb,.tt-nar,.tt-pn,.tt-lines,.tt-how em,.tt-card .ic,.tt-tip i,.tt-wa i'), function(x){ x.remove(); });
+  [].forEach.call(c.querySelectorAll('.tt-cap span'), function(x){ x.remove(); });
+  [].forEach.call(c.querySelectorAll('.tt-cap'), function(x){ x.textContent = x.textContent.toLowerCase(); });
+  [].forEach.call(c.querySelectorAll('.tt-n'), function(x){ x.textContent = 'Paso ' + x.textContent + '. '; });
+  [].forEach.call(c.querySelectorAll('.tt-tip'), function(x){ x.insertBefore(D.createTextNode('Consejo: '), x.firstChild); });
+  [].forEach.call(c.querySelectorAll('.tt-ix'), function(x){ var i = x.querySelector('i'), sp = x.querySelector('span'), em = x.querySelector('em'); var n = i ? i.textContent : ''; x.textContent = (n && n !== '?' ? 'Capítulo ' + n + ': ' : '') + (sp ? sp.textContent : '') + ', página ' + (em ? em.textContent : '') + '. '; });
+  [].forEach.call(c.querySelectorAll('[data-voz]'), function(x){ x.textContent = x.getAttribute('data-voz'); });
+  [].forEach.call(c.querySelectorAll('.tt-card b'), function(x){ x.appendChild(D.createTextNode(': ')); });
+  ['h2', 'p', 'li', '.tt-card', '.tt-how div', '.tt-tip', '.tt-note', '.tt-cap', '.tt-ixg', '.tt-wa'].forEach(function(sel){ [].forEach.call(c.querySelectorAll(sel), function(x){ x.appendChild(D.createTextNode('. ')); }); });
+  var t = c.textContent.replace(/\s+/g, ' ');
+  DIC.forEach(function(d){ t = t.replace(d[0], d[1]); });
+  t = t.replace(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{25A0}-\u{25FF}\u{2460}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{2039}\u{203A}\u{27F0}-\u{27FF}]/gu, ' ');
+  t = t.replace(/[A-ZÁÉÍÓÚÑ]{2,}/g, function(m){ return m.toLowerCase(); });
+  t = t.replace(/·/g, ',').replace(/\s+([.,:;])/g, '$1').replace(/([.:;,])(\s*[.:;,])+/g, '$1').replace(/\s+/g, ' ').trim();
+  return t;
+}
+function narChunks(t){
+  var m = t.match(/[^.!?]+[.!?]*/g) || [t], out = [], cur = '';
+  m.forEach(function(x){ x = x.trim(); if (!x) return; if ((cur + ' ' + x).length < 170) cur = (cur ? cur + ' ' : '') + x; else { if (cur) out.push(cur); cur = x; } });
+  if (cur) out.push(cur);
+  return out;
+}
+function narVoice(){
+  var vs = (window.speechSynthesis.getVoices() || []).filter(function(v){ return /^es/i.test(v.lang); });
+  var MALE = /jorge|pablo|diego|carlos|enrique|raul|raúl|alvaro|álvaro|juan|miguel|andres|andrés|antonio|jaime|ricardo|tomas|tomás|pedro|manuel|male|hombre/i;
+  var FEM = /helena|laura|elvira|sabina|paulina|monica|mónica|lucia|lucía|paloma|esperanza|marisol|camila|sofia|sofía|maria|maría|female|mujer|dalia|ximena|elena|alba/i;
+  var m = vs.filter(function(v){ return MALE.test(v.name) && !FEM.test(v.name); });
+  m.sort(function(a, b){ return (/natural|online/i.test(b.name) ? 1 : 0) - (/natural|online/i.test(a.name) ? 1 : 0) || (/es-ES/i.test(b.lang) ? 1 : 0) - (/es-ES/i.test(a.lang) ? 1 : 0); });
+  if (m.length) return { voice: m[0], pitch: 0.9 };
+  var f = vs.filter(function(v){ return !FEM.test(v.name); });
+  f.sort(function(a, b){ return (/es-ES/i.test(b.lang) ? 1 : 0) - (/es-ES/i.test(a.lang) ? 1 : 0); });
+  return { voice: f[0] || vs[0] || null, pitch: 0.55 };
+}
+function narStop(){
+  NAR.tok++;
+  try{ if (window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  if (NAR.btn){ NAR.btn.classList.remove('on'); NAR.btn.textContent = '🔊 Escuchar'; NAR.btn = null; }
+}
+function narPlay(btn){
+  if (!window.speechSynthesis){ btn.textContent = 'Sin voz en este navegador'; return; }
+  var same = (NAR.btn === btn); narStop(); if (same) return;
+  if (!(window.speechSynthesis.getVoices() || []).length && NAR.tried < 1){ NAR.tried++; try{ window.speechSynthesis.getVoices(); }catch(e){} later(function(){ narPlay(btn); }, 500); return; }
+  NAR.tried = 0;
+  var txt = narText(btn.closest('.tt-pg')); if (!txt) return;
+  var parts = narChunks(txt), tok = ++NAR.tok, v = narVoice(), i = 0;
+  NAR.btn = btn; btn.classList.add('on'); btn.textContent = '⏹ Detener';
+  var nx = function(){
+    if (tok !== NAR.tok) return;
+    if (i >= parts.length){ narStop(); return; }
+    var u = new SpeechSynthesisUtterance(parts[i++]); u.lang = 'es-ES'; if (v.voice) u.voice = v.voice; u.pitch = v.pitch; u.rate = 0.97; u.volume = 1;
+    u.onend = nx; u.onerror = function(){ if (tok === NAR.tok) narStop(); };
+    window.speechSynthesis.speak(u);
+  };
+  setTimeout(nx, 80);
+}
 function mkPage(i, cls){
   var d = D.createElement('div'), hard = (i === 0 || i === NP() - 1);
   d.className = 'tt-face tt-pg ' + cls + (hard ? ' tt-hard' : '');
   d.innerHTML = P[i].replace('@@', i) + '<div class="tt-shade"></div>';
+  if (!hard && P[i].indexOf('tt-in') >= 0 && P[i].indexOf('tt-lines') < 0){ var nb = D.createElement('button'); nb.className = 'tt-nar'; nb.type = 'button'; nb.setAttribute('data-nar', '1'); nb.textContent = '🔊 Escuchar'; d.appendChild(nb); }
   pageEls[i] = d; return d;
 }
 function mkLeaf(){ var d = D.createElement('div'); d.className = 'tt-leaf'; return d; }
@@ -506,7 +574,7 @@ function go(t){
   if (busy){ pending = t; return; }
   if (t === S) return;
   busy = true;
-  var dir = t > S ? 1 : -1, n = Math.abs(t - S), stag = n > 1 ? 85 : 0, dur = n > 1 ? 0.62 : 0.95, seq = [], k;
+  narStop(); var dir = t > S ? 1 : -1, n = Math.abs(t - S), stag = n > 1 ? 85 : 0, dur = n > 1 ? 0.62 : 0.95, seq = [], k;
   book.style.setProperty('--d', dur + 's');
   if (dir > 0){ for (k = S; k < t; k++) seq.push(k); } else { for (k = S - 1; k >= t; k--) seq.push(k); }
   visOff();
@@ -519,7 +587,7 @@ function next(){ go((pending !== null ? pending : S) + 1); }
 function prev(){ go((pending !== null ? pending : S) - 1); }
 function close(){
   if (!root) return;
-  var r = root; root = null;
+  narStop(); var r = root; root = null;
   r.classList.remove('on');
   document.removeEventListener('keydown', keyH, true); window.removeEventListener('resize', resH);
   timers.forEach(clearTimeout); timers = [];
@@ -540,6 +608,7 @@ function open(pagina){
   root.addEventListener('click', function(e){
     var a = e.target.closest('[data-go]');
     if (a){ e.preventDefault(); goPage(+a.getAttribute('data-go')); return; }
+    var nbn = e.target.closest('[data-nar]'); if (nbn){ narPlay(nbn); return; }
     var b = e.target.closest('[data-a]'); if (!b) return;
     var k = b.getAttribute('data-a');
     if (k === 'prev') prev(); else if (k === 'next') next(); else if (k === 'idx') goPage(2); else if (k === 'x') close();
