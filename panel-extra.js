@@ -463,6 +463,7 @@
     ['chatJorge', 'CHAT JORGE', 'ESTE ORDENADOR ES EL DE JORGE EN EL CHAT DE LUCAS: RECIBE SUS MENSAJES Y LOS ENVÍA EN SU NOMBRE (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
     ['chatMaicol', 'CHAT MAICOL', 'ESTE ORDENADOR ES EL DE MAICOL EN EL CHAT DE LUCAS: RECIBE SUS MENSAJES Y LOS ENVÍA EN SU NOMBRE (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
     ['chatSebas', 'CHAT SEBAS', 'ESTE ORDENADOR ES EL DE SEBAS EN EL CHAT DE LUCAS: RECIBE SUS MENSAJES Y LOS ENVÍA EN SU NOMBRE (SOLO FUNCIONA SI ESTÁ INSTALADA)'],
+    ['borrar', 'PUEDE BORRAR CONTRATOS Y BORRADORES', 'ESTE ORDENADOR PUEDE ELIMINAR CONTRATOS Y BORRADORES EN EL PANEL PRINCIPAL (SIN ESTA SEMILLA SALE UN AVISO DE QUE SOLO MANU PUEDE BORRAR; LOS SUBPANELES SIEMPRE PUEDEN)'],
     ['vozSiempre', 'VOZ DE LUCAS SIEMPRE ACTIVA', 'LUCAS HABLA SIEMPRE EN ESTE ORDENADOR: SE OCULTA EL ALTAVOZ DEL ASISTENTE Y SU VOZ NO SE PUEDE SILENCIAR (SOLO FUNCIONA SI ESTÁ INSTALADA)']
   ];
   function semOn(k){ try{ return localStorage.getItem('pfSemilla_' + k) === '1'; }catch(e){ return false; } }
@@ -874,9 +875,13 @@ function openConsole(){
     tone(160, 60, 0.5, 'sawtooth', 0.09, 0.05);
   }
   function hideDeny(){ if(!deny.classList.contains('on')) return; clearTimeout(denyT); deny.classList.add('out'); setTimeout(function(){ deny.classList.remove('on','out'); }, 340); }
-  function showDeny(){
+  function showDeny(tit, txt, cod){
     clearTimeout(denyT);
-    $('pfDenyCode').textContent = 'ERR 0x' + rh(4) + ' · LLAVE NO DETECTADA · INCIDENCIA REGISTRADA';
+    if(typeof tit !== 'string') tit = 'ACCESO RESTRINGIDO';   // sin argumentos: el cartel de Ajustes (llave NFC)
+    if(typeof txt !== 'string') txt = 'Ajustes solo se abre con la llave NFC autorizada.';
+    var dh = deny.querySelector('h2'), dp = deny.querySelector('p');
+    dh.textContent = tit; dh.setAttribute('data-t', tit); dp.textContent = txt;
+    $('pfDenyCode').textContent = (typeof cod === 'string') ? ('ERR 0x' + rh(4) + ' · ' + cod) : ('ERR 0x' + rh(4) + ' · LLAVE NO DETECTADA · INCIDENCIA REGISTRADA');
     deny.classList.remove('out'); deny.classList.remove('on'); void deny.offsetWidth; deny.classList.add('on');
     alarma();
     denyT = setTimeout(hideDeny, 3200);
