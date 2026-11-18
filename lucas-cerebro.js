@@ -2630,4 +2630,70 @@ var lastPicks = {};
       return p0(v, done);
     };
   })();
+
+  /* =====================================================================
+     INFORME DE PAUSAS: «listado de pausas», «sácame las pausas», «qué pausas
+     tienes programadas»… → ⏸️ (aviso a los 90 días de ID 53) y ⏸️⏸️ (dpVence).
+     ===================================================================== */
+  (function(){
+    function nP(it){ return (String(it['44']||'').match(/⏸/g)||[]).length; }
+    function esInforme(t){
+      if(/\b(para|pendientes? de|hay que|tengo que|toca) pausar\b/.test(t)) return false;           // eso es «contratos para pausar»
+      if(/\b(listado|lista|informe|resumen|relacion|reporte|calendario|agenda)\b.*\b(pausas?|pausad[oa]s)\b/.test(t)) return true;
+      if(/\b(pausas?|pausad[oa]s|dobles? pausas?)\b.*\b(programad\w*|pendientes? de aviso|avisos?|avisar(me)?|vas a avisar|me avisaras|vencen|caducan|fechas?)\b/.test(t)) return true;
+      if(/\b(avisos?|alertas?) de (las |los )?(pausas?|dobles? pausas?|contratos en pausa)\b/.test(t)) return true;
+      if(/\bcuando (me )?(avisas|vas a avisar|avisaras|toca)\b.*\bpausa/.test(t)) return true;
+      return /^(?:(?:muestrame|ensename|sacame|dame|pasame|ver|quiero ver|dime|lista|listame)\s+)?(?:todas\s+)?(?:las |los )?(?:pausas|contratos (?:en pausa|pausados)|pausas y (?:las )?dobles? pausas|dobles? pausas y (?:las )?pausas)$/.test(t);
+    }
+    function caja(titulo, filas, nota){
+      var w=document.createElement('div'); w.style.cssText='margin-top:8px;';
+      var h=document.createElement('div'); h.textContent=titulo; h.style.cssText='font-weight:800;margin-bottom:5px;color:#17ff5f;letter-spacing:.3px;'; w.appendChild(h);
+      if(!filas.length){ var v=document.createElement('div'); v.textContent='— Ninguno —'; v.style.cssText='opacity:.6;'; w.appendChild(v); }
+      filas.forEach(function(f){ var r=document.createElement('div'); r.textContent=f.t; if(f.rojo) r.style.color='#ff8a8a'; else if(f.amar) r.style.color='#ffd166'; w.appendChild(r); });
+      if(nota){ var n=document.createElement('div'); n.textContent=nota; n.style.cssText='margin-top:5px;opacity:.65;font-size:11.5px;'; w.appendChild(n); }
+      return w;
+    }
+    function fila(v, it, hoy0){
+      var dias=Math.round((v-hoy0)/86400000);
+      var cuando = dias<0 ? 'ya tocaba hace '+(-dias)+' '+plural(-dias,'día','días') : (dias===0 ? 'avisa hoy' : 'avisa en '+dias+' '+plural(dias,'día','días'));
+      return { t:(dias<=0?'⚠️ ':'⏳ ')+fmtD(new Date(v))+' · '+titleCase(String(it['21']||'').trim()||'—')+(it['2']?' ('+compName(it['2'])+')':'')+' · '+cuando, rojo:dias<=0, amar:dias>0&&dias<=7 };
+    }
+    function informe(done){
+      ensureContratos(function(){
+        var hoy=new Date(), hoy0=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()).getTime();
+        var p1=[], p1sin=0, p2=[], todos=[];
+        contratos().forEach(function(it){
+          var n=nP(it);
+          if(n===1){ var f=tsOK(it['53']); if(f){ p1.push({ it:it, v:f+90*86400000 }); todos.push(it); } else p1sin++; }
+          else if(n>=2){ if(instCeros(it) && !tsOK(it['52'])) return; var v=dpVence(it); if(v){ p2.push({ it:it, v:v }); todos.push(it); } }
+        });
+        p1.sort(function(a,b){ return a.v-b.v; }); p2.sort(function(a,b){ return a.v-b.v; });
+        render(todos.slice().sort(function(a,b){ var va=(nP(a)===1?tsOK(a['53'])+90*86400000:dpVence(a)), vb=(nP(b)===1?tsOK(b['53'])+90*86400000:dpVence(b)); return va-vb; }), null, true);
+        try{
+          var box=document.getElementById('iaChatMsgs');
+          if(box){
+            var wrap=document.createElement('div');
+            wrap.style.cssText='max-width:94%;margin:4px 0 10px;padding:10px 12px;border-radius:14px;background:#0f1512;border:1px solid #17ff5f;color:#d9ffe6;font-size:12.5px;line-height:1.5;box-shadow:0 0 10px rgba(23,255,95,.25);';
+            var t=document.createElement('div'); t.textContent='📋 INFORME DE PAUSAS'; t.style.cssText='font-weight:900;font-size:13.5px;color:#17ff5f;'; wrap.appendChild(t);
+            wrap.appendChild(caja('⏸️ PAUSAS · aviso a los 90 días ('+p1.length+')', p1.map(function(x){ return fila(x.v, x.it, hoy0); }), p1sin ? '* '+p1sin+' '+plural(p1sin,'contrato en pausa no tiene','contratos en pausa no tienen')+' fecha guardada (se pusieron en pausa antes de esta función) y no avisarán.' : ''));
+            wrap.appendChild(caja('⏸️⏸️ DOBLES PAUSAS · aviso a los 90 días ('+p2.length+')', p2.map(function(x){ return fila(x.v, x.it, hoy0); }), p2.some(function(x){ return !tsOK(x.it['52']); }) ? '* los que no tienen fecha de doble pausa se calculan con la instalación + 270 días.' : ''));
+            setTimeout(function(){ box.appendChild(wrap); box.scrollTop=box.scrollHeight; }, 400);
+          }
+        }catch(e){}
+        var venc = p1.concat(p2).filter(function(x){ return x.v<=hoy0; }).length, prox=p1.concat(p2).filter(function(x){ return x.v>hoy0; }).sort(function(a,b){ return a.v-b.v; })[0];
+        var txt = fill(pick('infP',['Aquí tienes el informe: {a} {ca} en pausa y {b} en doble pausa con aviso programado.','Te enseño las pausas programadas: {a} de pausa y {b} de doble pausa.','Informe de pausas listo: {a} en ⏸️ y {b} en ⏸️⏸️ con su fecha de aviso.']),{a:p1.length,b:p2.length,ca:plural(p1.length,'contrato','contratos')});
+        if(venc) txt += ' '+fill(pick('infPv',['Ojo, {n} ya {v} de fecha.','{n} ya {t} que estar gestionados.']),{n:venc,v:venc===1?'está pasado':'están pasados',t:venc===1?'tendría':'tendrían'});
+        if(prox) txt += ' '+fill(pick('infPp',['El próximo aviso es el {f}.','El siguiente aviso, el {f}.']),{f:fmtD(new Date(prox.v))});
+        try{ saldoConsumir(); }catch(e){}
+        done({ say: txt });
+      });
+    }
+    var h0=B.handle;
+    B.handle=function(raw, done){
+      var t=fold(raw);
+      if(esInforme(t)){ if(SALDO!=null && SALDO<COSTE) return sinSaldo(done); return informe(done); }
+      return h0(raw, done);
+    };
+    B._informePausas = informe;
+  })();
 })();
