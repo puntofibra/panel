@@ -146,7 +146,7 @@
     CON.esperando = true;
     try{
       RUN().withSuccessHandler(function(r){
-        if(r && r.ok && r.configurado){ CON.esperando = false; say('USUARIO: MANU', '', 0, true); say('INTRODUZCA SU PASSWORD (CÓDIGO DE GOOGLE AUTHENTICATOR) Y PULSE ENTER.', 'd', 0, true); return; }
+        if(r && r.ok && r.configurado){ CON.esperando = false; say('USUARIO: MANU', '', 0, true); say('INTRODUZCA SU PASSWORD (CÓDIGO DE GOOGLE AUTHENTICATOR) Y PULSE ENTER.', 'd', 0, true); conNfcEsperar(); return; }
         say('>> PRIMER ARRANQUE DE SEGURIDAD 🔐', 'g big', 20);
         say('   ESCANEA EL CÓDIGO QR CON GOOGLE AUTHENTICATOR PARA VINCULAR TU MÓVIL.', 'y', 10);
         say('   DESPUÉS ESCRIBE AQUÍ EL CÓDIGO DE 6 CIFRAS QUE TE DÉ COMO PASSWORD.', 'y', 10);
@@ -154,6 +154,20 @@
       }).withFailureHandler(function(){ CON.esperando = false; say('ERROR DE CONEXIÓN CON EL SERVIDOR DE SEGURIDAD. CIERRA Y VUELVE A ABRIR LA CONSOLA.', 'r', 10); errTone(); }).apiConsolaTotpEstado();
     }catch(e){ CON.esperando = false; say('ERROR DEL SISTEMA DE SEGURIDAD.', 'r', 10); errTone(); }
   }
+  function conNfcParar(){ try{ if(CON.nfcTimer) clearInterval(CON.nfcTimer); }catch(e){} CON.nfcTimer = null; if(CON.nfcCod){ CON.nfcCod = null; try{ window.top.postMessage({ pf:'nfcCerrar' }, '*'); }catch(e){} } }
+  function conNfcSondear(){ var cod = CON.nfcCod; if(!cod || CON.nfcBusy) return; CON.nfcBusy = true;
+    try{ RUN().withSuccessHandler(function(r){ CON.nfcBusy = false; if(cod !== CON.nfcCod || !CON.on || CON.auth) return;
+      if(r && r.estado === 'ok' && r.token){ conNfcParar(); CON.esperando = false; CON.auth = true; CON.token = r.token; CON.fails = 0;
+        say('>> ACCESO CONCEDIDO ✅', 'g big', 22); say('   LLAVE NFC RECONOCIDA. BIENVENIDO, MANU.', 'y', 10); say('SESIÓN ABIERTA ' + hoy(), 'y', 0, true);
+        tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+      } else if(r && (r.estado === 'caducado' || r.estado === 'denegado')){ conNfcParar(); say('LECTOR NFC CERRADO. USE EL PASSWORD.', 'd', 0, true); }
+    }).withFailureHandler(function(){ CON.nfcBusy = false; }).apiNfcEstado(cod); }catch(e){ CON.nfcBusy = false; } }
+  function conNfcEsperar(){ if(window.PF_SUB) return; var wrap = false; try{ wrap = (typeof PF_WRAP !== 'undefined') && !!PF_WRAP; }catch(e){} if(!wrap) return; conNfcParar();
+    try{ RUN().withSuccessHandler(function(r){ if(!r || !r.ok || !CON.on || CON.auth) return; CON.nfcCod = r.codigo;
+      try{ window.top.postMessage({ pf:'nfc', codigo:r.codigo, modo:'consola', titulo:'Entrar en la consola', silencioso:true }, '*'); }catch(e){}
+      CON.nfcTimer = setInterval(conNfcSondear, 1500); say('O PASE SU LLAVE NFC POR EL LECTOR DEL MÓVIL.', 'd', 0, true);
+    }).apiNfcCrear('consola', '', ''); }catch(e){} }
+  window.addEventListener('message', function(ev){ var d = ev && ev.data; if(!d || d.pf !== 'nfcError' || !CON.on || CON.auth || !CON.nfcCod) return; say('LLAVE NFC NO AUTORIZADA · ' + String(d.msg || '').toUpperCase(), 'r', 10); errTone(); });
   function conLogin(raw){
     var code = String(raw || '').replace(/\D/g, '');
     if(Date.now() < CON.lock){ say('SISTEMA BLOQUEADO · ESPERA ' + Math.ceil((CON.lock - Date.now()) / 1000) + ' SEGUNDOS ANTES DE VOLVER A INTENTARLO.', 'r', 10); errTone(); return; }
@@ -163,7 +177,7 @@
       RUN().withSuccessHandler(function(r){
         CON.esperando = false;
         if(!r || !r.ok){ conFallo(); return; }
-        CON.auth = true; CON.token = r.token; CON.fails = 0;
+        CON.auth = true; CON.token = r.token; CON.fails = 0; conNfcParar();
         say('>> ACCESO CONCEDIDO ✅', 'g big', 22);
         if(r.nuevo) say('   MÓVIL VINCULADO CORRECTAMENTE CON GOOGLE AUTHENTICATOR.', 'g', 0, true);
         say('   ' + pick1(['BIENVENIDO AL SISTEMA, MANU.', 'IDENTIDAD VERIFICADA. BIENVENIDO, MANU.', 'CREDENCIALES VÁLIDAS · CARGANDO ENTORNO DE USUARIO…', 'AUTENTICACIÓN COMPLETADA. HOLA, MANU.']), 'y', 10);
@@ -738,7 +752,7 @@ function openConsole(){
       else conLoginInicio();
     }, 650);
   }
-  function closeConsole(){
+  function closeConsole(){ conNfcParar();
     if(!CON.on) return; CON.on = false; try{ if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }catch(e){} CON.q = []; clearTimeout(conTimer); try{ conIn.blur(); }catch(e){}
     box.classList.add('off'); tone(900, 50, 0.35, 'sawtooth', 0.06);
     setTimeout(function(){ box.classList.remove('on', 'off'); }, 460);
