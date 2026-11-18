@@ -20,7 +20,14 @@
   /* ---------- estilos ---------- */
   var css = `
   body.pfMovil{ overflow:hidden !important; }
-  body.pfMovil #lucasDock, body.pfMovil .chatWidget, body.pfMovil #iaChatPanel, body.pfMovil #pfcon{ display:none !important; }
+  body.pfMovil .chatWidget, body.pfMovil #pfcon{ display:none !important; }
+  body.pfMovil #lucasDock{ z-index:2147482300 !important; right:max(8px, env(safe-area-inset-right)) !important; width:min(380px, calc(100vw - 16px)) !important; max-width:none !important; height:min(520px, 72vh) !important; }
+  body.pfMovil #lucasDock:not(.on){ display:none !important; }
+  #pfm .lista{ padding-bottom:calc(150px + env(safe-area-inset-bottom)) !important; }
+  #pfm .card .fec{ display:inline-block; margin:6px 0 0 6px; font-size:12px; font-weight:700; color:#fcd34d; background:rgba(252,211,77,.1); border:1px solid rgba(252,211,77,.28); padding:2px 8px; border-radius:8px; }
+  #pfm .lucasF{ display:flex; align-items:center; gap:8px; margin:0 2px 10px; padding:9px 10px 9px 12px; border-radius:12px; background:linear-gradient(90deg,rgba(23,255,95,.14),rgba(0,212,255,.1)); border:1px solid rgba(23,255,95,.35); color:#bbf7d0; font-size:13px; font-weight:800; }
+  #pfm .lucasF span{ flex:1; }
+  #pfm .lucasF button{ border:0; border-radius:9px; background:rgba(255,255,255,.1); color:#fff; font-weight:800; padding:6px 10px; cursor:pointer; }
   #pfm{ position:fixed; inset:0; z-index:2147482000; display:flex; flex-direction:column; background:#070d1a; color:#e6edf7;
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; -webkit-tap-highlight-color:transparent; overflow:hidden; }
   #pfm *{ box-sizing:border-box; }
@@ -136,9 +143,9 @@
   #pfmCarga div{ width:46px; height:46px; border-radius:50%; border:4px solid rgba(255,255,255,.2); border-top-color:#38bdf8; animation:pfmGira .8s linear infinite; }
   @keyframes pfmGira{ to{ transform:rotate(360deg); } }
   /* pantallas anchas: Fold abierto / móvil en horizontal → lista y ficha lado a lado */
-  @media (min-width:700px){
+  @media (min-width:600px){
     #pfm .cuerpo{ gap:0; }
-    #pfm .lista{ flex:0 0 min(42%,440px); border-right:1px solid rgba(148,163,184,.14); }
+    #pfm .lista{ flex:0 0 clamp(270px,42%,440px); border-right:1px solid rgba(148,163,184,.14); }
     #pfm .det{ position:relative; inset:auto; flex:1; transform:none; transition:none; }
     #pfm .det .dh .atras{ display:none; }
     #pfm .det.vacia .dc{ display:flex; align-items:center; justify-content:center; }
@@ -146,7 +153,7 @@
     #pfm .det .ph b{ display:block; font-size:46px; margin-bottom:10px; opacity:.7; }
     #pfm .barra{ position:absolute; }
   }
-  @media (min-width:700px) and (max-height:520px){ #pfm header .busca{ margin-top:8px; } #pfm .tabs{ margin-top:8px; } }
+  @media (min-width:600px) and (max-height:520px){ #pfm header .busca{ margin-top:8px; } #pfm .tabs{ margin-top:8px; } }
   `;
   var st = D.createElement('style'); st.textContent = css; D.head.appendChild(st);
 
@@ -168,7 +175,7 @@
   var toastEl = D.createElement('div'); toastEl.id = 'pfmToast'; D.body.appendChild(toastEl);
   var cargaEl = D.createElement('div'); cargaEl.id = 'pfmCarga'; cargaEl.innerHTML = '<div></div>'; D.body.appendChild(cargaEl);
   var $ = function(id){ return D.getElementById(id); };
-  var ancho = function(){ return window.matchMedia('(min-width:700px)').matches; };
+  var ancho = function(){ return window.matchMedia('(min-width:600px)').matches; };
 
   var tT = 0;
   function toast(t, tipo){ toastEl.textContent = t; toastEl.className = 'on ' + (tipo||''); clearTimeout(tT); tT = setTimeout(function(){ toastEl.className = ''; }, 2600); }
@@ -195,6 +202,7 @@
   }
   function filtrados(){
     var l = ST.data[ST.tab] || [], q = fold(ST.q);
+    if(ST.lucas && ST.lucas.tab === ST.tab) l = l.filter(function(it){ return ST.lucas.set[it.__row]; });
     if(!q) return l;
     var palabras = q.split(/\s+/).filter(Boolean);
     var qd = q.replace(/[\s\-.]/g,'');
@@ -214,6 +222,12 @@
     var l = filtrados();
     if(reset){ ST.shown = 0; box.innerHTML = '<div class="info" id="pfmInfo"></div>'; box.scrollTop = 0; }
     $('pfmInfo').textContent = l.length ? (l.length + (l.length === 1 ? ' resultado' : ' resultados') + (ST.q ? ' para «' + ST.q + '»' : '')) : '';
+    if(reset && ST.lucas && ST.lucas.tab === ST.tab){
+      var lf = D.createElement('div'); lf.className = 'lucasF';
+      lf.innerHTML = '<span>🤖 Filtro de Lucas · ' + ST.lucas.n + '</span><button type="button">✕ Quitar</button>';
+      lf.querySelector('button').onclick = function(){ quitarFiltroLucas(true); };
+      box.insertBefore(lf, $('pfmInfo'));
+    }
     if(!l.length){ box.insertAdjacentHTML('beforeend', '<div class="vacio"><b>🔎</b>' + (ST.q ? 'No hay nada que coincida con «' + esc(ST.q) + '»' : 'No hay ' + ST.tab + ' ahora mismo') + '</div>'); return; }
     var hasta = Math.min(l.length, ST.shown + POR_PAGINA), frag = D.createDocumentFragment();
     for(var i = ST.shown; i < hasta; i++){
@@ -224,6 +238,7 @@
       b.innerHTML = (v(it,'2') ? '<span class="comp">' + esc(v(it,'2')) + '</span>' : '') +
         '<div class="nom">' + esc(v(it,'21') || 'Sin nombre') + '</div>' +
         '<div class="doc">' + esc(v(it,'20') || 'Sin documento') + '</div>' +
+        (ST.tab === 'contratos' ? '<span class="fec" title="Fecha de solicitud">📅 ' + esc(v(it,'14') || 'Sin fecha') + '</span>' : '') +
         '<div class="dir">📍 ' + esc(v(it,'23') || 'Sin dirección') + '</div>' +
         (ST.tab === 'contratos' ? '<div class="est"><span title="Estado">' + esc(v(it,'45') || '-') + '</span><span title="Estado 2">' + esc(v(it,'44') || '-') + '</span></div>' : '');
       (function(it, b){ b.onclick = function(){ vib(15); abrirFicha(it, b); }; })(it, b);
@@ -247,6 +262,31 @@
     pintarLista(true);
     cargar(t).then(function(){ pintarLista(true); }).catch(function(e){ toast('❌ ' + (e.message||e), 'err'); });
   }
+
+  /* ---------- Lucas en el móvil: lo que filtra se ve en la lista ---------- */
+  function quitarFiltroLucas(tambienPanel){
+    if(!ST.lucas) return; ST.lucas = null;
+    if(tambienPanel){ try{ if(typeof window.clearSearch === 'function') window.clearSearch(); }catch(e){} }
+    pintarLista(true);
+  }
+  function aplicarFiltroLucas(rows){
+    var set = {}, n = 0; (rows || []).forEach(function(r){ set[r] = 1; });
+    function cuenta(t){ return (ST.data[t] || []).filter(function(it){ return set[it.__row]; }).length; }
+    Promise.all([cargar('contratos'), ST.data.borradores ? Promise.resolve() : cargar('borradores')]).catch(function(){}).then(function(){
+      var t = cuenta('contratos') || !cuenta('borradores') ? 'contratos' : 'borradores';
+      n = cuenta(t);
+      ST.lucas = { set:set, tab:t, n:n };
+      ST.q = ''; $('pfmQ').value = ''; $('pfmBusca').classList.remove('lleno');
+      if($('pfmDet').classList.contains('on')){ $('pfmDet').classList.remove('on'); try{ history.back(); }catch(e){} }
+      cerrarFicha(true);
+      if(ST.tab !== t){ ST.tab = ''; cambiarTab(t); } else pintarLista(true);
+      // recoge a Lucas para que se vea la lista
+      try{ var dk = D.getElementById('lucasDock'), pk = D.getElementById('lucasPeek'); if(dk && pk && dk.classList.contains('open')) setTimeout(function(){ pk.click(); }, 900); }catch(e){}
+      toast('🤖 Lucas ha filtrado ' + n + (n === 1 ? ' resultado' : ' resultados'), 'ok');
+    });
+  }
+  window.addEventListener('pf:lucasFiltro', function(e){ aplicarFiltroLucas(e.detail && e.detail.rows); });
+  window.addEventListener('pf:lucasLimpia', function(){ quitarFiltroLucas(false); });
 
   /* ---------- ficha ---------- */
   var GRUPOS = [
@@ -471,7 +511,16 @@
     if(ST.edit){ ST.edit = false; pintarFicha(); try{ history.pushState({ pfm:'ficha' }, ''); }catch(e){} return; }
     if($('pfmDet').classList.contains('on')){ ST.sel = null; [].forEach.call(D.querySelectorAll('#pfm .card.sel'), function(c){ c.classList.remove('sel'); }); cerrarFicha(true); }
   });
-  window.addEventListener('resize', function(){ if(ancho()){ $('pfmDet').classList.remove('on'); if(!ST.sel) cerrarFicha(true); } else if(ST.sel){ $('pfmDet').classList.add('on'); } });
+  var eraAncho = ancho();
+  function adaptar(){
+    var w = ancho(); if(w === eraAncho) return; eraAncho = w;
+    var d = $('pfmDet');
+    if(w){ d.classList.remove('on'); if(!ST.sel) cerrarFicha(true); }
+    else if(ST.sel){ d.classList.add('on'); try{ history.pushState({ pfm:'ficha' }, ''); }catch(e){} }
+  }
+  window.addEventListener('resize', adaptar);
+  window.addEventListener('orientationchange', function(){ setTimeout(adaptar, 250); });
+  try{ screen.orientation.addEventListener('change', function(){ setTimeout(adaptar, 250); }); }catch(e){}
 
   /* ---------- arranque ---------- */
   pintarLista(true);

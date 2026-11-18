@@ -2354,7 +2354,7 @@ var lastPicks = {};
     window.renderContratosPage=function(){
       var r=rp.apply(this, arguments);
       // solo cuando Lucas pone una lista nueva (no al pasar de página): esa es la base que se combina con los filtros a mano
-      try{ if(!enAF && FIA && Array.isArray(FILTERED) && FILTERED!==LREF) LSNAP=FILTERED.map(function(it){ return it.__row; }); LREF=FILTERED; }catch(e){}
+      try{ if(!enAF && FIA && Array.isArray(FILTERED) && FILTERED!==LREF){ LSNAP=FILTERED.map(function(it){ return it.__row; }); if(document.body.classList.contains('pfMovil')) window.dispatchEvent(new CustomEvent('pf:lucasFiltro',{detail:{rows:LSNAP.slice()}})); } LREF=FILTERED; }catch(e){}
       return r;
     };
     window.applyFilters=function(){
@@ -2376,7 +2376,7 @@ var lastPicks = {};
       return r;
     };
     window.applyFilters.__lp = true;
-    if(typeof window.clearSearch==='function'){ var cs0=window.clearSearch; var csW=function(){ LSNAP=null; B._finst=0; try{ pintarFinst(); }catch(e){} return cs0.apply(this, arguments); }; for(var k in cs0){ try{ csW[k]=cs0[k]; }catch(e){} } window.clearSearch=csW; }
+    if(typeof window.clearSearch==='function'){ var cs0=window.clearSearch; var csW=function(){ LSNAP=null; B._finst=0; try{ window.dispatchEvent(new CustomEvent('pf:lucasLimpia')); }catch(e){} try{ pintarFinst(); }catch(e){} return cs0.apply(this, arguments); }; for(var k in cs0){ try{ csW[k]=cs0[k]; }catch(e){} } window.clearSearch=csW; }
     return true;
   }
   (function(){ var n=0, iv=setInterval(function(){ if(montarPersistencia() || ++n>300) clearInterval(iv); }, 1000); })();
