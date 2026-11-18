@@ -2701,6 +2701,9 @@ var lastPicks = {};
             '#lucasInfPausas .lp-cli{font-weight:800;color:#0e1d24}',
             '#lucasInfPausas .lp-comp{display:block;font-size:11.5px;color:#5b6d76;font-weight:600;margin-top:1px}',
             '#lucasInfPausas .lp-doc{font-family:ui-monospace,Consolas,monospace;font-weight:700;color:#1d3340;letter-spacing:.3px}',
+            '#lucasInfPausas .lp-copy{margin-left:6px;border:1px solid #b9cbd6;background:#fff;border-radius:7px;padding:2px 6px;font-size:12px;line-height:1.2;cursor:pointer;vertical-align:middle;transition:transform .12s,background .2s}',
+            '#lucasInfPausas .lp-copy:hover{transform:scale(1.12);background:#eaf7ff}',
+            '#lucasInfPausas .lp-copy.ok{background:#d6f8e1;border-color:#3cc27a}',
             '#lucasInfPausas .lp-fecha{font-weight:900;color:#0e1d24;white-space:nowrap}',
             '#lucasInfPausas .lp-ok{color:#1b7a3d;font-weight:800}',
             '#lucasInfPausas .lp-pronto{color:#b25e00;font-weight:800}',
@@ -2727,13 +2730,13 @@ var lastPicks = {};
           return '<tr><td><span class="lp-num">'+(i+1)+'</span></td>'
             +'<td><span class="lp-tag '+(x.tipo===2?'lp-p2':'lp-p1')+'">'+(x.tipo===2?'⏸️⏸️ Doble pausa':'⏸️ Pausa')+'</span></td>'
             +'<td><span class="lp-cli">'+esc1(x.cliente)+'</span>'+(x.comp?'<span class="lp-comp">'+esc1(x.comp)+'</span>':'')+'</td>'
-            +'<td><span class="lp-doc">'+esc1(x.doc||'—')+'</span></td>'
+            +'<td><span class="lp-doc">'+esc1(x.doc||'—')+'</span>'+(x.doc?'<button type="button" class="lp-copy" data-doc="'+esc1(x.doc)+'" title="Copiar documento">📋</button>':'')+'</td>'
             +'<td>'+esc1(x.dir||'—')+'</td>'
             +'<td><span class="lp-fecha">'+fmtD(new Date(x.v))+'</span></td>'
             +'<td><span class="'+cls+'">'+(x.dias<=0?'⚠️ ':'')+esc1(x.falta)+'</span></td></tr>';
         }).join('');
         var body='<div style="overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch">'
-          +'<table><colgroup><col style="width:4%"><col style="width:12%"><col style="width:20%"><col style="width:11%"><col style="width:29%"><col style="width:11%"><col style="width:13%"></colgroup>'
+          +'<table><colgroup><col style="width:4%"><col style="width:12%"><col style="width:20%"><col style="width:13%"><col style="width:27%"><col style="width:11%"><col style="width:13%"></colgroup>'
           +'<thead><tr><th>#</th><th>Tipo</th><th>Cliente</th><th>Documento</th><th>Dirección</th><th>Fecha de aviso</th><th>Estado</th></tr></thead>'
           +'<tbody>'+(filas||'<tr><td colspan="7" style="text-align:center!important">No hay pausas ni dobles pausas con aviso programado.</td></tr>')+'</tbody></table></div>';
         c.innerHTML=head+body; ov.appendChild(c); document.body.appendChild(ov);
@@ -2742,6 +2745,14 @@ var lastPicks = {};
         var esc=function(e){ if(e.key==='Escape') cerrar(); };
         document.addEventListener('keydown', esc);
         c.querySelector('#lucasInfX').onclick=cerrar;
+        // 📋 copiar documento
+        c.addEventListener('click', function(e){
+          var b=e.target.closest ? e.target.closest('.lp-copy') : null; if(!b) return;
+          var txt=b.getAttribute('data-doc')||'';
+          var hecho=function(){ b.classList.add('ok'); b.textContent='✅'; setTimeout(function(){ b.classList.remove('ok'); b.textContent='📋'; }, 1300); };
+          var viejo=function(){ try{ var ta=document.createElement('textarea'); ta.value=txt; ta.style.cssText='position:fixed;left:-9999px;top:0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); hecho(); }catch(err){} };
+          try{ if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(hecho, viejo); else viejo(); }catch(err){ viejo(); }
+        });
         var bp=c.querySelector('#lucasInfPdf'); bp.onclick=function(){ bp.textContent='⏳ Preparando…'; pdf(lista); setTimeout(function(){ bp.textContent='⬇️ Descargar PDF'; }, 2500); };
       }catch(e){ console.warn('[Lucas] informe pausas', e); }
     }
