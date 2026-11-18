@@ -327,7 +327,10 @@
     if(ancho() && !ST.sel){ d.classList.add('vacia'); $('pfmDc').innerHTML = '<div class="ph"><b>👈</b>Elige un cliente de la lista para ver su ficha</div>'; $('pfmBarra').style.display = 'none'; $('pfmEdit').style.display = 'none'; $('pfmDtt').textContent = 'Ficha'; }
     if(sinHistoria && !ancho()){ ST.sel = null; }
   }
+  /* campos que no se muestran en móvil (ni en ficha ni al editar) */
+  var NO_MOVIL = /claw|clau|^\s*pago\s*\d+\s*$|bloquead/i;
   function kv(id, it){
+    if(NO_MOVIL.test(String(tit(id) || ''))) return '';
     var val = v(it, id);
     if(ST.edit){
       var largo = id === '31' || id === '23' || val.length > 40;
