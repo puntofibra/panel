@@ -205,8 +205,9 @@ var lastPicks = {};
     if(c==='UI') return comp==='SIMYO' && cod==='UI';
     return (comp==='SIMYO' && cod==='DW') || COD_DW_SIN.indexOf(comp)>=0;
   }
+  function quitarCodigo(L){ return (' '+String(L||'')+' ').replace(/\s(?:(?:en|el|del|de)\s+)*(?:mi codigo(?: dw)?|codigo (?:mio|dw|ui)|codigos? (?:de |del )?(?:mi )?(?:cunado|wil|wilmer|ui)|(?:lleva|llevado|ha hecho|hizo) wil(?:mer)?|wil(?:mer)? (?:lleva|ha|hizo)|wil(?:mer)?|dw|ui)(?=\s)/g,' ').replace(/\s+/g,' ').trim(); }
   function porCodigo(list, t){ var c=codigoDe(t); return c ? list.filter(function(it){ return esDeCodigo(it, c); }) : list; }
-  function txtCodigo(c){ return c==='UI' ? 'del código de Wil (UI)' : c==='DW' ? 'de tu código (DW)' : ''; }
+  function txtCodigo(c){ return c==='UI' ? 'del código de Wil' : c==='DW' ? 'de tu código DW' : ''; }
   B._codigoDe = codigoDe;
 
   /* =====================================================================
@@ -359,6 +360,11 @@ var lastPicks = {};
   }
   function seguimiento(t){
     var c=B._ctx; if(!c || Date.now()-c.at > 10*60000) return null;
+    // «¿y del mío?», «¿y en mi código?», «¿y el de Wil?»: cambia de código y deja el resto de la pregunta igual
+    var tc=t.replace(/^(y|e|y que tal|y ahora|ahora|y tambien|tambien|y si)\s+/,'').trim(), codF=null, PRE='(?:(?:en|el|del|de|la|los|las|lo|que|para|con)\\s+)*';
+    if(new RegExp('^'+PRE+'(mio|mios|mia|mias|mi codigo|mi codigo dw|codigo mio|codigo dw|dw|mis contratos|lo mio|yo|a mi|y yo|yo cuant[oa]s llevo|cuant[oa]s llevo yo)$').test(tc)) codF='DW';
+    else if(new RegExp('^'+PRE+'(wil|wilmer|codigo de wil|codigo de wilmer|codigo ui|ui|mi cunado|codigo de mi cunado|cunado)$').test(tc)) codF='UI';
+    if(codF){ return (quitarCodigo(c.t)+' '+(codF==='DW'?'en mi codigo':'en el codigo de wil')).replace(/\s+/g,' ').trim(); }
     var esMostrar = /^(muestrame|ensename|sacame|dame|pasame)( todos| todas)?$/.test(t);
     var esCuantos = /^(cuantos|cuantas|y cuantos|y cuantas)( son| hay| salen| serian| tengo| llevo)?$/.test(t);
     var m = t.match(/^(?:y|e|y que tal|y si|y ahora|ahora|tambien|y tambien|solo|y solo)\s+(.*)$/);
@@ -372,7 +378,7 @@ var lastPicks = {};
       findCompanies(L).forEach(function(oc){ var f=fold(oc); L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?=\\s)','g'),' ').trim(); });
       Object.keys(COMP_ALIAS).forEach(function(a){ L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+a+'(?=\\s)','g'),' ').trim(); });
       nombreTokens(L).forEach(function(w){ L=(' '+L+' ').replace(new RegExp('\\s(de |del )?'+w+'(?=\\s)','g'),' ').trim(); });
-      L=L.replace(/\bciclo (de )?(\d{1,2}|uno|veinte)\b/g,' ').replace(/\s+/g,' ').trim();
+      L=quitarCodigo(L.replace(/\bciclo (de )?(\d{1,2}|uno|veinte)\b/g,' ')).replace(/\s+/g,' ').trim();
       if(/^(en total|y en total|cuant)/.test(m ? m[1] : t) || /\bcuant[oa]s\b/.test(t)){ if(!/\bcuant[oa]s\b/.test(L)) L='cuantos '+L; }
       var resto=(m ? m[1] : t).slice(mT[0].length).trim();
       if(!resto) return L || 'contratos';
