@@ -467,6 +467,8 @@ var lastPicks = {};
   };
   function render(list, range, noSort){
     try{ B._filtroAviso(); }catch(e){}
+    // búsqueda nueva de Lucas: empieza de cero, quitando los filtros que hubiera (a mano o de antes)
+    try{ if(typeof clearSearch==='function') clearSearch(); }catch(e){}
     try{ filtroIA(true); }catch(e){}
     try{
       var df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo'), q=document.getElementById('q');
