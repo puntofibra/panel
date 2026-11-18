@@ -1235,12 +1235,13 @@ var lastPicks = {};
     nagSet(key, Date.now());
     try{ google.script.run.withSuccessHandler(function(){ cb(frase); }).withFailureHandler(function(){ cb('No he podido guardar el «Enterado». Te lo volveré a recordar.'); }).apiRecEnterado(id, persona); }catch(e){ cb(frase); }
   }
-  function recAvisar(r, persona, test){
+  function recAvisar(r, persona, test, repite){
     var ms=r.cuando-Date.now();
     var msg = ms>-60000 ? fill(pick('recAv',['{p}, recordatorio: {t}, {f} ({x}).','Atención, {p}: {t}. Es {f}, {x}.','{p}, no te olvides: {t}, {f}.']),{p:persona,t:r.texto,f:fechaBonita(new Date(r.cuando)),x:falta(ms)})
                         : fill(pick('recAvP',['{p}, era {f}: {t}. Aún no lo has marcado como enterado.','{p}, recordatorio pendiente: {t} ({f}).']),{p:persona,t:r.texto,f:fechaBonita(new Date(r.cuando))});
     B.duckSay(msg, [{ t:'✅ Enterado', v:'rec:ok:'+r.id+':'+persona+(test?':test':'') }]);
     setTimeout(function(){ recCartel(r, persona, test); }, 3400);
+    if(!test){ try{ saldoConsumir(repite ? 1 : COSTE); }catch(e){} }   // aviso nuevo 1,9 cént.; cada vez que lo vuelve a recordar 0,1 cént. (las pruebas no cobran)
   }
   function recVigilar(){
     var yo=misPersonas(); if(!yo.length) return;
@@ -1257,7 +1258,7 @@ var lastPicks = {};
           var activo=Math.max.apply(null,dues), ack=(r.ack&&r.ack[p])||0, key=r.id+'|'+p;
           if(ack>=activo) return;                                              // ya aceptado este aviso (o uno posterior)
           var last=nagGet(key);
-          if(last<activo || now-last>=REC_INSISTE){ nagSet(key, now); recAvisar(r, p); }
+          if(last<activo || now-last>=REC_INSISTE){ var repite = last>=activo; nagSet(key, now); recAvisar(r, p, false, repite); }
         });
       });
     });
@@ -2166,9 +2167,10 @@ var lastPicks = {};
   function saldoCargar(){ try{ google.script.run.withSuccessHandler(function(r){ if(r && r.ok){ SALDO=r.saldo; saldoPintar(); } }).withFailureHandler(function(){}).apiSaldoVer(); }catch(e){} }
   B.saldoSet = function(m){ SALDO=m; saldoPintar(); };
   setTimeout(saldoCargar, 1500); setInterval(saldoCargar, 60000); setInterval(saldoPintar, 2000);
-  function saldoConsumir(){
-    if(SALDO!=null){ SALDO=Math.max(0, SALDO-COSTE); saldoPintar(); }
-    try{ google.script.run.withSuccessHandler(function(r){ if(r && r.saldo!=null){ SALDO=r.saldo; saldoPintar(); } }).withFailureHandler(function(){}).apiSaldoConsumir(); }catch(e){}
+  function saldoConsumir(cant){
+    cant = (cant>=1 && cant<=COSTE) ? Math.round(cant) : COSTE;   // 19 milésimas = 1,9 cént.; 1 = 0,1 cént.
+    if(SALDO!=null){ SALDO=Math.max(0, SALDO-cant); saldoPintar(); }
+    try{ google.script.run.withSuccessHandler(function(r){ if(r && r.saldo!=null){ SALDO=r.saldo; saldoPintar(); } }).withFailureHandler(function(){}).apiSaldoConsumir(cant); }catch(e){}
   }
   function sinSaldo(done){
     done({ say: pick('sinSaldo',['⚡ Te has quedado sin créditos IA. Contacta con el administrador para recargarlos y seguimos.','🔋 Créditos IA agotados. Pide al administrador una recarga y vuelvo a estar a pleno rendimiento.','Lo siento, no quedan créditos IA en tu cuenta. Contacta con el administrador para recargarlos.']) });
