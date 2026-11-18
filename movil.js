@@ -153,6 +153,12 @@
     #pfm .det .ph b{ display:block; font-size:46px; margin-bottom:10px; opacity:.7; }
     #pfm .barra{ position:absolute; }
   }
+  /* ficha y barra de botones: nunca más anchas que la pantalla; Cancelar y Guardar centrados y enteros */
+  #pfm .det, #pfm .dc, #pfm .lista{ min-width:0; max-width:100%; }
+  #pfm .det{ overflow-x:hidden; }
+  #pfm .barra{ justify-content:center; padding-left:max(12px, env(safe-area-inset-left)); padding-right:max(12px, env(safe-area-inset-right)); }
+  #pfm .barra .btn{ flex:1 1 0; min-width:0; max-width:280px; padding:0 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  @media (min-width:600px){ #pfm .det{ flex:1 1 0; } }
   @media (min-width:600px) and (max-height:520px){ #pfm header .busca{ margin-top:8px; } #pfm .tabs{ margin-top:8px; } }
   `;
   var st = D.createElement('style'); st.textContent = css; D.head.appendChild(st);
