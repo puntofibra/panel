@@ -2,6 +2,8 @@
 (function(){
   if (window.__PF_EXTRA) return; window.__PF_EXTRA = true;
   var $ = function(id){ return document.getElementById(id); };
+  // en un subpanel, la consola (solo con las claves de Manu) habla directamente con el servidor, sin pasar por el filtro del subpanel
+  function RUN(){ return window.__pfRunReal || google.script.run; }
 
   // ---------- sonido (Web Audio, igual que en COSMOLUCAS) ----------
   var AC = null, master = null;
@@ -122,7 +124,7 @@
         if(!armed || Date.now() - armed > 4000){ armed = Date.now(); b.textContent = '[ ¿SEGURO? CLIC OTRA VEZ ]'; tone(700, 500, 0.12, 'square', 0.05); setTimeout(function(){ if(!b.dataset.done && Date.now() - armed >= 4000) b.textContent = '[ ELIMINAR ]'; }, 4100); return; }
         b.dataset.done = '1'; b.textContent = '[ BORRANDO… ]';
         try{
-          google.script.run.withSuccessHandler(function(r){
+          RUN().withSuccessHandler(function(r){
             if(r && r.ok){ t.style.textDecoration = 'line-through'; t.style.opacity = '.45'; b.textContent = '✔ BORRADO'; b.style.color = '#35ff8a'; b.style.borderColor = 'rgba(53,255,138,.6)'; b.style.cursor = 'default';
               lastFich.items = lastFich.items.filter(function(y){ return y !== x; }); tone(900, 200, 0.3, 'sawtooth', 0.06); }
             else { delete b.dataset.done; armed = 0; b.textContent = '[ ERROR · ' + ((r && r.error) || 'NO SE PUDO') + ' ]'; errTone(); }
@@ -135,7 +137,7 @@
     });
   }
   // ---------- ACCESO A LA CONSOLA CON GOOGLE AUTHENTICATOR ----------
-  function conOculta(){ return !CON.auth || CON.ask === 'pinNum' || CON.ask === 'pwQR' || CON.ask === 'panPass'; }
+  function conOculta(){ return !CON.auth || CON.ask === 'pinNum' || CON.ask === 'pwQR' || CON.ask === 'panPass' || CON.ask === 'panPin'; }
   CON.fails = 0; CON.lock = 0; CON.token = null;
   function pick1(a){ return a[Math.floor(Math.random() * a.length)]; }
   function conLoginInicio(){
@@ -143,7 +145,7 @@
     say('SISTEMA PROTEGIDO · SE REQUIERE AUTENTICACIÓN', 'y', 12);
     CON.esperando = true;
     try{
-      google.script.run.withSuccessHandler(function(r){
+      RUN().withSuccessHandler(function(r){
         if(r && r.ok && r.configurado){ CON.esperando = false; say('USUARIO: MANU', '', 0, true); say('INTRODUZCA SU PASSWORD (CÓDIGO DE GOOGLE AUTHENTICATOR) Y PULSE ENTER.', 'd', 0, true); return; }
         say('>> PRIMER ARRANQUE DE SEGURIDAD 🔐', 'g big', 20);
         say('   ESCANEA EL CÓDIGO QR CON GOOGLE AUTHENTICATOR PARA VINCULAR TU MÓVIL.', 'y', 10);
@@ -158,7 +160,7 @@
     if(code.length !== 6){ conFallo(); return; }
     CON.esperando = true; say('VERIFICANDO CREDENCIALES…', 'd', 14);
     try{
-      google.script.run.withSuccessHandler(function(r){
+      RUN().withSuccessHandler(function(r){
         CON.esperando = false;
         if(!r || !r.ok){ conFallo(); return; }
         CON.auth = true; CON.token = r.token; CON.fails = 0;
@@ -188,7 +190,7 @@
     if(code.length !== 6){ say('CÓDIGO NO VÁLIDO. VUELVE A ESCRIBIR PASSWORD PARA INTENTARLO.', 'r', 10); errTone(); return; }
     CON.esperando = true; say('VERIFICANDO…', 'd', 14);
     try{
-      google.script.run.withSuccessHandler(function(r){
+      RUN().withSuccessHandler(function(r){
         if(!r || !r.ok){ CON.esperando = false; say('CÓDIGO INCORRECTO · NO SE PUEDE MOSTRAR EL QR.', 'r', 10); errTone(); return; }
         CON.token = r.token; pwPedirQR(CON.token);
       }).withFailureHandler(function(){ CON.esperando = false; say('ERROR DE CONEXIÓN.', 'r', 10); errTone(); }).apiConsolaTotpVerificar(code);
@@ -197,7 +199,7 @@
   function pwPedirQR(token){
     CON.esperando = true;
     try{
-      google.script.run.withSuccessHandler(function(r){
+      RUN().withSuccessHandler(function(r){
         CON.esperando = false;
         if(!r || !r.ok){ say('NO SE HA PODIDO GENERAR EL QR' + (r && r.error ? ': ' + String(r.error).toUpperCase() : '') + '.', 'r', 10); errTone(); return; }
         say('   QR ABIERTO EN PANTALLA · ESCANÉALO CON GOOGLE AUTHENTICATOR.', 'g', 0, true);
@@ -243,7 +245,7 @@
   function pinMenu(say){
     say('>> EMPLEADOS CON PIN 🔐', 'g big', 20);
     try{
-      google.script.run.withSuccessHandler(function(r){
+      RUN().withSuccessHandler(function(r){
         var l = (r && r.ok && r.items) || [];
         if(!l.length){ say('   NO HAY NINGÚN EMPLEADO CON PIN.', 'd', 0, true); return; }
         say('   PULSA [ EDITAR ] PARA CAMBIAR SU NOMBRE O SU PIN.', 'd', 0, true);
@@ -282,7 +284,7 @@
       var o = { id: pinEd.id, nombre: pinEd.nombre }; if(hash) o.hash = hash;
       say('   GUARDANDO…', 'd', 10);
       try{
-        google.script.run.withSuccessHandler(function(r){
+        RUN().withSuccessHandler(function(r){
           if(!r || !r.ok){ say('   NO SE HA PODIDO GUARDAR' + (r && r.error ? ': ' + String(r.error).toUpperCase() : '') + '.', 'r', 10); errTone(); if(hash) CON.ask = 'pinNum'; return; }
           say('>> GUARDADO ✅', 'g big', 22);
           say('   NOMBRE: ' + pinEd.nombre.toUpperCase() + '  ·  PIN: ' + (hash ? 'CAMBIADO' : 'SIN CAMBIOS'), 'y', 10);
@@ -303,7 +305,7 @@
   function recPaso1(say){
     say('>> RECARGA DE SALDO 💳', 'g big', 20);
     try{
-      google.script.run.withSuccessHandler(function(r){
+      RUN().withSuccessHandler(function(r){
         say('   SALDO ACTUAL: ' + (r && r.ok ? eurTxt(r.saldo) + ' €' : 'NO DISPONIBLE'), 'y', 10);
         say('>> ¿CUÁNTO QUIERES RECARGAR? ESCRIBE LA CANTIDAD EN FORMATO XXX,XX Y PULSA ENTER.', 'g', 16);
         CON.ask = 'recarga';
@@ -315,7 +317,7 @@
     if(!(mil > 0)){ say('LA CANTIDAD TIENE QUE SER MAYOR QUE 0.', 'r', 12); errTone(); CON.ask = 'recarga'; return; }
     say('   RECARGANDO ' + eurTxt(mil) + ' €…', 'd', 10);
     try{
-      google.script.run.withSuccessHandler(function(r){
+      RUN().withSuccessHandler(function(r){
         if(!r || !r.ok){ say('   NO SE HA PODIDO RECARGAR' + (r && r.error ? ': ' + String(r.error).toUpperCase() : '') + '.', 'r', 10); errTone(); return; }
         say('>> RECARGA HECHA ✅  +' + eurTxt(mil) + ' €', 'g big', 22);
         say('   SALDO ACTUAL: ' + eurTxt(r.saldo) + ' €', 'y', 10);
@@ -326,10 +328,10 @@
   }
   // ---------- SUBPANELES (comando PANEL) ----------
   var PAN = { lista:[], sel:null };
-  function tokPanel(){ try{ return (typeof SESSION_TOKEN !== 'undefined' && SESSION_TOKEN) ? SESSION_TOKEN : ''; }catch(e){ return ''; } }
+  function tokPanel(){ if(CON.token) return CON.token; try{ return (typeof SESSION_TOKEN !== 'undefined' && SESSION_TOKEN) ? SESSION_TOKEN : ''; }catch(e){ return ''; } }
   function panApi(op, a, ok){
     try{
-      google.script.run.withSuccessHandler(function(r){
+      RUN().withSuccessHandler(function(r){
         if(!r || !r.ok){ say('   ERROR: ' + String((r && r.error) || 'SIN RESPUESTA').toUpperCase(), 'r', 10); errTone(); return; }
         ok(r);
       }).withFailureHandler(function(e){ say('   ERROR DE CONEXIÓN: ' + String((e && e.message) || e).toUpperCase(), 'r', 10); errTone(); }).apiSubAdmin(tokPanel(), op, a || {});
@@ -375,6 +377,7 @@
       say('   2 - BORRAR LA CONTRASEÑA (NADIE PODRÁ ENTRAR EN ESTE PANEL)', 'y', 0, true);
       say('   3 - ' + (aqui ? 'QUITAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' DE ESTE ORDENADOR' : 'INSTALAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' EN ESTE ORDENADOR'), 'y', 0, true);
       say('   4 - RECARGAR EL SALDO DE LUCAS DE ESTE PANEL', 'y', 0, true);
+      say('   5 - PONER O CAMBIAR EL PIN DE SUS TARJETAS', 'y', 0, true);
       say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
       CON.ask = 'pan2';
     });
@@ -401,7 +404,8 @@
       return;
     }
     if(n === 4){ say('   SALDO ACTUAL DE ' + x.nombre.toUpperCase() + ': ' + eurTxt(x.saldo) + ' €. ¿CUÁNTO QUIERES RECARGAR? FORMATO XXX,XX Y ENTER.', 'y', 10); CON.ask = 'panSaldo'; return; }
-    say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 4.', 'r', 12); errTone(); CON.ask = 'pan2';
+    if(n === 5){ say('   ESCRIBE EL PIN DE TARJETAS DE ' + x.nombre.toUpperCase() + ' (MÍNIMO 4 CARACTERES) Y PULSA ENTER.', 'y', 10); CON.ask = 'panPin'; return; }
+    say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 5.', 'r', 12); errTone(); CON.ask = 'pan2';
   }
   function panNuevo(nombre){
     nombre = String(nombre || '').trim();
@@ -423,6 +427,11 @@
       say('   YA PUEDE ENTRAR DESDE LOS ORDENADORES CON SU SEMILLA. SI TENÍA SESIONES ABIERTAS, SE HAN CERRADO.', 'd', 0, true);
       tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
     });
+  }
+  function panPin(raw){
+    var x = PAN.sel; var p = String(raw || '').trim();
+    if(p.length < 4){ say('EL PIN TIENE QUE TENER AL MENOS 4 CARACTERES.', 'r', 12); errTone(); CON.ask = 'panPin'; return; }
+    panApi('pinTarjetas', { id:x.id, pin:p }, function(){ say('>> PIN DE TARJETAS DE ' + x.nombre.toUpperCase() + ' GUARDADO 💳', 'g big', 22); tone(1200, 1800, 0.12, 'square', 0.05); });
   }
   function panSaldo(m){
     var x = PAN.sel;
@@ -545,7 +554,7 @@
         fichEmp = 'Todos'; lastFich = null;
       };
       try{
-        google.script.run.withSuccessHandler(function(res){ if(res && res.ok) todos(res.items); else todos(null, (res && res.error) || 'sin respuesta'); })
+        RUN().withSuccessHandler(function(res){ if(res && res.ok) todos(res.items); else todos(null, (res && res.error) || 'sin respuesta'); })
           .withFailureHandler(function(e){ todos(null, (e && e.message) || String(e)); })
           .apiFichajeLucasLista(isoD(r[0]), isoD(r[1]));
       }catch(e){ todos(null, e.message); }
@@ -621,7 +630,7 @@
     };
     if(pre) return fin(pre);
     try{
-      google.script.run.withSuccessHandler(function(res){ if(res && res.ok) fin(res.items); else fin(null, (res && res.error) || 'sin respuesta'); })
+      RUN().withSuccessHandler(function(res){ if(res && res.ok) fin(res.items); else fin(null, (res && res.error) || 'sin respuesta'); })
         .withFailureHandler(function(e){ fin(null, (e && e.message) || String(e)); })
         .apiFichajeLucasLista(isoD(r[0]), isoD(r[1]));
     }catch(e){ fin(null, e.message); }
@@ -695,8 +704,7 @@
   }
   function hoy(){ var d=new Date(), p=function(n){ return ('0'+n).slice(-2); }; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+'  '+p(d.getHours())+':'+p(d.getMinutes()); }
   function openConsole(){
-    if(window.PF_SUB) return;   // los subpaneles (Fede, Wil…) no tienen consola
-    CON.auth = semOn('consolaSinPin'); CON.ask = null; CON.esperando = false;
+    CON.auth = !window.PF_SUB && semOn('consolaSinPin');   // en un subpanel siempre pide las claves de Google CON.ask = null; CON.esperando = false;
     audio(); CON.on = true; CON.dir = 'PANEL'; CON.q = []; CON.typing = false; CON.busy = true; CON.pend = []; conIn.value = ''; clearTimeout(conTimer); conOut.innerHTML = '';
     box.classList.remove('off'); box.classList.add('on', 'boot'); setTimeout(function(){ box.classList.remove('boot'); }, 800);
     try{ conIn.focus({ preventScroll:true }); }catch(e){}
@@ -731,6 +739,7 @@
     if(CON.ask === 'pinNom'){ CON.ask = null; pinPasoNom(raw); return; }
     if(CON.ask === 'pinNum'){ CON.ask = null; pinPasoNum(raw); return; }
     if(CON.ask === 'panPass'){ CON.ask = null; panPass(raw); return; }
+    if(CON.ask === 'panPin'){ CON.ask = null; panPin(raw); return; }
     if(CON.ask === 'panNuevo'){ CON.ask = null; if(/^(CANCELAR|SALIR)$/.test(cmd)){ say('   CANCELADO.', 'd', 10); return; } panNuevo(raw); return; }
     if(!cmd){ say('', '', 0, true); return; }
     if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }

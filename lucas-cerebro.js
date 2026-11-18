@@ -195,6 +195,7 @@ var lastPicks = {};
   ['codigo','codigos','dw','ui','wil','wilmer','cunado','mio','mia'].forEach(function(w){ STOPSET[w]=1; });
   var COD_DW_SIN = ['MASMOVIL','MÁSMÓVIL','MAS MOVIL','PEPEPHONE','JAZZTEL'];
   function codigoDe(t){
+    if(window.PF_SUB) return null;   // los subpaneles no tienen códigos DW/UI
     t=String(t||'');
     if(/\b(los dos|los 2|ambos|mis dos|mis 2|nuestros|todos los|los) codigos\b|\bcodigos? (dw y ui|ui y dw)\b|\b(los dos|los 2|ambos) juntos\b/.test(t)) return 'AMBOS';
     var ui=/\bcodigos? (de |del )?(mi )?(cunado|wil|wilmer|ui)\b|\b(el|del|en el|en|y) (codigo )?ui\b|\bde wil(mer)?\b|\b(lleva|llevado|ha hecho|hizo) wil(mer)?\b|\bwil(mer)? (lleva|ha|hizo)\b|\b(el )?codigo ui\b|\by wil(mer)?\b/.test(t);
@@ -365,7 +366,7 @@ var lastPicks = {};
     var c=B._ctx; if(!c || Date.now()-c.at > 10*60000) return null;
     // «¿y del mío?», «¿y en mi código?», «¿y el de Wil?»: cambia de código y deja el resto de la pregunta igual
     var tc=t.replace(/^(y|e|y que tal|y ahora|ahora|y tambien|tambien|y si)\s+/,'').trim(), codF=null, PRE='(?:(?:en|el|del|de|la|los|las|lo|que|para|con)\\s+)*';
-    if(new RegExp('^'+PRE+'(mio|mios|mia|mias|mi codigo|mi codigo dw|codigo mio|codigo dw|dw|mis contratos|lo mio|yo|a mi|y yo|yo cuant[oa]s llevo|cuant[oa]s llevo yo)$').test(tc)) codF='DW';
+    if(window.PF_SUB){} else if(new RegExp('^'+PRE+'(mio|mios|mia|mias|mi codigo|mi codigo dw|codigo mio|codigo dw|dw|mis contratos|lo mio|yo|a mi|y yo|yo cuant[oa]s llevo|cuant[oa]s llevo yo)$').test(tc)) codF='DW';
     else if(new RegExp('^'+PRE+'(wil|wilmer|codigo de wil|codigo de wilmer|codigo ui|ui|mi cunado|codigo de mi cunado|cunado)$').test(tc)) codF='UI';
     var uF = tc.match(new RegExp('^'+PRE+'(fibras|lineas de cliente|lineas extra|lineas de regalo|lineas|contratos)$'));
     if(uF){ var Lu=(' '+c.t+' ').replace(/\s(?:(?:las|los|de)\s+)?(?:lineas?(?: de clientes?| extras?| de regalo)?|fibras?|contratos?)(?=\s)/g,' ').replace(/\s+/g,' ').trim(); if(!/\bcuant[oa]s\b/.test(Lu)) Lu='cuantas '+Lu; return (Lu+' '+uF[1]).replace(/\s+/g,' ').trim(); }
@@ -491,6 +492,7 @@ var lastPicks = {};
     if(cM){ ciclo = cM[2]==='uno' ? '1' : (cM[2]==='veinte' ? '20' : String(parseInt(cM[2],10))); t = t.replace(cM[0],' ').replace(/\s+/g,' ').trim(); }
     var vip = /\bvips?\b/.test(t);
     var dobleP = /\bdoble(s)? pausas?\b|\bsegunda pausa\b|\bpausad[oa]s? (por )?(la )?(segunda vez|dos veces|2 veces|doble)\b|\bpausad[oa]s? 2\b|\bdos pausas\b|\b2 pausas\b|⏸\s*\ufe0f?\s*⏸/.test(t);
+    if(window.PF_SUB) dobleP = false;
     var range = parseDates(t, now);
     var comps = findCompanies(t);
     var mode = null;   // 'cambiar' | 'pausa' | 'baja' | 'instalar'
@@ -1141,10 +1143,10 @@ var lastPicks = {};
   }
   function recNuevo(raw, mt, done){
     var now=new Date(), resto=raw.slice(mt[0].length);
-    var pre=[], mA=plano(resto).match(/^\s*a\s+((?:manu|manuel|sebastian|sebas|jorge|maicol|michael|maikol)(?:\s*(?:,|y)\s*(?:manu|manuel|sebastian|sebas|jorge|maicol|michael|maikol))*)\b[\s,:]*(?:que\s+)?/);
+    var pre=[], mA=window.PF_SUB ? null : plano(resto).match(/^\s*a\s+((?:manu|manuel|sebastian|sebas|jorge|maicol|michael|maikol)(?:\s*(?:,|y)\s*(?:manu|manuel|sebastian|sebas|jorge|maicol|michael|maikol))*)\b[\s,:]*(?:que\s+)?/);
     var cut=mt[0].length;
     if(mA){ mA[1].split(/\s*(?:,|y)\s*/).forEach(function(w){ var nm=NOMBRE_PERS[w]; if(nm && pre.indexOf(nm)<0) pre.push(nm); }); cut+=mA[0].length; }
-    if(/^recuerdame|^recuerdamelo|^acuerdame|^avisame|^apuntame|^anotame/.test(mt[1]) && !pre.length) pre=['Manu'];
+    if(window.PF_SUB) pre=[REC_PERS[0][0]]; else if(/^recuerdame|^recuerdamelo|^acuerdame|^avisame|^apuntame|^anotame/.test(mt[1]) && !pre.length) pre=['Manu'];
     var pr=recParse(raw, now);
     var o={ texto: recTexto(raw, cut, pr.spans.filter(function(sp){ return sp[0]>=cut; })), when: pr.when, defHora: pr.defHora, pre: pre, avisos: pr.avisos||null };
     if(!o.when){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: fill(pick('recCuando',['Vale, «{t}». ¿Para cuándo te lo recuerdo? Dime el día, la hora o las dos cosas.','Apuntado «{t}». ¿Qué día y a qué hora?','¿Y para cuándo es «{t}»? Por ejemplo: «mañana a las 10» o «el lunes».']),{t:o.texto}) }); }
@@ -1194,6 +1196,12 @@ var lastPicks = {};
   }
 
   // ---- avisos: solo para las personas con su semilla en ESTE ordenador ----
+  B.modoSub = function(nombre){   // subpanel: Lucas no conoce a Manu ni a sus empleados
+    REC_PERS.length = 0; REC_PERS.push([String(nombre||'Yo'), '__sub']);
+    for(var k in NOMBRE_PERS) delete NOMBRE_PERS[k];
+    try{ B._pinesVaciar && B._pinesVaciar(); }catch(e){}
+  };
+  (function(){ var n=0, t=setInterval(function(){ if(window.PF_SUB){ clearInterval(t); B.modoSub(window.PF_SUB_NOMBRE); } else if(++n>300) clearInterval(t); }, 1000); })();
   function misPersonas(){ return REC_PERS.filter(function(p){ return semilla(p[1]); }).map(function(p){ return p[0]; }); }
   function nagGet(k){ try{ return +localStorage.getItem('recNag_'+k)||0; }catch(e){ return 0; } }
   function nagSet(k,v){ try{ localStorage.setItem('recNag_'+k, String(v)); }catch(e){} }
@@ -1282,7 +1290,8 @@ var lastPicks = {};
   };
   // nombres y PIN cifrados: vienen del servidor (esto es solo por si no hay conexión)
   var PIN_LISTA = [ { id:'maicol', nombre:'Maicol', hash:'3931a03ef66fe44020668adffd61b7f10c3d2f163c0f553cf636a998fc895b72' } ];
-  function pinesCargar(){ try{ google.script.run.withSuccessHandler(function(r){ if(r && r.ok && r.items && r.items.length) PIN_LISTA=r.items; }).withFailureHandler(function(){}).apiPinesListar(); }catch(e){} }
+  B._pinesVaciar = function(){ PIN_LISTA = []; };
+  function pinesCargar(){ if(window.PF_SUB){ PIN_LISTA = []; return; } try{ google.script.run.withSuccessHandler(function(r){ if(r && r.ok && r.items && r.items.length) PIN_LISTA=r.items; }).withFailureHandler(function(){}).apiPinesListar(); }catch(e){} }
   B.pinesRecargar = pinesCargar;
   setTimeout(pinesCargar, 2500); setInterval(pinesCargar, 300000);
   B._pinAsk = null; B._pinUser = null;
@@ -1491,8 +1500,8 @@ var lastPicks = {};
     if(B._recPend && recPendiente(raw, done)) return;                         // esperando el día/hora de un recordatorio
     var mtR = plano(raw).match(REC_TRIG); if(mtR) return recNuevo(raw, mtR, done);   // «recuérdame el día 21 que tengo reunión…»
     if(esListaRec(fold(raw))) return recListar(done);
-    if(esPreguntaFichaje(fold(raw))) return fichajesHoy(fold(raw), done);   // «¿a qué hora ha entrado Sebastián?», «¿quién ha fichado hoy?»
-    if(B._fichFlow && B._fichFlow(fold(raw), done)) return;
+    if(!window.PF_SUB && esPreguntaFichaje(fold(raw))) return fichajesHoy(fold(raw), done);   // «¿a qué hora ha entrado Sebastián?», «¿quién ha fichado hoy?»
+    if(!window.PF_SUB && B._fichFlow && B._fichFlow(fold(raw), done)) return;
     if(B._fibAsk){ if(Date.now()-B._fibAsk.at > 5*60000) B._fibAsk=null; else { var fa=fold(raw).trim(); if(/\bfibras?\b/.test(fa)) return B._fibAnswer('fibra', done); if(/^(todos|todas|todo|los dos|ambos|todos los contratos|da igual)\b/.test(fa)) return B._fibAnswer('todos', done); B._fibAsk=null; } }
     if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
     if(!t){ B._gratis=true; return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
@@ -1712,7 +1721,8 @@ var lastPicks = {};
       ]),o);
     B.duckSay(msg);
   };
-  function semilla(k){ try{ return localStorage.getItem('pfSemilla_'+k)==='1'; }catch(e){ return false; } }   // marcas de la consola (SEMILLA), solo en este ordenador
+  var SUB_SIN_SEM = /^(chat(Manu|Jorge|Maicol|Sebas)|fichajeSeb|doblePausa|rec(Manu|Sebastian|Jorge|Maicol)|avisosFichaje|consolaSinPin)$/;
+  function semilla(k){ if(window.PF_SUB){ if(k==='__sub') return true; if(SUB_SIN_SEM.test(k)) return false; } try{ return localStorage.getItem('pfSemilla_'+k)==='1'; }catch(e){ return false; } }   // marcas de la consola (SEMILLA), solo en este ordenador
   B.semilla = semilla;
   var lastSlot='';
   setInterval(function(){
@@ -2110,6 +2120,7 @@ var lastPicks = {};
     return { say: txt };
   }
   function vigilaDobleP(force){
+    if(window.PF_SUB) return;
     try{
       if(!semilla('doblePausa')) return;
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
@@ -2679,6 +2690,7 @@ var lastPicks = {};
           var msg = n===1
             ? fill(pick('p1a',['⏸️ El contrato de {q}{c} lleva ya 90 días en pausa. Toca darlo de baja o hacerle la doble pausa.','⏸️ Ojo: {q}{c} sigue en pausa desde hace 90 días. Decide si lo das de baja o le pones la doble pausa ⏸️⏸️.','⏸️ Recordatorio: el contrato de {q}{c} ya ha cumplido 90 días en pausa. Hay que darlo de baja o pasarlo a doble pausa.']),{q:q,c:c})
             : fill(pick('pNa',['⏸️ Tienes {n} contratos que llevan 90 días o más en pausa. El más antiguo es el de {q}{c}. Toca darlos de baja o hacerles la doble pausa.','⏸️ Ojo: {n} contratos siguen en pausa desde hace 90 días o más (el primero, {q}{c}). Dales de baja o ponles la doble pausa ⏸️⏸️.','⏸️ Recordatorio: {n} contratos en pausa ya han cumplido los 90 días. Hay que decidir: baja o doble pausa.']),{n:n,q:q,c:c});
+          if(window.PF_SUB) msg = n===1 ? fill('⏸️ El contrato de {q}{c} lleva ya 90 días en pausa. Revisa si toca darlo de baja.',{q:q,c:c}) : fill('⏸️ Tienes {n} contratos que llevan 90 días o más en pausa. El más antiguo es el de {q}{c}. Revisa si toca darlos de baja.',{n:n,q:q,c:c});
           B.duckSay(msg, [{ t:'👀 Ver contratos', v:'p1:ver' }]);
           try{ B._cobrarAviso('pausa', res.items.map(function(x){ return x.row+'|'+(x.fecha||''); })); }catch(e){}
         }).withFailureHandler(function(){}).apiGetPausaVencidos(90);
@@ -2743,7 +2755,7 @@ var lastPicks = {};
         try{
           var doc=new window.jspdf.jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
           var hoy=new Date();
-          doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(10,120,60); doc.text('Informe de pausas y dobles pausas', 14, 16);
+          doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(10,120,60); doc.text(window.PF_SUB ? 'Informe de pausas' : 'Informe de pausas y dobles pausas', 14, 16);
           doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90); doc.text('Generado el '+fmtD(hoy)+' a las '+('0'+hoy.getHours()).slice(-2)+':'+('0'+hoy.getMinutes()).slice(-2)+' · '+lista.length+' contratos · aviso a los 90 días', 14, 22);
           doc.autoTable({ startY:27, head:[['#','Tipo','Cliente','Documento','Dirección','Compañía','Fecha de aviso','Estado']],
             body: lista.map(function(x,i){ return [i+1, x.tipo===2?'Doble pausa':'Pausa', x.cliente, x.doc||'—', x.dir||'—', x.comp||'—', fmtD(new Date(x.v)), x.falta]; }),
@@ -2807,7 +2819,7 @@ var lastPicks = {};
         var body='<div style="overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch">'
           +'<table><colgroup><col style="width:4%"><col style="width:12%"><col style="width:20%"><col style="width:13%"><col style="width:27%"><col style="width:11%"><col style="width:13%"></colgroup>'
           +'<thead><tr><th>#</th><th>Tipo</th><th>Cliente</th><th>Documento</th><th>Dirección</th><th>Fecha de aviso</th><th>Estado</th></tr></thead>'
-          +'<tbody>'+(filas||'<tr><td colspan="7" style="text-align:center!important">No hay pausas ni dobles pausas con aviso programado.</td></tr>')+'</tbody></table></div>';
+          +'<tbody>'+(filas||'<tr><td colspan="7" style="text-align:center!important">'+(window.PF_SUB?'No hay pausas con aviso programado.':'No hay pausas ni dobles pausas con aviso programado.')+'</td></tr>')+'</tbody></table></div>';
         c.innerHTML=head+body; ov.appendChild(c); document.body.appendChild(ov);
         requestAnimationFrame(function(){ ov.style.opacity='1'; c.style.transform='none'; });
         var cerrar=function(){ ov.style.opacity='0'; c.style.transform='translateY(18px) scale(.98)'; document.removeEventListener('keydown', esc); setTimeout(function(){ try{ ov.remove(); }catch(e){} }, 260); };
@@ -2832,7 +2844,7 @@ var lastPicks = {};
         contratos().forEach(function(it){
           var n=nP(it);
           if(n===1){ var f=tsOK(it['53']); if(f){ p1.push({ it:it, v:f+90*86400000 }); todos.push(it); } else p1sin++; }
-          else if(n>=2){ if(instCeros(it) && !tsOK(it['52'])) return; var v=dpVence(it); if(v){ p2.push({ it:it, v:v }); todos.push(it); } }
+          else if(n>=2 && !window.PF_SUB){ if(instCeros(it) && !tsOK(it['52'])) return; var v=dpVence(it); if(v){ p2.push({ it:it, v:v }); todos.push(it); } }
         });
         p1.sort(function(a,b){ return a.v-b.v; }); p2.sort(function(a,b){ return a.v-b.v; });
         render(todos.slice().sort(function(a,b){ var va=(nP(a)===1?tsOK(a['53'])+90*86400000:dpVence(a)), vb=(nP(b)===1?tsOK(b['53'])+90*86400000:dpVence(b)); return va-vb; }), null, true);
@@ -2843,7 +2855,7 @@ var lastPicks = {};
             wrap.style.cssText='max-width:94%;margin:4px 0 10px;padding:10px 12px;border-radius:14px;background:#0f1512;border:1px solid #17ff5f;color:#d9ffe6;font-size:12.5px;line-height:1.5;box-shadow:0 0 10px rgba(23,255,95,.25);';
             var t=document.createElement('div'); t.textContent='📋 INFORME DE PAUSAS'; t.style.cssText='font-weight:900;font-size:13.5px;color:#17ff5f;'; wrap.appendChild(t);
             wrap.appendChild(caja('⏸️ PAUSAS · aviso a los 90 días ('+p1.length+')', p1.map(function(x){ return fila(x.v, x.it, hoy0); }), p1sin ? '* '+p1sin+' '+plural(p1sin,'contrato en pausa no tiene','contratos en pausa no tienen')+' fecha guardada (se pusieron en pausa antes de esta función) y no avisarán.' : ''));
-            wrap.appendChild(caja('⏸️⏸️ DOBLES PAUSAS · aviso a los 90 días ('+p2.length+')', p2.map(function(x){ return fila(x.v, x.it, hoy0); }), p2.some(function(x){ return !tsOK(x.it['52']); }) ? '* los que no tienen fecha de doble pausa se calculan con la instalación + 270 días.' : ''));
+            if(!window.PF_SUB) wrap.appendChild(caja('⏸️⏸️ DOBLES PAUSAS · aviso a los 90 días ('+p2.length+')', p2.map(function(x){ return fila(x.v, x.it, hoy0); }), p2.some(function(x){ return !tsOK(x.it['52']); }) ? '* los que no tienen fecha de doble pausa se calculan con la instalación + 270 días.' : ''));
             setTimeout(function(){ box.appendChild(wrap); box.scrollTop=box.scrollHeight; }, 400);
           }
         }catch(e){}
@@ -2855,6 +2867,7 @@ var lastPicks = {};
         setTimeout(function(){ modal(lista); }, 700);
         var venc = p1.concat(p2).filter(function(x){ return x.v<=hoy0; }).length, prox=p1.concat(p2).filter(function(x){ return x.v>hoy0; }).sort(function(a,b){ return a.v-b.v; })[0];
         var txt = fill(pick('infP',['Aquí tienes el informe: {a} {ca} en pausa y {b} en doble pausa con aviso programado.','Te enseño las pausas programadas: {a} de pausa y {b} de doble pausa.','Informe de pausas listo: {a} en ⏸️ y {b} en ⏸️⏸️ con su fecha de aviso.']),{a:p1.length,b:p2.length,ca:plural(p1.length,'contrato','contratos')});
+        if(window.PF_SUB) txt = fill(pick('infPs',['Aquí tienes el informe: {a} {c} en pausa con aviso programado.','Informe de pausas listo: {a} {c} en ⏸️ con su fecha de aviso.']),{a:p1.length,c:plural(p1.length,'contrato','contratos')});
         if(venc) txt += ' '+fill(pick('infPv',['Ojo, {n} ya {v} de fecha.','{n} ya {t} que estar gestionados.']),{n:venc,v:venc===1?'está pasado':'están pasados',t:venc===1?'tendría':'tendrían'});
         if(prox) txt += ' '+fill(pick('infPp',['El próximo aviso es el {f}.','El siguiente aviso, el {f}.']),{f:fmtD(new Date(prox.v))});
         try{ saldoConsumir(); }catch(e){}

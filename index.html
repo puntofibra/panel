@@ -311,6 +311,22 @@
     p.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); clearTimeout(tAuto); enviar(); } });
   })();
 
+  // ---------- Truco: en la pantalla de acceso, clic en el fondo y escribir a ciegas el nombre de un panel ----------
+  // (fede, wil…) instala su semilla en silencio; al recargar (F5) ya sale el acceso de ese panel.
+  (function(){
+    let buf = '', t = 0;
+    document.addEventListener('keydown', e => {
+      if($('login').classList.contains('hidden')) return;
+      const a = document.activeElement; if(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return;
+      if(e.ctrlKey || e.metaKey || e.altKey) return;
+      if(/^[a-zñ0-9]$/i.test(e.key)){ buf = (buf + e.key.toLowerCase()).slice(-20); clearTimeout(t); t = setTimeout(probar, 900); }
+    });
+    async function probar(){
+      const q = buf; buf = ''; if(q.length < 2) return;
+      try{ const r = await api({ accion:'subInfo', sub:q }); if(r && r.ok){ try{ localStorage.setItem(LS_SUB, JSON.stringify({ id:q, nombre:r.nombre })); }catch(e){} } }catch(e){}
+    }
+  })();
+
   // ---------- Mantener pulsado ENTRAR 3 s -> llave NFC ----------
   (function(){
     const b = $('entrar'), fill = $('fill'), txt = $('entrarTxt');
