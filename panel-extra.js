@@ -622,7 +622,7 @@
       say('IMPORTE NO VÁLIDO · ESCRIBE UNA CANTIDAD EN FORMATO XXX,XX (POR EJEMPLO 10 O 9,50).', 'r', 12); errTone(); CON.ask = 'recarga'; return;
     }
     if(CON.ask === 'sem1'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso2(+cmd); return; } }
-    if(CON.ask === 'sem2'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso3(+cmd); return; } }
+    if(CON.ask === 'sem2'){ CON.ask = null; if(/^\d{1,2}$/.test(cmd)){ semPaso3(+cmd); return; } }
     if(cmd === 'LIST' || cmd === 'LISTA' || cmd === 'HELP' || cmd === 'AYUDA'){
       say('>> LISTA DE COMANDOS', 'g big', 20);
       if(!COMANDOS.length){ say('   (VACÍA) · TODAVÍA NO HAY COMANDOS INSTALADOS EN ESTE SISTEMA.', 'd', 0, true); }
