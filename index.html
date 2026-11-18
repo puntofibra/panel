@@ -259,6 +259,7 @@
     if(d.pf === 'modo' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)){ MODO = d.m === 'movil' ? 'movil' : 'normal'; const t = lsGet(LS_TOKEN); if(t) abrirApp(t); }
     if(d.pf === 'recargar' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) location.reload();   // hay versión nueva de Lucas
     if(d.pf === 'nfc' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) llavePedidaPorPanel(ev, d);
+    if(d.pf === 'consola' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)){ window.__pfConAbierta = !!d.abierta; try{ window.dispatchEvent(new Event('pfConsola')); }catch(x){} }
     if(d.pf === 'nfcCerrar' && llOrigen) { llOrigen = null; cerrarLlave(); }
     if((d.pf === 'subSemilla' || d.pf === 'subSemillaVer') && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)){
       if(d.pf === 'subSemilla'){
@@ -504,7 +505,7 @@
   async function llavePedidaPorPanel(ev, d){
     if(!hayNfc || !d.codigo) return;
     cerrarLlave();
-    abrirVelo(d.titulo || 'Pasa tu llave');
+    if(!d.silencioso) abrirVelo(d.titulo || 'Pasa tu llave'); else llOcupado = false;
     llOrigen = ev.source;
     const codigo = d.codigo;
     nfcUso = async sn => {
@@ -517,7 +518,7 @@
           setTimeout(() => { llOrigen = null; cerrarLlave(); try{ o && o.postMessage({ pf:'nfcHecho' }, '*'); }catch(e){} }, 500);
           return;
         }
-        llIco('err'); vib([80,60,80]); llMsg((r && r.error) || 'Llave no autorizada', 'err');
+        llIco('err'); vib([80,60,80]); llMsg((r && r.error) || 'Llave no autorizada', 'err'); if(d.silencioso){ try{ if(llOrigen) llOrigen.postMessage({ pf:'nfcError', msg:(r && r.error) || 'Llave no autorizada' }, '*'); }catch(x){} };
       }catch(e){ llIco('err'); llMsg('No se pudo conectar: ' + (e.message || e), 'err'); }
       llOcupado = false;
     };
@@ -612,7 +613,7 @@
   function aplicar(){
     if(!document.body) return;
     if(!ov.parentNode) document.body.appendChild(ov);
-    var bloquear = pequena();
+    var bloquear = pequena() && !window.__pfConAbierta;
     try{
       if(screen.orientation && screen.orientation.lock){
         if(bloquear) screen.orientation.lock('portrait').catch(function(){});
@@ -623,6 +624,7 @@
   }
   window.addEventListener('resize', aplicar);
   window.addEventListener('orientationchange', function(){ setTimeout(aplicar, 150); });
+  window.addEventListener('pfConsola', aplicar);
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicar); else aplicar();
 
   /* Mantener la página «viva» con un audio casi inaudible en bucle: así el móvil no congela la web
