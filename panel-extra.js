@@ -924,3 +924,27 @@ function openConsole(){
   }
   if(!hook()){ var tries = 0, iv = setInterval(function(){ if(hook() || ++tries > 40) clearInterval(iv); }, 250); }
 })();
+
+
+/* ===== Boton TUTORIAL (menu lateral, encima del chat en vivo) ===== */
+(function(){
+  if (window.__PF_TUT_BTN) return; window.__PF_TUT_BTN = 1;
+  var tries = 0;
+  function abrir(){
+    if (window.PFTutorial){ window.PFTutorial.abrir(); return; }
+    var s = document.createElement('script'); s.charset = 'utf-8';
+    s.src = 'https://puntofibra.github.io/panel/tutorial.js?t=' + Date.now();
+    s.onload = function(){ if (window.PFTutorial) window.PFTutorial.abrir(); };
+    document.head.appendChild(s);
+  }
+  function poner(){
+    var nav = document.querySelector('.sidebar .nav');
+    if (!nav){ if (++tries < 120) setTimeout(poner, 500); return; }
+    if (document.getElementById('navTutorial')) return;
+    var b = document.createElement('div'); b.className = 'navBtn'; b.id = 'navTutorial';
+    var sp = document.createElement('span'); sp.textContent = '📖 TUTORIAL'; b.appendChild(sp);
+    b.addEventListener('click', abrir);
+    nav.appendChild(b);
+  }
+  poner();
+})();
