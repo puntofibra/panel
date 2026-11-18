@@ -62,6 +62,13 @@
   #pfm .card .doc{ display:inline-block; margin-top:6px; font-family:ui-monospace,Consolas,monospace; font-size:13px; font-weight:700; letter-spacing:.4px; color:#7dd3fc; background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3); padding:2px 8px; border-radius:8px; }
   #pfm .card .dir{ margin-top:7px; font-size:13px; color:#a9b6c9; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   #pfm .card .comp{ position:absolute; top:13px; right:12px; font-size:10.5px; font-weight:900; letter-spacing:.5px; padding:3px 8px; border-radius:999px; background:rgba(255,255,255,.1); color:#e2e8f0; text-transform:uppercase; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #pfm .card .est{ position:absolute; right:12px; bottom:11px; display:flex; gap:6px; }
+  #pfm .card .est span{ min-width:30px; height:28px; padding:0 6px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; background:rgba(255,255,255,.08); border:1px solid rgba(148,163,184,.2); color:#94a3b8; font-weight:800; }
+  #pfm .card .dir{ padding-right:0; }
+  #pfm .card:has(.est) .dir{ padding-right:84px; }
+  #pfm .acc button, #pfm .acc a{ position:relative; overflow:hidden; -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; }
+  #pfm .acc .carga{ position:absolute; left:0; bottom:0; height:4px; width:0; background:linear-gradient(90deg,#38bdf8,#a78bfa); box-shadow:0 0 10px #38bdf8; }
+  #pfm .acc .mant{ display:block; font-size:9.5px; font-weight:600; opacity:.55; margin-top:1px; }
   #pfm .vacio{ text-align:center; padding:50px 20px; color:#7c8aa3; font-size:14px; }
   #pfm .vacio b{ display:block; font-size:40px; margin-bottom:10px; }
   #pfm .sk{ height:96px; border-radius:16px; margin-bottom:10px; background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.09),rgba(255,255,255,.04)); background-size:200% 100%; animation:pfmSk 1.2s linear infinite; }
@@ -217,7 +224,8 @@
       b.innerHTML = (v(it,'2') ? '<span class="comp">' + esc(v(it,'2')) + '</span>' : '') +
         '<div class="nom">' + esc(v(it,'21') || 'Sin nombre') + '</div>' +
         '<div class="doc">' + esc(v(it,'20') || 'Sin documento') + '</div>' +
-        '<div class="dir">📍 ' + esc(v(it,'23') || 'Sin dirección') + '</div>';
+        '<div class="dir">📍 ' + esc(v(it,'23') || 'Sin dirección') + '</div>' +
+        (ST.tab === 'contratos' ? '<div class="est"><span title="Estado">' + esc(v(it,'45') || '-') + '</span><span title="Estado 2">' + esc(v(it,'44') || '-') + '</span></div>' : '');
       (function(it, b){ b.onclick = function(){ vib(15); abrirFicha(it, b); }; })(it, b);
       frag.appendChild(b);
     }
@@ -282,13 +290,13 @@
         (v(it,'20') ? '<span class="chip">🪪 ' + esc(v(it,'20')) + '</span>' : '') +
         (v(it,'2') ? '<span class="chip">📶 ' + esc(v(it,'2')) + '</span>' : '') +
         (v(it,'14') ? '<span class="chip">📅 ' + esc(v(it,'14')) + '</span>' : '') +
-        (v(it,'45') && v(it,'45') !== '-' ? '<span class="chip">' + esc(v(it,'45')) + '</span>' : '') +
-        (v(it,'44') && v(it,'44') !== '-' ? '<span class="chip">' + esc(v(it,'44')) + '</span>' : '') +
+        (ST.tab === 'contratos' || (v(it,'45') && v(it,'45') !== '-') ? '<span class="chip">' + esc(v(it,'45') || '-') + '</span>' : '') +
+        (ST.tab === 'contratos' || (v(it,'44') && v(it,'44') !== '-') ? '<span class="chip">' + esc(v(it,'44') || '-') + '</span>' : '') +
         '</div></div>';
       h += '<div class="acc">' +
-        (tel ? '<a href="tel:' + esc(tel) + '"><b>📞</b>Llamar</a>' : '<button disabled style="opacity:.4"><b>📞</b>Llamar</button>') +
-        '<button data-copiar="' + esc(v(it,'20')) + '"><b>📋</b>Copiar doc.</button>' +
-        '<button data-copiar="' + esc(v(it,'24').replace(/\s+/g,'')) + '"><b>🏦</b>Copiar cuenta</button>' +
+        (tel ? '<a href="tel:' + esc(tel) + '" data-buscar="' + esc(tel.replace(/^\+34/,'')) + '"><b>📞</b>Llamar<span class="mant">mantén: buscar</span><i class="carga"></i></a>' : '<button disabled style="opacity:.4"><b>📞</b>Llamar</button>') +
+        '<button data-copiar="' + esc(v(it,'20')) + '" data-buscar="' + esc(v(it,'20')) + '"><b>📋</b>Copiar doc.<span class="mant">mantén: buscar</span><i class="carga"></i></button>' +
+        '<button data-copiar="' + esc(v(it,'24').replace(/\s+/g,'')) + '" data-buscar="' + esc(v(it,'24').replace(/\s+/g,'')) + '"><b>🏦</b>Copiar cuenta<span class="mant">mantén: buscar</span><i class="carga"></i></button>' +
         '</div>';
       h += '<div class="sec"><h4>🪪 Documento</h4><div class="docs" id="pfmDocs"><div class="dcard"><div class="dt">CARA A</div><div class="dv"><div class="no">Cargando…</div></div></div><div class="dcard"><div class="dt">CARA B</div><div class="dv"><div class="no">Cargando…</div></div></div></div></div>';
     }
@@ -311,9 +319,36 @@
       bar.style.display = 'flex';
       bar.innerHTML = '<button class="btn pri" id="pfmEdit2">✏️ Editar datos</button>';
       $('pfmEdit2').onclick = function(){ ST.edit = true; pintarFicha(); };
-      [].forEach.call(dc.querySelectorAll('[data-copiar]'), function(b){ b.onclick = function(){ copiar(b.getAttribute('data-copiar')); }; });
+      [].forEach.call(dc.querySelectorAll('[data-copiar]'), function(b){ b.onclick = function(e){ if(b.__largo){ e.preventDefault(); b.__largo = false; return; } copiar(b.getAttribute('data-copiar')); }; });
+      [].forEach.call(dc.querySelectorAll('[data-buscar]'), mantenerParaBuscar);
       cargarDocs(it);
     }
+  }
+  // mantener pulsado 2 s en Llamar / Copiar doc. / Copiar cuenta → lo busca y enseña lo filtrado
+  function mantenerParaBuscar(b){
+    var t0 = 0, raf = 0, barra = b.querySelector('.carga');
+    function parar(){ cancelAnimationFrame(raf); raf = 0; if(barra) barra.style.width = '0'; }
+    function paso(){
+      var p = Math.min(1, (Date.now() - t0) / 2000);
+      if(barra) barra.style.width = (p * 100) + '%';
+      if(p >= 1){ parar(); b.__largo = true; vib([40,40,80]); buscarDesdeFicha(b.getAttribute('data-buscar')); return; }
+      raf = requestAnimationFrame(paso);
+    }
+    b.addEventListener('pointerdown', function(e){ if(e.button > 0) return; b.__largo = false; t0 = Date.now(); parar(); raf = requestAnimationFrame(paso); });
+    ['pointerup','pointerleave','pointercancel'].forEach(function(n){ b.addEventListener(n, function(){ if(raf) parar(); }); });
+    b.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+    b.addEventListener('click', function(e){ if(b.__largo){ e.preventDefault(); e.stopImmediatePropagation(); b.__largo = false; } }, true);
+  }
+  function buscarDesdeFicha(q){
+    q = String(q || '').trim(); if(!q){ toast('No hay nada que buscar'); return; }
+    ST.sel = null; ST.edit = false;
+    var d = $('pfmDet');
+    if(d.classList.contains('on')){ d.classList.remove('on'); try{ history.back(); }catch(e){} }
+    cerrarFicha(true);
+    var inp = $('pfmQ'); inp.value = q; $('pfmBusca').classList.add('lleno');
+    ST.q = q; pintarLista(true);
+    var n = filtrados().length;
+    toast('🔍 ' + n + (n === 1 ? ' resultado' : ' resultados') + ' para «' + q + '»', 'ok');
   }
   function copiar(t){
     if(!t){ toast('No hay nada que copiar'); return; }
