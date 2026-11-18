@@ -632,6 +632,14 @@
       say('>> LISTA DE COMANDOS', 'g big', 20);
       if(!COMANDOS.length){ say('   (VACÍA) · TODAVÍA NO HAY COMANDOS INSTALADOS EN ESTE SISTEMA.', 'd', 0, true); }
       else COMANDOS.forEach(function(c){ say(c[0] + '  -  ' + c[1], 'y', 0, true); });
+      say('', '', 0, true);
+      say('>> COMANDOS DEL SISTEMA', 'g', 10);
+      [['LIST / LISTA / HELP / AYUDA', 'MUESTRA ESTA LISTA DE COMANDOS'],
+       ['CLS / CLEAR / LIMPIAR / ERASE', 'BORRA LA PANTALLA DE LA CONSOLA'],
+       ['DIR / LS', 'MUESTRA EL CONTENIDO DE LA CARPETA ACTUAL'],
+       ['CD PANEL / CD .. / CD', 'CAMBIA DE CARPETA O MUESTRA LA CARPETA ACTUAL'],
+       ['SALIR / EXIT', 'CIERRA LA CONSOLA (TAMBIÉN CON LA TECLA ESC)']
+      ].forEach(function(c){ say(c[0] + '  -  ' + c[1], 'y', 0, true); });
       return;
     }
     if(/^CD\s*(\.\.|\\)$/.test(cmd)){ CON.dir = ''; say('', '', 0, true); return; }
