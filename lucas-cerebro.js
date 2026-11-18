@@ -1533,7 +1533,8 @@ var lastPicks = {};
     { t:'📊 ¿Cómo vamos este mes?',      v:'q:como vamos este mes' },
     { t:'📈 ¿Más que el mes pasado?',    v:'q:este mes llevo mas que el pasado' },
     { t:'🏆 Ranking de compañías',        v:'q:que compania vende mas' },
-    { t:'🛠️ Pendientes de instalar',      v:'q:contratos pendientes de instalar' }
+    { t:'🛠️ Pendientes de instalar',      v:'q:contratos pendientes de instalar' },
+    { t:'📊 Gráfica de este año',         v:'q:grafica contratos este año' }
   ];
   // respuesta a «¿solo con fibra o todos?»
   B._fibAsk = null; B._fibChoice = null;
