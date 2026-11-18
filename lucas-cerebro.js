@@ -196,18 +196,21 @@ var lastPicks = {};
   var COD_DW_SIN = ['MASMOVIL','MÁSMÓVIL','MAS MOVIL','PEPEPHONE','JAZZTEL'];
   function codigoDe(t){
     t=String(t||'');
-    if(/\bcodigos? (de |del )?(mi )?(cunado|wil|wilmer|ui)\b|\b(el|del|en el|en) (codigo )?ui\b|\bde wil(mer)?\b|\b(lleva|llevado|ha hecho|hizo) wil(mer)?\b|\bwil(mer)? (lleva|ha|hizo)\b|\b(el )?codigo ui\b/.test(t)) return 'UI';
-    if(/\bmi codigo\b|\bcodigo (mio|dw)\b|\b(el|del|en el|en) (codigo )?dw\b|\bmis? codigos? dw\b/.test(t)) return 'DW';
-    return null;
+    if(/\b(los dos|los 2|ambos|mis dos|mis 2|nuestros|todos los|los) codigos\b|\bcodigos? (dw y ui|ui y dw)\b|\b(los dos|los 2|ambos) juntos\b/.test(t)) return 'AMBOS';
+    var ui=/\bcodigos? (de |del )?(mi )?(cunado|wil|wilmer|ui)\b|\b(el|del|en el|en|y) (codigo )?ui\b|\bde wil(mer)?\b|\b(lleva|llevado|ha hecho|hizo) wil(mer)?\b|\bwil(mer)? (lleva|ha|hizo)\b|\b(el )?codigo ui\b|\by wil(mer)?\b/.test(t);
+    var dw=/\bmi codigo\b|\bcodigo (mio|dw)\b|\b(el|del|en el|en|y) (codigo )?dw\b|\bmis? codigos? dw\b|\bel mio\b/.test(t);
+    if(ui && dw) return 'AMBOS';
+    return ui ? 'UI' : dw ? 'DW' : null;
   }
   function esDeCodigo(it, c){
     var comp=String(it['2']||'').toUpperCase().trim(), cod=String(it['26']==null?'':it['26']).toUpperCase().trim();
     if(c==='UI') return comp==='SIMYO' && cod==='UI';
+    if(c==='AMBOS') return (comp==='SIMYO' && (cod==='DW' || cod==='UI')) || COD_DW_SIN.indexOf(comp)>=0;
     return (comp==='SIMYO' && cod==='DW') || COD_DW_SIN.indexOf(comp)>=0;
   }
-  function quitarCodigo(L){ return (' '+String(L||'')+' ').replace(/\s(?:(?:en|el|del|de)\s+)*(?:mi codigo(?: dw)?|codigo (?:mio|dw|ui)|codigos? (?:de |del )?(?:mi )?(?:cunado|wil|wilmer|ui)|(?:lleva|llevado|ha hecho|hizo) wil(?:mer)?|wil(?:mer)? (?:lleva|ha|hizo)|wil(?:mer)?|dw|ui)(?=\s)/g,' ').replace(/\s+/g,' ').trim(); }
+  function quitarCodigo(L){ return (' '+String(L||'')+' ').replace(/\s(?:(?:en|el|del|de)\s+)*(?:mi codigo(?: dw)?|codigo (?:mio|dw|ui)|codigos? (?:de |del )?(?:mi )?(?:cunado|wil|wilmer|ui)|(?:lleva|llevado|ha hecho|hizo) wil(?:mer)?|wil(?:mer)? (?:lleva|ha|hizo)|(?:los dos|los 2|ambos|mis dos|mis 2|los) codigos(?: juntos)?|(?:los dos|los 2|ambos) juntos|el mio|entre|wil(?:mer)?|dw|ui)(?=\s)/g,' ').replace(/\s+/g,' ').trim(); }
   function porCodigo(list, t){ var c=codigoDe(t); return c ? list.filter(function(it){ return esDeCodigo(it, c); }) : list; }
-  function txtCodigo(c){ return c==='UI' ? 'del código de Wil' : c==='DW' ? 'de tu código DW' : ''; }
+  function txtCodigo(c){ return c==='UI' ? 'del código de Wil' : c==='DW' ? 'de tu código DW' : c==='AMBOS' ? 'sumando tu código y el de Wil' : ''; }
   B._codigoDe = codigoDe;
 
   /* =====================================================================
@@ -366,7 +369,8 @@ var lastPicks = {};
     else if(new RegExp('^'+PRE+'(wil|wilmer|codigo de wil|codigo de wilmer|codigo ui|ui|mi cunado|codigo de mi cunado|cunado)$').test(tc)) codF='UI';
     var uF = tc.match(new RegExp('^'+PRE+'(fibras|lineas de cliente|lineas extra|lineas de regalo|lineas|contratos)$'));
     if(uF){ var Lu=(' '+c.t+' ').replace(/\s(?:(?:las|los|de)\s+)?(?:lineas?(?: de clientes?| extras?| de regalo)?|fibras?|contratos?)(?=\s)/g,' ').replace(/\s+/g,' ').trim(); if(!/\bcuant[oa]s\b/.test(Lu)) Lu='cuantas '+Lu; return (Lu+' '+uF[1]).replace(/\s+/g,' ').trim(); }
-    if(codF){ return (quitarCodigo(c.t)+' '+(codF==='DW'?'en mi codigo':'en el codigo de wil')).replace(/\s+/g,' ').trim(); }
+    if(!codF){ var cd=codigoDe(tc); if(cd && tc.split(' ').length<=8 && !medida(tc).k && !parseDates(quitarCodigo(tc), new Date()) && !/\b(muestra|ensena|saca|dame|pendientes?|bajas?|pausa)\w*/.test(tc)) codF=cd; }
+    if(codF){ return (quitarCodigo(c.t)+' '+(codF==='DW'?'en mi codigo':codF==='UI'?'en el codigo de wil':'en los dos codigos')).replace(/\s+/g,' ').trim(); }
     var esMostrar = /^(muestrame|ensename|sacame|dame|pasame)( todos| todas)?$/.test(t);
     var esCuantos = /^(cuantos|cuantas|y cuantos|y cuantas)( son| hay| salen| serian| tengo| llevo)?$/.test(t);
     var m = t.match(/^(?:y|e|y que tal|y si|y ahora|ahora|tambien|y tambien|solo|y solo)\s+(.*)$/);
@@ -492,6 +496,7 @@ var lastPicks = {};
     if(/\bpausar(los|las|les)?\b|\b(pendientes?|para|sin|falta\w*|toca\w*|hay que|tengo que)( de)? (poner (en )?)?pausa\b|\bponer(los|las|les)? (en )?pausa\b|\bdar(les)? (la )?pausa\b/.test(t)) mode='pausa';
     if(/\bdar(los|las)? de baja\b|\bbajas?\b|\bdar baja\b/.test(t)) mode='baja';
     if(/\b(pendientes?|sin|por|falta\w*|queda\w*)( de)? instal\w*|\bno (estan |esta )?instalad[oa]s?\b/.test(t)) mode='instalar';
+    if(!mode && /\bfibras?\b/.test(t) && /\b(pendientes?|sin instalar|por instalar|falta\w*)\b/.test(t)) mode='instalar';
     if(typeof dobleP!=='undefined' && dobleP && mode==='pausa') mode=null;
     if(typeof dobleP!=='undefined' && dobleP && mode==='baja') return dpPendientes(comps, /\bcuant[oa]s\b/.test(t));
     var count = /\bcuant[oa]s\b|\bnumero de\b|\btotal de\b|\bcuenta(me)? cuantos\b/.test(t);
@@ -621,10 +626,11 @@ var lastPicks = {};
     render(base, range);
     if(md.k){
       var S=sumar(base), dd=desc||'en total', cc=numU(S.c)+' '+plural(S.c,'contrato','contratos');
-      var txtM = md.k==='fibras' ? fill(pick('mF',['{X} {f} {fw} {d} (en {cc}).','Llevas {f} {fw} {d}, repartidas en {cc}.','He sumado {f} {fw} {d} ({cc}).']),{X:pick('mFx',['Se han hecho','Salen','En total hay']),f:numM('fibras',S.f),fw:nomMedida('fibras',S.f),d:dd,cc:cc})
+      var txtM = md.k==='fibras' ? fill(pick('mF',['{X} {f} {fw} {d} (en {cc}).','Llevas {f} {fw} {d}, repartidas en {cc}.','He sumado {f} {fw} {d} ({cc}).']),{X:(mode==='instalar' ? pick('mFi',['Quedan','Hay']) : pick('mFx',['Se han hecho','Salen','En total hay'])),f:numM('fibras',S.f),fw:nomMedida('fibras',S.f),d:dd,cc:cc})
                : md.k==='lineas' ? fill(pick('mL',['Llevas {l} {lw} {d} (en {cc}).','He sumado {l} {lw} {d}, en {cc}.','En total hay {l} {lw} {d} ({cc}).']),{l:numM('lineas',S.l),lw:nomMedida('lineas',S.l),lc:S.lc,le:S.le,d:dd,cc:cc})
                : md.k==='lcli' ? fill(pick('mLC',['Llevas {n} {w} {d} (en {cc}).','He sumado {n} {w} {d}, en {cc}.']),{n:numM('lcli',S.lc),w:nomMedida('lcli',S.lc),le:S.le,d:dd,cc:cc})
                : fill(pick('mLE',['Llevas {n} {w} {d} (en {cc}).','He sumado {n} {w} {d}, repartidas en {cc}.']),{n:numM('lext',S.le),w:nomMedida('lext',S.le),d:dd,cc:cc});
+      if(!count){ txtM = fill(pick('mShow',['Aquí tienes {cc} {d}: suman {v} {w}.','Te enseño {cc} {d}, con {v} {w} en total.']),{cc:cc,d:dd,v:numM(md.k,{fibras:S.f,lineas:S.l,lcli:S.lc,lext:S.le}[md.k]),w:nomMedida(md.k,{fibras:S.f,lineas:S.l,lcli:S.lc,lext:S.le}[md.k])}); }
       if(md.fib && md.k!=='fibras') txtM += ' Y '+numM('fibras',S.f)+' '+nomMedida('fibras',S.f)+'.';
       return { say: txtM };
     }
