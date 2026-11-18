@@ -704,10 +704,24 @@
     return false;
   }
   function hoy(){ var d=new Date(), p=function(n){ return ('0'+n).slice(-2); }; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+'  '+p(d.getHours())+':'+p(d.getMinutes()); }
-  function openConsole(){
+  // ---------- Móvil: la consola siempre en horizontal (Fold abierto: se adapta a ambas orientaciones) ----------
+function conLayout(){
+  var s = box.style, w = window.innerWidth, h = window.innerHeight;
+  var tactil = false; try{ tactil = window.matchMedia('(pointer:coarse)').matches; }catch(e){}
+  var pequena = Math.min(w, h) < 560;                 // móvil o Fold cerrado; el Fold abierto es mucho más ancho
+  if(CON.on && tactil && pequena && h > w){           // en vertical: se gira 90º para verla en horizontal
+    s.inset = 'auto'; s.top = '0'; s.left = w + 'px'; s.width = h + 'px'; s.height = w + 'px';
+    s.transformOrigin = '0 0'; s.transform = 'rotate(90deg)';
+  } else {
+    s.inset = ''; s.top = ''; s.left = ''; s.width = ''; s.height = ''; s.transformOrigin = ''; s.transform = '';
+  }
+}
+window.addEventListener('resize', function(){ if(CON.on) conLayout(); });
+window.addEventListener('orientationchange', function(){ setTimeout(function(){ if(CON.on) conLayout(); }, 250); });
+function openConsole(){
     CON.auth = !window.PF_SUB && semOn('consolaSinPin');   // en un subpanel siempre pide las claves de Google CON.ask = null; CON.esperando = false;
     audio(); CON.on = true; CON.dir = 'PANEL'; CON.q = []; CON.typing = false; CON.busy = true; CON.pend = []; conIn.value = ''; clearTimeout(conTimer); conOut.innerHTML = '';
-    box.classList.remove('off'); box.classList.add('on', 'boot'); setTimeout(function(){ box.classList.remove('boot'); }, 800);
+    box.classList.remove('off'); box.classList.add('on', 'boot'); conLayout(); try{ if(window.matchMedia('(pointer:coarse)').matches && Math.min(window.innerWidth, window.innerHeight) < 560 && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function(){}); }catch(e){} setTimeout(function(){ box.classList.remove('boot'); }, 800);
     try{ conIn.focus({ preventScroll:true }); }catch(e){}
     tone(60, 900, 0.5, 'sawtooth', 0.06); tone(3000, 3000, 0.25, 'sine', 0.03, 0.3);
     setTimeout(function(){
@@ -724,7 +738,7 @@
     }, 650);
   }
   function closeConsole(){
-    if(!CON.on) return; CON.on = false; CON.q = []; clearTimeout(conTimer); try{ conIn.blur(); }catch(e){}
+    if(!CON.on) return; CON.on = false; try{ if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }catch(e){} CON.q = []; clearTimeout(conTimer); try{ conIn.blur(); }catch(e){}
     box.classList.add('off'); tone(900, 50, 0.35, 'sawtooth', 0.06);
     setTimeout(function(){ box.classList.remove('on', 'off'); }, 460);
   }
