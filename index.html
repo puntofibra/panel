@@ -44,6 +44,7 @@
   .top{ display:flex; justify-content:center; padding-bottom:14px; border-bottom:1px solid var(--line); margin-bottom:10px; min-height:60px; }
   .top img{ max-width:220px; max-height:110px; height:auto; display:block; }
   .sub{ text-align:center; color:var(--muted); font-size:12px; letter-spacing:.2px; margin-bottom:6px; }
+  .sub.esSub{ color:#7dd3fc; font-size:15px; font-weight:800; letter-spacing:1.2px; }
   label{ display:block; color:var(--muted); font-size:12px; margin-top:12px; font-weight:600; }
   input{ width:100%; margin-top:6px; padding:13px 12px; border-radius:12px; border:1px solid #cbd5e1; background:#fff; color:var(--text); font:inherit; font-size:16px; outline:none; }
   input:focus{ border-color:rgba(37,99,235,.55); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
@@ -191,6 +192,16 @@
   // ====================================================================
 
   const LS_TOKEN = 'pf_sesion';
+  // ---------- Subpanel (Fede, Wil…): la semilla se instala desde la consola del panel ----------
+  const LS_SUB = 'pf_sub';
+  function subLeer(){ try{ const o = JSON.parse(localStorage.getItem(LS_SUB) || 'null'); return o && o.id ? o : null; }catch(e){ return null; } }
+  let SUB = subLeer();
+  function pintarSub(){
+    const t = document.querySelector('#login .sub');
+    if(t){ if(!t.dataset.orig) t.dataset.orig = t.textContent; t.textContent = SUB ? ('PANEL ' + String(SUB.nombre || SUB.id).toUpperCase()) : t.dataset.orig; t.classList.toggle('esSub', !!SUB); }
+    if(!window.__tituloOrig) window.__tituloOrig = document.title;
+    document.title = SUB ? ('Panel ' + (SUB.nombre || SUB.id)) : window.__tituloOrig;
+  }
   const $ = id => document.getElementById(id);
   const frame = $('app'), splash = $('splash');
   let splashTimer = null;
@@ -244,6 +255,14 @@
     if(d.pf === 'recargar' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) location.reload();   // hay versión nueva de Lucas
     if(d.pf === 'nfc' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) llavePedidaPorPanel(ev, d);
     if(d.pf === 'nfcCerrar' && llOrigen) { llOrigen = null; cerrarLlave(); }
+    if((d.pf === 'subSemilla' || d.pf === 'subSemillaVer') && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)){
+      if(d.pf === 'subSemilla'){
+        if(d.on && d.id){ SUB = { id:String(d.id), nombre:String(d.nombre || d.id) }; try{ localStorage.setItem(LS_SUB, JSON.stringify(SUB)); }catch(e){} }
+        else { SUB = null; try{ localStorage.removeItem(LS_SUB); }catch(e){} }
+        pintarSub();
+      }
+      try{ ev.source.postMessage({ pf:'subSemillaR', sub: SUB }, ev.origin); }catch(e){}
+    }
     if(d.pf === 'logout'){
       lsSet(LS_TOKEN, '');
       try{ if(navigator.credentials && navigator.credentials.preventSilentAccess) navigator.credentials.preventSilentAccess(); }catch(e){}
@@ -259,7 +278,7 @@
     if(!password){ hint('Escribe tu contraseña', true); $('password').focus(); return; }
     const b = $('entrar'); b.disabled = true; hint('Comprobando…');
     try{
-      const r = await api({ accion:'login', password });
+      const r = SUB ? await api({ accion:'subLogin', sub:SUB.id, password }) : await api({ accion:'login', password });
       if(!r || !r.ok){ hint((r && r.error) || 'Contraseña incorrecta', true); $('password').select(); return; }
       $('password').value = '';
       hint('');
@@ -469,6 +488,7 @@
 
   // ---------- Arranque ----------
   (function(){
+    pintarSub();
     if(ES_MOVIL){ ocultarSplash(); $('modo').classList.remove('hidden'); }
     else { const t = lsGet(LS_TOKEN); if(t) abrirApp(t); else mostrarLogin(); }
     api({ accion:'config' }).then(r => { if(r && r.logoUrl) $('logo').src = r.logoUrl; }).catch(() => {});

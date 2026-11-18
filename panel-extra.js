@@ -56,6 +56,7 @@
     ['PIN', 'EMPLEADOS CON PIN DEL ASISTENTE: VER Y EDITAR SU NOMBRE Y SU PIN', function(a, say){ pinMenu(say); }],
     ['RECHARGE', 'RECARGA EL SALDO DEL ASISTENTE LUCAS (SE SUMA AL QUE YA HAY)', function(a, say){ recPaso1(say); }],
     ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }],
+    ['PANEL', 'SUBPANELES (FEDE, WIL…): CONTRASEÑA, SEMILLA DEL PC, SALDO DE LUCAS Y NUEVO PANEL', function(a, say){ panMenu(say); }],
     ['EDIT', 'TRAS LISTAR FICHAJES: MUESTRA [ELIMINAR] AL LADO DE CADA REGISTRO', function(a, say){ fichEdit(say); }],
     ['SCRIPT', 'SCRIPTS DE TAMPERMONKEY: ELIGES UNO Y SE COPIA PARA PEGARLO', function(a, say){ scrMenu(say); }],
     ['SEBASTIAN', 'ATAJO: FICHAJES DE SEBASTIAN', function(a, say){ fichEmp = 'Sebastián'; fichMenu(say); }],
@@ -134,7 +135,7 @@
     });
   }
   // ---------- ACCESO A LA CONSOLA CON GOOGLE AUTHENTICATOR ----------
-  function conOculta(){ return !CON.auth || CON.ask === 'pinNum' || CON.ask === 'pwQR'; }
+  function conOculta(){ return !CON.auth || CON.ask === 'pinNum' || CON.ask === 'pwQR' || CON.ask === 'panPass'; }
   CON.fails = 0; CON.lock = 0; CON.token = null;
   function pick1(a){ return a[Math.floor(Math.random() * a.length)]; }
   function conLoginInicio(){
@@ -322,6 +323,117 @@
         try{ if(window.LucasBrain && window.LucasBrain.saldoSet) window.LucasBrain.saldoSet(r.saldo); }catch(e){}
       }).withFailureHandler(function(){ say('   NO SE HA PODIDO RECARGAR. PRUEBA OTRA VEZ.', 'r', 10); errTone(); }).apiSaldoRecargar(mil);
     }catch(e){ say('   NO SE HA PODIDO RECARGAR.', 'r', 10); errTone(); }
+  }
+  // ---------- SUBPANELES (comando PANEL) ----------
+  var PAN = { lista:[], sel:null };
+  function tokPanel(){ try{ return (typeof SESSION_TOKEN !== 'undefined' && SESSION_TOKEN) ? SESSION_TOKEN : ''; }catch(e){ return ''; } }
+  function panApi(op, a, ok){
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        if(!r || !r.ok){ say('   ERROR: ' + String((r && r.error) || 'SIN RESPUESTA').toUpperCase(), 'r', 10); errTone(); return; }
+        ok(r);
+      }).withFailureHandler(function(e){ say('   ERROR DE CONEXIÓN: ' + String((e && e.message) || e).toUpperCase(), 'r', 10); errTone(); }).apiSubAdmin(tokPanel(), op, a || {});
+    }catch(e){ say('   ERROR: ' + e.message, 'r', 10); errTone(); }
+  }
+  // La semilla del subpanel se guarda en la página de fuera (la del login), por eso se le pregunta a ella
+  function semSub(msg, cb){
+    var hecho = false;
+    function oir(e){ var d = e.data || {}; if(d.pf !== 'subSemillaR') return; hecho = true; window.removeEventListener('message', oir); cb(d.sub || null); }
+    window.addEventListener('message', oir);
+    try{ window.top.postMessage(msg, '*'); }catch(e){}
+    setTimeout(function(){ if(!hecho){ window.removeEventListener('message', oir); cb(undefined); } }, 2500);
+  }
+  function panMenu(say){
+    say('>> SUBPANELES 🧩', 'g big', 20);
+    say('   LEYENDO PANELES…', 'd', 0, true);
+    panApi('listar', {}, function(r){
+      PAN.lista = r.items || [];
+      semSub({ pf:'subSemillaVer' }, function(cur){
+        if(!PAN.lista.length) say('   TODAVÍA NO HAY SUBPANELES.', 'd', 0, true);
+        PAN.lista.forEach(function(x, i){
+          var aqui = cur && cur.id === x.id;
+          say('   ' + (i+1) + ' - ' + x.nombre.toUpperCase() + '   · PESTAÑA ' + x.hoja + ' · CONTRASEÑA: ' + (x.conPass ? 'SÍ' : 'NO') + ' · SALDO LUCAS: ' + eurTxt(x.saldo) + ' €' + (aqui ? '   🌱 SEMILLA EN ESTE PC' : ''), aqui ? 'g' : 'y', 0, true);
+        });
+        say('   ' + (PAN.lista.length + 1) + ' - ➕ NUEVO PANEL', 'y', 0, true);
+        say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
+        CON.ask = 'pan1';
+      });
+    });
+  }
+  function panElegir(n){
+    if(n === PAN.lista.length + 1){ say('>> NUEVO PANEL ➕', 'g big', 20); say('   ESCRIBE EL NOMBRE DEL NUEVO PANEL (POR EJEMPLO WIL) Y PULSA ENTER. SE CREARÁ SU PESTAÑA EN EL SHEET CON LAS MISMAS COLUMNAS.', 'y', 10); CON.ask = 'panNuevo'; return; }
+    var x = PAN.lista[n-1]; if(!x){ say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL ' + (PAN.lista.length + 1) + '.', 'r', 12); errTone(); CON.ask = 'pan1'; return; }
+    PAN.sel = x; panSubMenu(x);
+  }
+  function panSubMenu(x){
+    semSub({ pf:'subSemillaVer' }, function(cur){
+      var aqui = cur && cur.id === x.id;
+      PAN.semAqui = !!aqui;
+      say('>> PANEL ' + x.nombre.toUpperCase() + ' 🧩', 'g big', 20);
+      say('   PESTAÑA DEL SHEET: ' + x.hoja + ' · CONTRASEÑA: ' + (x.conPass ? 'SÍ (OCULTA)' : 'NO TIENE') + ' · SALDO DE LUCAS: ' + eurTxt(x.saldo) + ' €', 'w', 10);
+      say('   1 - ' + (x.conPass ? 'CAMBIAR LA CONTRASEÑA' : 'PONER CONTRASEÑA'), 'y', 0, true);
+      say('   2 - BORRAR LA CONTRASEÑA (NADIE PODRÁ ENTRAR EN ESTE PANEL)', 'y', 0, true);
+      say('   3 - ' + (aqui ? 'QUITAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' DE ESTE ORDENADOR' : 'INSTALAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' EN ESTE ORDENADOR'), 'y', 0, true);
+      say('   4 - RECARGAR EL SALDO DE LUCAS DE ESTE PANEL', 'y', 0, true);
+      say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
+      CON.ask = 'pan2';
+    });
+  }
+  function panOpcion(n){
+    var x = PAN.sel; if(!x){ panMenu(say); return; }
+    if(n === 1){ say('   ESCRIBE LA NUEVA CONTRASEÑA DE ' + x.nombre.toUpperCase() + ' (MÍNIMO 4 CARACTERES) Y PULSA ENTER. NO DISTINGUE MAYÚSCULAS.', 'y', 10); CON.ask = 'panPass'; return; }
+    if(n === 2){ panApi('borrarPass', { id:x.id }, function(r){ PAN.sel = r.item; say('>> CONTRASEÑA BORRADA ✔', 'g big', 22); say('   NADIE PODRÁ ENTRAR EN EL PANEL ' + x.nombre.toUpperCase() + ' HASTA QUE LE PONGAS UNA. SUS SESIONES ABIERTAS SE HAN CERRADO.', 'd', 0, true); tone(900, 300, 0.25, 'square', 0.05); }); return; }
+    if(n === 3){
+      var poner = !PAN.semAqui;
+      semSub({ pf:'subSemilla', on:poner, id:x.id, nombre:x.nombre }, function(cur){
+        if(cur === undefined){ say('   NO SE HA PODIDO GUARDAR LA SEMILLA (ABRE EL PANEL DESDE PUNTOFIBRA.GITHUB.IO/PANEL).', 'r', 10); errTone(); return; }
+        if(poner){
+          say('>> SEMILLA DE ' + x.nombre.toUpperCase() + ' INSTALADA 🌱', 'g big', 22);
+          say('   CUANDO CIERRES SESIÓN, ESTE ORDENADOR MOSTRARÁ EL ACCESO DEL PANEL ' + x.nombre.toUpperCase() + '.', '', 10);
+          say('   SI NECESITAS ENTRAR TÚ AQUÍ: MANTÉN PULSADO ENTRAR 3 s Y PASA TU LLAVE NFC.', 'd', 0, true);
+        } else {
+          say('>> SEMILLA DE ' + x.nombre.toUpperCase() + ' QUITADA ✔', 'g big', 22);
+          say('   ESTE ORDENADOR VUELVE A MOSTRAR TU ACCESO NORMAL.', 'd', 0, true);
+        }
+        PAN.semAqui = poner;
+        tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+      });
+      return;
+    }
+    if(n === 4){ say('   SALDO ACTUAL DE ' + x.nombre.toUpperCase() + ': ' + eurTxt(x.saldo) + ' €. ¿CUÁNTO QUIERES RECARGAR? FORMATO XXX,XX Y ENTER.', 'y', 10); CON.ask = 'panSaldo'; return; }
+    say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 4.', 'r', 12); errTone(); CON.ask = 'pan2';
+  }
+  function panNuevo(nombre){
+    nombre = String(nombre || '').trim();
+    if(nombre.length < 2){ say('ESCRIBE UN NOMBRE DE AL MENOS 2 LETRAS.', 'r', 12); errTone(); CON.ask = 'panNuevo'; return; }
+    say('   CREANDO EL PANEL ' + nombre.toUpperCase() + ' Y SU PESTAÑA EN EL SHEET… (TARDA UNOS SEGUNDOS)', 'd', 10);
+    panApi('crear', { nombre:nombre }, function(r){
+      say('>> PANEL ' + r.item.nombre.toUpperCase() + ' CREADO ✅', 'g big', 22);
+      say('   PESTAÑA ' + r.item.hoja + ' CREADA EN EL SHEET CON LAS MISMAS COLUMNAS QUE LA TUYA, VACÍA.', '', 10);
+      tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+      PAN.sel = r.item; setTimeout(function(){ panSubMenu(r.item); }, 400);
+    });
+  }
+  function panPass(raw){
+    var x = PAN.sel; var p = String(raw || '').trim();
+    if(p.length < 4){ say('LA CONTRASEÑA TIENE QUE TENER AL MENOS 4 CARACTERES.', 'r', 12); errTone(); CON.ask = 'panPass'; return; }
+    panApi('pass', { id:x.id, pass:p }, function(r){
+      PAN.sel = r.item;
+      say('>> CONTRASEÑA DE ' + x.nombre.toUpperCase() + ' GUARDADA 🔐', 'g big', 22);
+      say('   YA PUEDE ENTRAR DESDE LOS ORDENADORES CON SU SEMILLA. SI TENÍA SESIONES ABIERTAS, SE HAN CERRADO.', 'd', 0, true);
+      tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+    });
+  }
+  function panSaldo(m){
+    var x = PAN.sel;
+    var mil = parseInt(m[1], 10) * 1000 + (m[2] ? (m[2].length === 1 ? parseInt(m[2], 10) * 100 : parseInt(m[2], 10) * 10) : 0);
+    if(!(mil > 0)){ say('LA CANTIDAD TIENE QUE SER MAYOR QUE 0.', 'r', 12); errTone(); CON.ask = 'panSaldo'; return; }
+    panApi('saldo', { id:x.id, mil:mil, sumar:true }, function(r){
+      PAN.sel = r.item;
+      say('>> RECARGA HECHA ✅  +' + eurTxt(mil) + ' €', 'g big', 22);
+      say('   SALDO DE LUCAS EN EL PANEL ' + x.nombre.toUpperCase() + ': ' + eurTxt(r.item.saldo) + ' €', 'y', 10);
+      tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+    });
   }
   // ---------- SEMILLAS: marcas guardadas solo en este ordenador ----------
   var SEMILLAS = [
@@ -583,6 +695,7 @@
   }
   function hoy(){ var d=new Date(), p=function(n){ return ('0'+n).slice(-2); }; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+'  '+p(d.getHours())+':'+p(d.getMinutes()); }
   function openConsole(){
+    if(window.PF_SUB) return;   // los subpaneles (Fede, Wil…) no tienen consola
     CON.auth = semOn('consolaSinPin'); CON.ask = null; CON.esperando = false;
     audio(); CON.on = true; CON.dir = 'PANEL'; CON.q = []; CON.typing = false; CON.busy = true; CON.pend = []; conIn.value = ''; clearTimeout(conTimer); conOut.innerHTML = '';
     box.classList.remove('off'); box.classList.add('on', 'boot'); setTimeout(function(){ box.classList.remove('boot'); }, 800);
@@ -617,6 +730,8 @@
     if(CON.ask === 'pwQR'){ CON.ask = null; pwVerificarYMostrar(raw); return; }
     if(CON.ask === 'pinNom'){ CON.ask = null; pinPasoNom(raw); return; }
     if(CON.ask === 'pinNum'){ CON.ask = null; pinPasoNum(raw); return; }
+    if(CON.ask === 'panPass'){ CON.ask = null; panPass(raw); return; }
+    if(CON.ask === 'panNuevo'){ CON.ask = null; if(/^(CANCELAR|SALIR)$/.test(cmd)){ say('   CANCELADO.', 'd', 10); return; } panNuevo(raw); return; }
     if(!cmd){ say('', '', 0, true); return; }
     if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }
     if(CON.ask === 'fichEmp'){ CON.ask = null; if(cmd === String(FICH_EMP.length+1) || cmd === 'TODOS'){ fichEmp = 'Todos'; fichMenu(say); return; } if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
@@ -626,6 +741,14 @@
       var mR = cmd.replace(/\s|€|EUROS?/g, '').match(/^(\d{1,3})(?:[.,](\d{1,2}))?$/);
       if(mR){ recPaso2(mR); return; }
       say('IMPORTE NO VÁLIDO · ESCRIBE UNA CANTIDAD EN FORMATO XXX,XX (POR EJEMPLO 10 O 9,50).', 'r', 12); errTone(); CON.ask = 'recarga'; return;
+    }
+    if(CON.ask === 'pan1'){ CON.ask = null; if(/^\d{1,2}$/.test(cmd)){ panElegir(+cmd); return; } }
+    if(CON.ask === 'pan2'){ CON.ask = null; if(/^\d$/.test(cmd)){ panOpcion(+cmd); return; } }
+    if(CON.ask === 'panSaldo'){ CON.ask = null;
+      if(/^(CANCELAR|SALIR|NO|NADA)$/.test(cmd)){ say('   RECARGA CANCELADA.', 'd', 10); return; }
+      var mP = cmd.replace(/\s|€|EUROS?/g, '').match(/^(\d{1,3})(?:[.,](\d{1,2}))?$/);
+      if(mP){ panSaldo(mP); return; }
+      say('IMPORTE NO VÁLIDO · FORMATO XXX,XX (POR EJEMPLO 10 O 9,50).', 'r', 12); errTone(); CON.ask = 'panSaldo'; return;
     }
     if(CON.ask === 'sem1'){ CON.ask = null; if(/^\d$/.test(cmd)){ semPaso2(+cmd); return; } }
     if(CON.ask === 'sem2'){ CON.ask = null; if(/^\d{1,2}$/.test(cmd)){ semPaso3(+cmd); return; } }
