@@ -95,9 +95,47 @@
   .box .b2{ color:#334155; border-color:#cbd5e1; margin-top:12px; }
   .share{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .share a, .share button{ display:block; text-align:center; padding:11px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; color:#0f172a; text-decoration:none; font:inherit; font-weight:600; cursor:pointer; }
+
+  /* ===== Elegir formato en el móvil ===== */
+  #modo{ position:fixed; inset:0; z-index:40; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:28px 18px;
+    background:radial-gradient(900px 500px at 50% -10%, #1e3a8a 0%, #0b1224 55%, #060a16 100%); color:#e2e8f0; overflow:hidden; }
+  #modo::before, #modo::after{ content:""; position:absolute; width:420px; height:420px; border-radius:50%; filter:blur(70px); opacity:.35; pointer-events:none; animation:modoFlota 9s ease-in-out infinite; }
+  #modo::before{ background:#38bdf8; top:-140px; left:-120px; }
+  #modo::after{ background:#a855f7; bottom:-160px; right:-140px; animation-delay:-4.5s; }
+  @keyframes modoFlota{ 50%{ transform:translate(40px,30px) scale(1.12); } }
+  #modo .mLogo{ width:150px; filter:drop-shadow(0 8px 24px rgba(56,189,248,.45)); animation:modoEntra .7s cubic-bezier(.2,1.3,.4,1) both; position:relative; }
+  #modo h1{ margin:2px 0 0; font-size:22px; font-weight:900; letter-spacing:.3px; text-align:center; position:relative; animation:modoEntra .7s .08s both; }
+  #modo p.mSub{ margin:-6px 0 6px; font-size:13.5px; color:#94a3b8; text-align:center; position:relative; animation:modoEntra .7s .14s both; }
+  .mOpc{ position:relative; width:min(420px,100%); display:flex; align-items:center; gap:14px; padding:18px 18px; border-radius:20px; cursor:pointer; text-align:left;
+    border:1px solid rgba(148,163,184,.25); background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.02)); color:#fff; font:inherit;
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:0 10px 30px rgba(0,0,0,.35); overflow:hidden;
+    transition:transform .18s, border-color .2s, box-shadow .2s; animation:modoEntra .7s both; -webkit-tap-highlight-color:transparent; }
+  .mOpc:nth-of-type(1){ animation-delay:.2s; } .mOpc:nth-of-type(2){ animation-delay:.3s; }
+  .mOpc:active{ transform:scale(.97); }
+  .mOpc.mov{ border-color:rgba(56,189,248,.6); box-shadow:0 0 0 1px rgba(56,189,248,.25), 0 14px 40px rgba(56,189,248,.25); }
+  .mOpc::after{ content:""; position:absolute; top:0; left:-60%; width:40%; height:100%; background:linear-gradient(100deg,transparent,rgba(255,255,255,.18),transparent); transform:skewX(-20deg); animation:modoBrillo 3.2s 1s infinite; }
+  @keyframes modoBrillo{ 0%{ left:-60%; } 35%,100%{ left:130%; } }
+  .mIco{ flex:0 0 56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:28px; background:rgba(255,255,255,.08); }
+  .mov .mIco{ background:linear-gradient(135deg,#0ea5e9,#6366f1); box-shadow:0 6px 18px rgba(14,165,233,.45); }
+  .mTxt b{ display:block; font-size:16.5px; font-weight:900; }
+  .mTxt span{ display:block; font-size:12.5px; color:#a5b4c8; margin-top:3px; line-height:1.35; }
+  .mTag{ position:absolute; top:10px; right:12px; font-size:10px; font-weight:900; letter-spacing:.8px; padding:3px 8px; border-radius:999px; background:#38bdf8; color:#04202e; }
+  @keyframes modoEntra{ from{ opacity:0; transform:translateY(24px) scale(.96); } to{ opacity:1; transform:none; } }
+  #modo.salir{ animation:modoSale .35s ease forwards; }
+  @keyframes modoSale{ to{ opacity:0; transform:scale(1.04); } }
+  #nfcSilencio{ text-align:center; font-size:12px; color:#64748b; margin-top:10px; min-height:16px; }
 </style>
 </head>
 <body>
+
+<!-- ===== ELEGIR FORMATO (solo en móviles) ===== -->
+<div id="modo" class="hidden">
+  <img class="mLogo" src="https://i.postimg.cc/vZwLhn6g/descarga.png" alt="Puntofibra">
+  <h1>¿Cómo quieres abrir el panel?</h1>
+  <p class="mSub">Elige el formato que mejor te venga ahora</p>
+  <button type="button" class="mOpc mov" id="modoMovil"><span class="mTag">NUEVO</span><span class="mIco">📱</span><span class="mTxt"><b>Formato móvil</b><span>Borradores y contratos, rápido y a pantalla completa. Ideal para el día a día.</span></span></button>
+  <button type="button" class="mOpc" id="modoNormal"><span class="mIco">🖥️</span><span class="mTxt"><b>Formato normal</b><span>El panel completo, con todas las secciones, igual que en el ordenador.</span></span></button>
+</div>
 
 <!-- ===== LOGIN (aquí lo guarda y lo rellena Google Contraseñas) ===== -->
 <div id="login" class="hidden">
@@ -114,6 +152,7 @@
       <button class="entrar" id="entrar" type="submit"><span class="fill" id="fill"></span><span class="txt" id="entrarTxt">ENTRAR</span></button>
     </form>
     <div class="hint" id="hint"></div>
+    <div id="nfcSilencio"></div>
 
   </div>
 </div>
@@ -191,7 +230,7 @@
     document.body.classList.add('enApp');
     mostrarSplash();
     frame.classList.remove('hidden');
-    frame.src = EXEC_URL + '?w=1&s=' + encodeURIComponent(token);
+    frame.src = EXEC_URL + '?w=1&s=' + encodeURIComponent(token) + (MODO === 'movil' ? '&m=1' : '');
     // Si en 25 s no ha avisado de que ha entrado, enseñamos el enlace directo
     splashTimer = setTimeout(() => { $('spin').style.display = 'none'; $('fallback').style.display = 'block'; }, 25000);
   }
@@ -201,6 +240,7 @@
   window.addEventListener('message', ev => {
     const d = ev.data || {};
     if(d.pf === 'ready') ocultarSplash();
+    if(d.pf === 'modo' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)){ MODO = d.m === 'movil' ? 'movil' : 'normal'; const t = lsGet(LS_TOKEN); if(t) abrirApp(t); }
     if(d.pf === 'recargar' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) location.reload();   // hay versión nueva de Lucas
     if(d.pf === 'nfc' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) llavePedidaPorPanel(ev, d);
     if(d.pf === 'nfcCerrar' && llOrigen) { llOrigen = null; cerrarLlave(); }
@@ -208,6 +248,7 @@
       lsSet(LS_TOKEN, '');
       try{ if(navigator.credentials && navigator.credentials.preventSilentAccess) navigator.credentials.preventSilentAccess(); }catch(e){}
       mostrarLogin(d.msg || '');
+      if(ES_MOVIL) $('modo').classList.remove('hidden');   // en el móvil vuelve a preguntar el formato
     }
   });
 
@@ -396,10 +437,40 @@
     if(!(await escanearNfc(true))){ llOrigen = null; cerrarLlave(); } // sin NFC: el panel ya enseña su QR
   }
 
+
+  // ---------- Móvil: elegir formato y llave NFC esperando en silencio ----------
+  var MODO = 'normal';
+  const ES_MOVIL = (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent))) && matchMedia('(pointer:coarse)').matches;
+  function nfcSilencioso(){
+    if(!hayNfc) return;
+    nfcUso = async sn => {
+      if(llOcupado) return; llOcupado = true; vib(30);
+      $('nfcSilencio').textContent = '🔑 Comprobando llave…';
+      try{
+        const r = await api({ accion:'nfcLogin', llave:sn });
+        if(r && r.ok && r.token){ vib(60); $('nfcSilencio').textContent = '✅ Acceso concedido'; pararNfc(); nfcUso = null; setTimeout(() => { $('nfcSilencio').textContent = ''; abrirApp(r.token); }, 350); llOcupado = false; return; }
+        vib([80,60,80]); $('nfcSilencio').textContent = '⛔ ' + ((r && r.error) || 'Llave no autorizada');
+      }catch(e){ $('nfcSilencio').textContent = 'No se pudo conectar'; }
+      llOcupado = false;
+    };
+    escanearNfc(true).then(ok => { if(!ok) nfcUso = null; });
+  }
+  function elegirModo(m){
+    MODO = m;
+    const mo = $('modo'); mo.classList.add('salir');
+    setTimeout(() => { mo.classList.add('hidden'); mo.classList.remove('salir'); }, 340);
+    const t = lsGet(LS_TOKEN);
+    if(t){ abrirApp(t); return; }
+    mostrarLogin();
+    nfcSilencioso();   // el toque en el botón deja encender el lector: la llave se puede pasar ya, sin abrir nada
+  }
+  $('modoMovil').addEventListener('click', () => { vib(20); elegirModo('movil'); });
+  $('modoNormal').addEventListener('click', () => { vib(20); elegirModo('normal'); });
+
   // ---------- Arranque ----------
   (function(){
-    const t = lsGet(LS_TOKEN);
-    if(t) abrirApp(t); else mostrarLogin();
+    if(ES_MOVIL){ ocultarSplash(); $('modo').classList.remove('hidden'); }
+    else { const t = lsGet(LS_TOKEN); if(t) abrirApp(t); else mostrarLogin(); }
     api({ accion:'config' }).then(r => { if(r && r.logoUrl) $('logo').src = r.logoUrl; }).catch(() => {});
   })();
 

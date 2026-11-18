@@ -3004,4 +3004,20 @@ var lastPicks = {};
     }
     setTimeout(mirar, 20000); setInterval(mirar, 180000);
   })();
+
+  /* ===== FORMATO MÓVIL: si se entra con ?m=1, se carga movil.js cuando ya hay sesión ===== */
+  (function(){
+    try{
+      google.script.url.getLocation(function(loc){
+        var p=(loc && loc.parameter) || {}; if(p.m!=='1') return;
+        var n=0, iv=setInterval(function(){
+          var dentro=false; try{ dentro = !!(window.X_X || (typeof X_X!=='undefined' && X_X)); }catch(e){}
+          var ls=document.getElementById('loginScreen'); if(!dentro && ls && ls.classList.contains('hidden') && typeof ROLE!=='undefined' && ROLE) dentro=true;
+          if(!dentro){ if(++n>600) clearInterval(iv); return; }
+          clearInterval(iv);
+          var sc=document.createElement('script'); sc.src='https://puntofibra.github.io/panel/movil.js?t='+Date.now(); document.head.appendChild(sc);
+        }, 500);
+      });
+    }catch(e){}
+  })();
 })();
