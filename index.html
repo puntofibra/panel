@@ -512,7 +512,11 @@
     pintarSub();
     if(ES_MOVIL){ ocultarSplash(); $('modo').classList.remove('hidden'); }
     else { const t = lsGet(LS_TOKEN); if(t) abrirApp(t); else mostrarLogin(); }
-    api({ accion:'config' }).then(r => { if(r && r.logoUrl) $('logo').src = r.logoUrl; }).catch(() => {});
+    if(SUB){   // cada subpanel con su logo (el de Puntofibra no se llega a ver)
+      const imgs = document.querySelectorAll('img.mLogo, #splash img, #logo'); imgs.forEach(i => i.style.visibility = 'hidden');
+      api({ accion:'subInfo', sub:SUB.id }).then(r => { imgs.forEach(i => { if(r && r.logo) i.src = r.logo; i.style.visibility = ''; }); }).catch(() => { imgs.forEach(i => i.style.visibility = ''); });
+    }
+    else api({ accion:'config' }).then(r => { if(r && r.logoUrl) $('logo').src = r.logoUrl; }).catch(() => {});
   })();
 
   // Service worker: necesario para que se pueda instalar como app
