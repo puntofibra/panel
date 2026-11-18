@@ -364,6 +364,8 @@ var lastPicks = {};
     var tc=t.replace(/^(y|e|y que tal|y ahora|ahora|y tambien|tambien|y si)\s+/,'').trim(), codF=null, PRE='(?:(?:en|el|del|de|la|los|las|lo|que|para|con)\\s+)*';
     if(new RegExp('^'+PRE+'(mio|mios|mia|mias|mi codigo|mi codigo dw|codigo mio|codigo dw|dw|mis contratos|lo mio|yo|a mi|y yo|yo cuant[oa]s llevo|cuant[oa]s llevo yo)$').test(tc)) codF='DW';
     else if(new RegExp('^'+PRE+'(wil|wilmer|codigo de wil|codigo de wilmer|codigo ui|ui|mi cunado|codigo de mi cunado|cunado)$').test(tc)) codF='UI';
+    var uF = tc.match(new RegExp('^'+PRE+'(fibras|lineas de cliente|lineas extra|lineas de regalo|lineas|contratos)$'));
+    if(uF){ var Lu=(' '+c.t+' ').replace(/\s(?:(?:las|los|de)\s+)?(?:lineas?(?: de clientes?| extras?| de regalo)?|fibras?|contratos?)(?=\s)/g,' ').replace(/\s+/g,' ').trim(); if(!/\bcuant[oa]s\b/.test(Lu)) Lu='cuantas '+Lu; return (Lu+' '+uF[1]).replace(/\s+/g,' ').trim(); }
     if(codF){ return (quitarCodigo(c.t)+' '+(codF==='DW'?'en mi codigo':'en el codigo de wil')).replace(/\s+/g,' ').trim(); }
     var esMostrar = /^(muestrame|ensename|sacame|dame|pasame)( todos| todas)?$/.test(t);
     var esCuantos = /^(cuantos|cuantas|y cuantos|y cuantas)( son| hay| salen| serian| tengo| llevo)?$/.test(t);
@@ -1389,7 +1391,7 @@ var lastPicks = {};
       'qué líneas hay que parar','qué tengo que congelar','líneas para dejar en pausa','qué contratos hay que suspender','qué hay que pausar' ]},
     { id:'instalar', q:'contratos pendientes de instalar', ej:[
       'qué falta por instalar','instalaciones pendientes','a quién no le han puesto aún la fibra','qué clientes esperan al técnico',
-      'qué está sin instalar','fibras sin montar todavía' ]},
+      'qué está sin instalar','técnicos pendientes de ir' ]},
     { id:'recordatorios', q:'que recordatorios tengo', ej:[
       'tengo algo apuntado','qué avisos tengo pendientes','qué tengo agendado','tengo alguna cita pendiente','qué tenía que hacer' ]},
     { id:'fichajes', fn:function(t){ return 'quien ha fichado '+(/\bayer\b/.test(t)?'ayer':'hoy'); }, ej:[
@@ -1504,7 +1506,7 @@ var lastPicks = {};
     var ctx = { contractWords: CONTRACT_WORDS.test(rest||t) };
     if(greet && !rest){ B._gratis=true; return done({ say: B.greetReply(t, now) }); }
 
-    var debil = !/\bcontratos?\b/.test(rest||t) && !hasComp;
+    var debil = !/\bcontratos?\b/.test(rest||t) && !hasComp && !hasDate && !medida(rest||t).k && !codigoDe(rest||t) && !/\bfibras?\b/.test(rest||t);
     ensureContratos(function(){ iaAntes(rest||t, raw0, now, debil, function(){
       var r = contratoQuery(rest||t, raw, now, ctx);
       if(!r.notUnderstood && (r.say || r.clients)){ B._ctx = { t: rest||t, at: Date.now() }; guardarHist(rest||t); }   // memoria para «¿y en noviembre?» y «vuelve atrás»
