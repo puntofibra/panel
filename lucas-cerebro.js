@@ -2215,7 +2215,7 @@ var lastPicks = {};
   function borrarChat(done){
     try{ var box=document.getElementById('iaChatMsgs'); if(box) box.innerHTML=''; }catch(e){}
     GRUPOS.length=0; B._ctx=null; B._hist=[]; B._fibAsk=null; B._bajaAsk=null; B._recPend=null; B._pinAsk=null;
-    done({ say: pick('cls',['🧹 Conversación borrada. ¿Empezamos de nuevo?','🧹 Chat limpio. Tú dirás.','🧹 Listo, pantalla en blanco. ¿Qué necesitas?']) });
+    done(null);
   }
   B.handle = function(raw, done){
     if(/^\s*cls\s*$/i.test(String(raw||''))) return borrarChat(done);
