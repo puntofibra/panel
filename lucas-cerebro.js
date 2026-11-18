@@ -2873,9 +2873,9 @@ var lastPicks = {};
     var b=document.getElementById('btnFechaInst'); if(!b) return;
     var on=B._finst;
     b.classList.toggle('active', !!on);
-    b.style.borderColor = on===1 ? '#111' : (on===2 ? '#16a34a' : '');
+    b.style.borderColor = on===1 ? '#111' : (on===2 ? '#16a34a' : (b.getAttribute('data-bc')||''));
     b.style.boxShadow = on ? (on===1 ? '0 0 0 2px rgba(0,0,0,.18)' : '0 0 0 2px rgba(22,163,74,.25)') : '';
-    b.style.background = on===1 ? '#f1f1f1' : (on===2 ? '#e9f9ef' : '');
+    b.style.background = on===1 ? '#f1f1f1' : (on===2 ? '#e9f9ef' : (b.getAttribute('data-bg')||''));
     b.title = on===1 ? 'Mostrando fechas de instalación en negro (pulsa para ver las verdes)' : (on===2 ? 'Mostrando fechas de instalación en verde (pulsa para ver las negras)' : 'Filtrar por fecha de instalación: negro / verde');
   }
   (function(){
@@ -2886,6 +2886,8 @@ var lastPicks = {};
       b.type='button'; b.id='btnFechaInst'; b.className=ref.className.replace(/\bactive\b/g,'').trim();
       b.innerHTML='<b style="color:#111">Fecha</b>&nbsp;<b style="color:#16a34a">inst.</b>';
       b.style.whiteSpace='nowrap';
+      try{ var cs=getComputedStyle(ref); ['borderTopWidth','borderTopStyle','borderTopColor','borderRadius','paddingTop','paddingBottom','height','minHeight','backgroundColor','boxShadow','fontSize','fontFamily','cursor','verticalAlign'].forEach(function(k){ b.style[k]=cs[k]; }); b.style.borderWidth=cs.borderTopWidth; b.style.borderStyle=cs.borderTopStyle||'solid'; b.style.borderColor=cs.borderTopColor; b.style.paddingLeft='12px'; b.style.paddingRight='12px'; if(!parseFloat(cs.borderTopWidth)){ b.style.border='1px solid #e5e7eb'; b.style.borderRadius='10px'; b.style.background='#fff'; } }catch(e){}
+      b.setAttribute('data-bc', b.style.borderColor||''); b.setAttribute('data-bg', b.style.backgroundColor||'');
       b.addEventListener('click', function(){
         B._finst = B._finst===1 ? 2 : 1;
         pintarFinst();
