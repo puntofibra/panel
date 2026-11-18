@@ -2555,4 +2555,24 @@ var lastPicks = {};
     }
     setTimeout(recibir, 6000); setInterval(recibir, 15000); setInterval(recordar, 30000);
   })();
+
+  /* =====================================================================
+     VOZ SIEMPRE ACTIVA (semilla «vozSiempre»): sin altavoz en la cabecera
+     del asistente, así nadie puede silenciar a Lucas en este ordenador.
+     ===================================================================== */
+  (function(){
+    function fijar(){
+      if(!semilla('vozSiempre')) return false;
+      var t=document.getElementById('iaVozToggle'); if(!t) return false;
+      if(t.getAttribute('data-fija')) return true;
+      var ic=document.getElementById('iaVozIcon');
+      if(ic && /🔇/.test(ic.textContent)) t.click();        // si estaba silenciado, vuelve a activar la voz
+      var c=t.cloneNode(true);                                 // sin el clic que silencia
+      var ic2=c.querySelector('#iaVozIcon'); if(ic2) ic2.remove();
+      c.setAttribute('data-fija','1'); c.style.cursor='default'; c.removeAttribute('title');
+      t.parentNode.replaceChild(c, t);
+      return true;
+    }
+    var n=0, iv=setInterval(function(){ if(fijar() || ++n>120) clearInterval(iv); }, 1000);
+  })();
 })();
