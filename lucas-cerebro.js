@@ -172,6 +172,42 @@ var lastPicks = {};
   var STOP = ('vip vips ciclo fibra fibras doble segunda vez veces pausa pausar pausarlos pausarlas pausados pausadas pendiente pendientes baja bajas dar toca tocan quitar falta faltan instalar instalados instaladas instalado instalada instalacion instalaciones sin por poner a al algo algun alguna algunos ahora anda ano anos asi aqui ayer anteayer busca buscame buscar buscarme cliente clientes con contrato contratos cuanto cuantos cuanta cuantas cual cuales da dame de del desde dia dias dime documento dni el ella en ensena ensename ensenar entre es esa ese eso esos esta este esto estos ha han has hace hacer he hecho hechos hemos hicieron hizo hoy hubo hay iban la las le les lista listado listame llevo llevamos llevas lo los lucas me mes meses mi mis muestra muestrame mostrar movil nie numero o para pasado pasada pon ponme por porfa porfavor favor puedes podrias que quiero quisiera rapido saca sacame sacar se semana si sin solo solamente su sus tal te tengo tenemos tiene tienen todo todos toda todas total trae traeme tu un una uno unos ultimo ultimos ultima ver vamos y ya filtra filtrame filtrar filtro filtros abre abreme enseñame solicitud solicitudes alta altas cuenta cuentas bancaria numero telefono telefonos termina terminan terminada terminado acaba acaban acabada finaliza finalizan finalizada acabe termine finalice acabado finalizado empiece empieza ' +
     'necesito mira mirame consulta busqueda encuentra encuentrame nombre nombres llamado llamada llama persona personas gente hola buenas buenos noches tardes dias gracias anterior actual va como quien donde cuando hacia trimestre primer segundo tercer cuarto').split(' ');
   var STOPSET={}; STOP.forEach(function(w){ STOPSET[w]=1; }); MESES.concat(['setiembre']).forEach(function(w){ STOPSET[w]=1; }); Object.keys(NUM).forEach(function(w){ STOPSET[w]=1; });
+  ['linea','lineas','extra','extras','regalo','regalos','gratis','gratuitas','normales','suma','sumame','sumar','total','totales','moviles','telefonicas','pago','cuantas','vendidas','hechas','echas','echo','hecho','metido','metidas','fibras','fibra','contratos','contrato'].forEach(function(w){ STOPSET[w]=1; });
+  /* ---------- QUÉ SE CUENTA: contratos (filas), fibras (col 16), líneas de cliente (col 17) y líneas extra (col 18) ---------- */
+  function numCol(it, id){ var n=parseFloat(String(it[id]==null?'':it[id]).trim().replace(',','.')); return isNaN(n)?0:n; }
+  function medida(t){
+    t=String(t||'');
+    var cli = /\blineas? (de |del )?(los )?(clientes?|normales?|de pago|pagadas?)\b/.test(t);
+    var ext = /\blineas? (extras?|de regalo|regalo|regaladas?|gratis|gratuitas?)\b|\b(las |los )?extras\b|\blineas? que son (extra|de regalo)\b/.test(t);
+    var lin = /\blineas?\b/.test(t);
+    var fib = /\bfibras\b/.test(t) || (/\bfibra\b/.test(t) && /\bcuant[oa]s\b/.test(t));
+    // «contratos con fibra», «los que tienen fibra»… es un filtro, no contar fibras
+    if(fib && /\b(con|sin|tienen?|tengan?|llevan?|lleven?|solo|solamente) (la |las )?fibras?\b/.test(t) && !/\bcuant[oa]s fibras\b/.test(t)) fib=false;
+    var k = cli&&!ext ? 'lcli' : ext&&!cli ? 'lext' : lin ? 'lineas' : fib ? 'fibras' : null;
+    return { k:k, fib:fib && k!=='fibras', contratos:/\bcontratos?\b/.test(t) };
+  }
+  function sumar(list){ var r={c:list.length,f:0,lc:0,le:0}; list.forEach(function(it){ r.f+=numCol(it,'16'); r.lc+=numCol(it,'17'); r.le+=numCol(it,'18'); }); r.l=r.lc+r.le; return r; }
+  function valorMedida(k){ return k==='fibras' ? function(it){ return numCol(it,'16'); } : k==='lcli' ? function(it){ return numCol(it,'17'); } : k==='lext' ? function(it){ return numCol(it,'18'); } : k==='lineas' ? function(it){ return numCol(it,'17')+numCol(it,'18'); } : function(){ return 1; }; }
+  function nomMedida(k, n){ var p=(n!==1); return k==='fibras' ? (p?'fibras':'fibra') : k==='lcli' ? (p?'líneas de cliente':'línea de cliente') : k==='lext' ? (p?'líneas extra':'línea extra') : k==='lineas' ? (p?'líneas':'línea') : (p?'contratos':'contrato'); }
+  B._medida = medida; B._sumar = sumar;
+  function numM(k, n){ return n===1 ? (k && k!=='contratos' ? 'una' : 'un') : String(n); }
+  /* ---------- CÓDIGOS DE SIMYO (col 26): DW = el de Manu (+ Masmovil, Pepephone y Jazztel, que no llevan código); UI = el de Wil ---------- */
+  ['codigo','codigos','dw','ui','wil','wilmer','cunado','mio','mia'].forEach(function(w){ STOPSET[w]=1; });
+  var COD_DW_SIN = ['MASMOVIL','MÁSMÓVIL','MAS MOVIL','PEPEPHONE','JAZZTEL'];
+  function codigoDe(t){
+    t=String(t||'');
+    if(/\bcodigos? (de |del )?(mi )?(cunado|wil|wilmer|ui)\b|\b(el|del|en el|en) (codigo )?ui\b|\bde wil(mer)?\b|\b(lleva|llevado|ha hecho|hizo) wil(mer)?\b|\bwil(mer)? (lleva|ha|hizo)\b|\b(el )?codigo ui\b/.test(t)) return 'UI';
+    if(/\bmi codigo\b|\bcodigo (mio|dw)\b|\b(el|del|en el|en) (codigo )?dw\b|\bmis? codigos? dw\b/.test(t)) return 'DW';
+    return null;
+  }
+  function esDeCodigo(it, c){
+    var comp=String(it['2']||'').toUpperCase().trim(), cod=String(it['26']==null?'':it['26']).toUpperCase().trim();
+    if(c==='UI') return comp==='SIMYO' && cod==='UI';
+    return (comp==='SIMYO' && cod==='DW') || COD_DW_SIN.indexOf(comp)>=0;
+  }
+  function porCodigo(list, t){ var c=codigoDe(t); return c ? list.filter(function(it){ return esDeCodigo(it, c); }) : list; }
+  function txtCodigo(c){ return c==='UI' ? 'del código de Wil (UI)' : c==='DW' ? 'de tu código (DW)' : ''; }
+  B._codigoDe = codigoDe;
 
   /* =====================================================================
      COMPRENSIÓN DEL LENGUAJE (NLU sin IA)
@@ -495,6 +531,7 @@ var lastPicks = {};
     if(range){ var f=range.from.getTime(), to=range.to.getTime(); base = base.filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to && enMeses(k, range); }); }
     if(comps.length){ var cs=comps.map(function(c){ return c.toUpperCase().trim(); }); base = base.filter(function(it){ return cs.indexOf(String(it['2']||'').toUpperCase().trim())>=0; }); }
     if(mode){ base = base.filter(function(it){ return modoOK(it, mode); }); }
+    var codQ = codigoDe(t); if(codQ) base = base.filter(function(it){ return esDeCodigo(it, codQ); });
     if(vip){
       base = base.filter(function(it){ return String(it['50']||'').trim()==='1'; });
       var best={}, ordenV=[];
@@ -511,6 +548,8 @@ var lastPicks = {};
       var qq = mode==='pausa' ? 'pausar' : 'dar de baja';
       return { say: fill(pick('fibQ',['¿Quieres ver solo los que tienen fibra o todos los pendientes de {q}?','Antes de enseñártelos: ¿solo los que tienen fibra, o todos?','¿Te saco solo los contratos con fibra o todos los pendientes de {q}?','Una pregunta: ¿los que tienen fibra nada más, o todos?']),{q:qq}), buttons:[{t:'🛜 Solo con fibra', v:'fib:fibra'},{t:'📋 Todos', v:'fib:todos'}] };
     }
+    var md0 = (mode==='pausa'||mode==='baja'||mode==='cambiar') ? {k:null} : medida(t);
+    if(md0.fib && fibChoice==='fibra' && !B._fibChoiceDada) fibChoice=null;
     if(fibChoice==='fibra' && mode!=='instalar') base = base.filter(tieneFibra);
     else if(fibChoice==='sinfibra' && mode!=='instalar') base = base.filter(function(it){ return !tieneFibra(it); });
     var doblePausa = (mode==='baja') ? base.filter(function(it){ return esDoblePausa(it); }).length : 0;
@@ -535,6 +574,7 @@ var lastPicks = {};
       }
     }
 
+    var md = (mode==='pausa'||mode==='baja'||mode==='cambiar') ? {k:null} : medida(t);
     // descripcion
     var d=[];
     if(comps.length) d.push('de '+comps.map(compName).join(' y '));
@@ -543,8 +583,9 @@ var lastPicks = {};
     else if(mode==='pausa') d.push('pendientes de pausar hasta la fecha (solicitados '+range.label+')');
     else if(mode==='instalar'){ d.push('pendientes de instalar'); if(range) d.push(range.label); }
     else if(range) d.push(range.label);
+    if(codQ) d.push(txtCodigo(codQ));
     if(dobleP) d.push('pausados por segunda vez');
-    if(fibChoice==='fibra' && mode!=='instalar') d.push('con fibra');
+    if(fibChoice==='fibra' && mode!=='instalar' && md.k!=='fibras') d.push('con fibra');
     else if(fibChoice==='sinfibra' && mode!=='instalar') d.push('sin fibra');
     if(vip) d.push('de clientes VIP'+(ciclo?' de ciclo '+ciclo:''));
     else if(ciclo) d.push('de ciclo '+ciclo);
@@ -570,6 +611,15 @@ var lastPicks = {};
 
     if(!n){ render(base, range); return { say: fill(pick('nada',NADA),{d:desc||'con esos datos'}) }; }
     render(base, range);
+    if(md.k){
+      var S=sumar(base), dd=desc||'en total', cc=numU(S.c)+' '+plural(S.c,'contrato','contratos');
+      var txtM = md.k==='fibras' ? fill(pick('mF',['{X} {f} {fw} {d} (en {cc}).','Llevas {f} {fw} {d}, repartidas en {cc}.','He sumado {f} {fw} {d} ({cc}).']),{X:pick('mFx',['Se han hecho','Salen','En total hay']),f:numM('fibras',S.f),fw:nomMedida('fibras',S.f),d:dd,cc:cc})
+               : md.k==='lineas' ? fill(pick('mL',['Llevas {l} {lw} {d}: {lc} de cliente y {le} extra (en {cc}).','He sumado {l} {lw} {d} ({lc} de cliente y {le} extra), en {cc}.','En total hay {l} {lw} {d}: {lc} de cliente más {le} extra ({cc}).']),{l:numM('lineas',S.l),lw:nomMedida('lineas',S.l),lc:S.lc,le:S.le,d:dd,cc:cc})
+               : md.k==='lcli' ? fill(pick('mLC',['Llevas {n} {w} {d} (en {cc}). Aparte hay {le} extra.','He sumado {n} {w} {d}, en {cc}. Las extra son {le} más.']),{n:numM('lcli',S.lc),w:nomMedida('lcli',S.lc),le:S.le,d:dd,cc:cc})
+               : fill(pick('mLE',['Llevas {n} {w} {d} (en {cc}).','He sumado {n} {w} {d}, repartidas en {cc}.']),{n:numM('lext',S.le),w:nomMedida('lext',S.le),d:dd,cc:cc});
+      if(md.fib && md.k!=='fibras') txtM += ' Y '+numM('fibras',S.f)+' '+nomMedida('fibras',S.f)+'.';
+      return { say: txtM };
+    }
     if(count){
       var D = desc ? cap(desc) : 'Ahora mismo';
       return { say: fill(pick('cuantos',CUANTOS),{n:numU(n),c:cword,d:desc||'en total',D:D}) };
@@ -705,6 +755,7 @@ var lastPicks = {};
      ===================================================================== */
   function enRango(r){ var f=r.from.getTime(), to=r.to.getTime(); return contratos().filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to && enMeses(k, r); }); }
   function rangoODefecto(t, now){ var r=parseDates(t, now); if(r) return r; var m=monthRange(now.getFullYear(), now.getMonth()); m.label='de este mes'; return m; }
+  function porCompaniaM(list, k){ if(!k) return porCompania(list); var vm=valorMedida(k), g={}, o=[]; list.forEach(function(it){ var c=String(it['2']||'').trim()||'Sin compañía', kk=c.toUpperCase(); if(!g[kk]){ g[kk]={c:c,n:0}; o.push(kk); } g[kk].n+=vm(it); }); return o.map(function(x){ return g[x]; }).filter(function(x){ return x.n>0; }).sort(function(a,b){ return b.n-a.n; }); }
   function porCompania(list){ var g={}, o=[]; list.forEach(function(it){ var c=String(it['2']||'').trim()||'Sin compañía'; var k=c.toUpperCase(); if(!g[k]){ g[k]={c:c,n:0}; o.push(k); } g[k].n++; }); return o.map(function(k){ return g[k]; }).sort(function(a,b){ return b.n-a.n; }); }
   function listaTxt(arr){ return arr.length<2 ? (arr[0]||'') : arr.slice(0,-1).join(', ')+' y '+arr[arr.length-1]; }
   function sinDe(l){ l=String(l||''); if(/^del /.test(l)) return 'el '+l.slice(4); return l.replace(/^de /,''); }
@@ -799,17 +850,17 @@ var lastPicks = {};
       if(!r && /\b(por meses|cada mes|mes a mes|meses)\b/.test(t)){ r={from:d0(now.getFullYear(),now.getMonth()-5,1), to:new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999), label:'de los últimos 6 meses'}; }
       if(!r){ r=monthRange(now.getFullYear(), now.getMonth()); r.label='de este mes'; }
       var comps=findCompanies(t), col = inst ? '15' : '14', f=r.from.getTime(), to=r.to.getTime();
-      var l=contratos().filter(function(it){ var k=tsOK(it[col]); if(!k || k<f || k>to || !enMeses(k, r)) return false; if(comps.length && comps.map(function(c){ return c.toUpperCase().trim(); }).indexOf(String(it['2']||'').toUpperCase().trim())<0) return false; if(/\b(sin|no tienen?|no tengan?) (la )?fibras?\b/.test(t)){ if(tieneFibra(it)) return false; } else if(/\bfibras?\b/.test(t) && !tieneFibra(it)) return false; return true; });
+      var l=porCodigo(contratos(), t).filter(function(it){ var k=tsOK(it[col]); if(!k || k<f || k>to || !enMeses(k, r)) return false; if(comps.length && comps.map(function(c){ return c.toUpperCase().trim(); }).indexOf(String(it['2']||'').toUpperCase().trim())<0) return false; if(/\b(sin|no tienen?|no tengan?) (la )?fibras?\b/.test(t)){ if(tieneFibra(it)) return false; } else if(/\bfibras?\b/.test(t) && !tieneFibra(it)) return false; return true; });
       var porComp = /\b(compania|companias|operadora|operadoras|operador|por compania|cada compania)\b/.test(t);
       var meses = (r.to.getFullYear()-r.from.getFullYear())*12 + r.to.getMonth()-r.from.getMonth();
-      var datos=[], modo;
-      if(porComp){ modo='compañía'; datos=porCompania(l).map(function(x){ return { l:compName(x.c), v:x.n }; }); }
+      var datos=[], modo, gmk=inst?null:medida(t).k, gvm=valorMedida(gmk);
+      if(porComp){ modo='compañía'; datos=porCompaniaM(l, gmk).map(function(x){ return { l:compName(x.c), v:x.n }; }); }
       else if(meses>=1){ modo='mes';
-        for(var k=0;k<=meses;k++){ var dm=new Date(r.from.getFullYear(), r.from.getMonth()+k, 1); var key=dm.getFullYear()+'-'+dm.getMonth(); if(r.meses && r.meses.indexOf(key)<0) continue; var cnt=l.filter(function(it){ var d=new Date(tsOK(it[col])); return d.getFullYear()===dm.getFullYear() && d.getMonth()===dm.getMonth(); }).length; datos.push({ l: MESES[dm.getMonth()].slice(0,3)+(dm.getFullYear()!==now.getFullYear()?' '+String(dm.getFullYear()).slice(2):''), v:cnt }); } }
+        for(var k=0;k<=meses;k++){ var dm=new Date(r.from.getFullYear(), r.from.getMonth()+k, 1); var key=dm.getFullYear()+'-'+dm.getMonth(); if(r.meses && r.meses.indexOf(key)<0) continue; var cnt=l.filter(function(it){ var d=new Date(tsOK(it[col])); return d.getFullYear()===dm.getFullYear() && d.getMonth()===dm.getMonth(); }).reduce(function(s0,it){ return s0+gvm(it); },0); datos.push({ l: MESES[dm.getMonth()].slice(0,3)+(dm.getFullYear()!==now.getFullYear()?' '+String(dm.getFullYear()).slice(2):''), v:cnt }); } }
       else { modo='día'; var d1=new Date(r.from), d2=new Date(Math.min(r.to.getTime(), now.getTime())); if(d2<d1) d2=new Date(r.to);
-        for(var dd=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()); dd<=d2; dd=new Date(dd.getFullYear(),dd.getMonth(),dd.getDate()+1)){ var iso0=iso(dd); datos.push({ l:String(dd.getDate()), v:l.filter(function(it){ return iso(new Date(tsOK(it[col])))===iso0; }).length }); } }
+        for(var dd=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()); dd<=d2; dd=new Date(dd.getFullYear(),dd.getMonth(),dd.getDate()+1)){ var iso0=iso(dd); datos.push({ l:String(dd.getDate()), v:l.filter(function(it){ return iso(new Date(tsOK(it[col])))===iso0; }).reduce(function(s0,it){ return s0+gvm(it); },0) }); } }
       if(!inst) render(l, r);
-      var que = inst ? 'instalaciones' : 'contratos', total=l.length;
+      var que = inst ? 'instalaciones' : nomMedida(gmk,2), total=l.reduce(function(s0,it){ return s0+gvm(it); },0);
       if(!total){ return done({ say: 'No hay '+que+' '+r.label+(comps.length?' de '+comps.map(compName).join(' y '):'')+', así que la gráfica saldría vacía.' }); }
       var best=datos.slice().sort(function(a,b){ return b.v-a.v; })[0];
       var titulo = cap(que)+' por '+modo+' '+r.label+(comps.length?' · '+comps.map(compName).join(', '):'');
@@ -852,7 +903,7 @@ var lastPicks = {};
     if(/\b(mas|menos|mejor|peor)\s+que\s+(el|la)?\s*(mes|ano|semana)?\s*(pasad[oa]|anterior)\b|\bcompar\w*\b.*\b(pasad[oa]|anterior)\b|\bvamos (mejor|peor)\b|\bvoy (mejor|peor)\b|\bllevo (mas|menos)\b/.test(t)){
       ensureContratos(function(){
         var y=now.getFullYear(), mo=now.getMonth(), d=now.getDate(), esAno=/\bano\b/.test(t), esSem=/\bsemana\b/.test(t);
-        var cuenta=function(a,b){ var f=a.getTime(), to=b.getTime(); return contratos().filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to; }).length; };
+        var mk=medida(t).k, vm=valorMedida(mk); var cuenta=function(a,b){ var f=a.getTime(), to=b.getTime(); return porCodigo(contratos(), t).filter(function(it){ var k=ts(it['14']); return k && k>=f && k<=to; }).reduce(function(s0,it){ return s0+vm(it); },0); };
         var A, P, Ptot, nomA, nomP;
         if(esAno){ A=cuenta(d0(y,0,1), now); P=cuenta(d0(y-1,0,1), new Date(y-1,mo,d,23,59,59)); Ptot=cuenta(d0(y-1,0,1), endOfMonth(y-1,11)); nomA='Este año'; nomP='el año pasado'; }
         else if(esSem){ var wd=(now.getDay()+6)%7, lun=d0(y,mo,d-wd), lunP=d0(y,mo,d-wd-7); A=cuenta(lun, now); P=cuenta(lunP, new Date(lunP.getFullYear(),lunP.getMonth(),lunP.getDate()+wd,23,59,59)); Ptot=cuenta(lunP, new Date(lunP.getFullYear(),lunP.getMonth(),lunP.getDate()+6,23,59,59)); nomA='Esta semana'; nomP='la semana pasada'; }
@@ -861,18 +912,18 @@ var lastPicks = {};
         var veredicto = dif>0 ? fill(pick('cmpM',['Vas mejor: {x} más{p}.','¡Vas ganando! {x} más{p}.','Buen ritmo: {x} por encima{p}.']),{x:dif,p:p!=null?' ('+p+'% más)':''})
                       : dif<0 ? fill(pick('cmpP',['Vas algo por detrás: {x} menos{p}.','De momento vas {x} por debajo{p}, ¡a por ello!','Te faltan {x} para igualarlo{p}.']),{x:-dif,p:p!=null?' ('+(-p)+'% menos)':''})
                       : pick('cmpI',['Vas exactamente igual.','Empate técnico.','Mismo ritmo, ni uno más ni uno menos.']);
-        done({ say: nomA+' llevas '+numU(A)+' '+plural(A,'contrato','contratos')+'. '+cap(nomP)+', a estas alturas, llevabas '+P+' (y lo cerraste con '+Ptot+'). '+veredicto });
+        done({ say: nomA+' llevas '+numM(mk,A)+' '+nomMedida(mk,A)+'. '+cap(nomP)+', a estas alturas, llevabas '+P+' (y lo cerraste con '+Ptot+'). '+veredicto });
       });
       return true;
     }
     // ranking de compañías
     if(/\b(compania|companias|operadora|operadoras|operador)\b.*\b(mas|ranking|vende|venden|vendemos|vendio|top|mejor)\b|\b(mas|ranking|top)\b.*\b(compania|companias|operadora|operadoras)\b|^ranking\b/.test(t)){
       ensureContratos(function(){
-        var r=rangoODefecto(t, now), l=enRango(r), g=porCompania(l);
+        var r=rangoODefecto(t, now), l=porCodigo(enRango(r), t), mk=medida(t).k, g=porCompaniaM(l, mk);
         render(l, r);
         if(!g.length) return done({ say:'No hay contratos '+r.label+', así que no puedo hacer el ranking.' });
         var top=g.slice(0,5).map(function(x,i){ return (i+1)+'. '+compName(x.c)+' ('+x.n+')'; }).join(', ');
-        done({ say: fill(pick('rk',['La que más vende es {c1} ({ds}), con {n1} {k}. Ranking: {t}.','Gana {C1} con {n1} {k} ({ds}). Así queda: {t}.','Ranking {d}: {t}.']),{d:r.label,ds:sinDe(r.label),c1:compName(g[0].c),C1:compName(g[0].c),n1:g[0].n,k:plural(g[0].n,'contrato','contratos'),t:top}) });
+        done({ say: fill(pick('rk',['La que más vende es {c1} ({ds}), con {n1} {k}. Ranking: {t}.','Gana {C1} con {n1} {k} ({ds}). Así queda: {t}.','Ranking {d}: {t}.']),{d:r.label,ds:sinDe(r.label),c1:compName(g[0].c),C1:compName(g[0].c),n1:g[0].n,k:nomMedida(mk,g[0].n),t:top}) });
       });
       return true;
     }
@@ -905,14 +956,14 @@ var lastPicks = {};
     // qué día se hicieron más contratos
     if(/\b(que dia|mejor dia|dia que mas|dia con mas|dia de mas)\b/.test(t) && /\b(mas|mejor)\b/.test(t)){
       ensureContratos(function(){
-        var r=rangoODefecto(t, now), l=enRango(r), g={};
-        l.forEach(function(it){ var k=ts(it['14']); if(!k) return; var dd=new Date(k), key=iso(dd); if(!g[key]) g[key]={d:dd,n:0}; g[key].n++; });
+        var r=rangoODefecto(t, now), l=porCodigo(enRango(r), t), g={}, mk=medida(t).k, vm=valorMedida(mk);
+        l.forEach(function(it){ var k=ts(it['14']); if(!k) return; var dd=new Date(k), key=iso(dd); if(!g[key]) g[key]={d:dd,n:0}; g[key].n+=vm(it); });
         var arr=Object.keys(g).map(function(k){ return g[k]; }).sort(function(a,b){ return b.n-a.n; });
         if(!arr.length) return done({ say:'No hay contratos '+r.label+'.' });
         var b=arr[0], emp=arr.filter(function(x){ return x.n===b.n; });
         var dtxt=function(x){ return DIAS[x.d.getDay()]+' '+x.d.getDate()+' de '+MESES[x.d.getMonth()]; };
         var lb=r.from, le=r.to; render(l.filter(function(it){ return iso(new Date(ts(it['14'])))===iso(b.d); }), {from:d0(b.d.getFullYear(),b.d.getMonth(),b.d.getDate()), to:new Date(b.d.getFullYear(),b.d.getMonth(),b.d.getDate(),23,59,59,999)});
-        done({ say: emp.length>1 ? 'Empate ('+sinDe(r.label)+'): '+listaTxt(emp.slice(0,4).map(dtxt))+', con '+numU(b.n)+' '+plural(b.n,'contrato','contratos')+' cada uno.' : fill(pick('bd',['El mejor día {d} fue el {x}, con {n} {c}.','{X}: {n} {c}, el récord {d}.','Ganó el {x}: {n} {c}.']),{d:r.label,x:dtxt(b),X:cap(dtxt(b)),n:b.n,c:plural(b.n,'contrato','contratos')}) });
+        done({ say: emp.length>1 ? 'Empate ('+sinDe(r.label)+'): '+listaTxt(emp.slice(0,4).map(dtxt))+', con '+numM(mk,b.n)+' '+nomMedida(mk,b.n)+' cada uno.' : fill(pick('bd',['El mejor día {d} fue el {x}, con {n} {c}.','{X}: {n} {c}, el récord {d}.','Ganó el {x}: {n} {c}.']),{d:r.label,x:dtxt(b),X:cap(dtxt(b)),n:b.n,c:nomMedida(mk,b.n)}) });
       });
       return true;
     }
@@ -920,12 +971,12 @@ var lastPicks = {};
     var esRes = /^(resumen|haz(me)? (un )?resumen|como vamos|como va|como van|como llevamos|como lo llevamos|como ha ido|como fue|como ha ido)\b/.test(t) || (/^que tal\b/.test(t) && !!parseDates(t, now));
     if(esRes){
       ensureContratos(function(){
-        var r=rangoODefecto(t, now), l=enRango(r), g=porCompania(l);
+        var r=rangoODefecto(t, now), l=porCodigo(enRango(r), t), g=porCompania(l);
         render(l, r);
         if(!l.length) return done({ say: fill(pick('rs0',['{D} todavía no hay ningún contrato.','Nada {d}: cero contratos.','{D} no ha entrado ningún contrato.']),{d:r.label,D:cap(sinDe(r.label))}) });
         var det=g.slice(0,5).map(function(x){ return x.n+' de '+compName(x.c); }); if(g.length>5) det.push('y '+(g.length-5)+' compañías más');
         var fib=l.filter(tieneFibra).length;
-        done({ say: fill(pick('rs',['{D} llevas {n} {c}: {det}. {f}','Resumen {d}: {n} {c} ({det}). {f}','{D}: {n} {c}. Por compañías: {det}. {f}']),{D:cap(sinDe(r.label)),d:r.label,n:numU(l.length),c:plural(l.length,'contrato','contratos'),det:listaTxt(det),f:(fib?(fib===1?'Uno lleva fibra.':fib+' llevan fibra.'):'')}).trim() });
+        done({ say: fill(pick('rs',['{D} llevas {n} {c}: {det}. {f}','Resumen {d}: {n} {c} ({det}). {f}','{D}: {n} {c}. Por compañías: {det}. {f}']),{D:cap(sinDe(r.label)),d:r.label,n:numU(l.length),c:plural(l.length,'contrato','contratos'),det:listaTxt(det),f:(function(){ var S=sumar(l); return 'En total, '+numM('fibras',S.f)+' '+nomMedida('fibras',S.f)+' y '+numM('lineas',S.l)+' '+nomMedida('lineas',S.l)+' ('+S.lc+' de cliente y '+S.le+' extra).'; })()}).trim() });
       });
       return true;
     }
