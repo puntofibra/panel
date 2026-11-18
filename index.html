@@ -407,5 +407,29 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
 </script>
+<script>
+/* Micrófono para Lucas: el panel va dentro de un iframe de Google que no deja usar el micro,
+   así que esta página (la de fuera) escucha y le pasa el texto al asistente. */
+(function(){
+  var REC = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var rec = null, fin = '', dest = null, origen = '*';
+  function okOrigen(o){ try{ var h = new URL(o).hostname; return /\.googleusercontent\.com$/.test(h) || h === 'script.google.com'; }catch(e){ return false; } }
+  function manda(m){ try{ if(dest) dest.postMessage(m, origen); }catch(e){} }
+  window.addEventListener('message', function(e){
+    var d = e.data; if(!d || typeof d !== 'object' || !d.lucasMic || !okOrigen(e.origin)) return;
+    if(d.lucasMic === 'check'){ try{ e.source.postMessage({ lucasMicR:'ok', soporta: !!REC }, e.origin); }catch(_){} return; }
+    if(d.lucasMic === 'stop'){ try{ rec && rec.stop(); }catch(_){} return; }
+    if(d.lucasMic !== 'start' || !REC) return;
+    dest = e.source; origen = e.origin; fin = '';
+    try{ rec && rec.abort(); }catch(_){}
+    rec = new REC(); rec.lang = 'es-ES'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    rec.onstart = function(){ manda({ lucasMicR:'start' }); };
+    rec.onresult = function(ev){ var tmp=''; for(var i=ev.resultIndex;i<ev.results.length;i++){ var tx=ev.results[i][0].transcript; if(ev.results[i].isFinal) fin+=tx; else tmp+=tx; } manda({ lucasMicR:'parcial', texto:(fin+tmp).trim() }); };
+    rec.onerror = function(ev){ manda({ lucasMicR:'error', error: ev && ev.error }); };
+    rec.onend = function(){ manda({ lucasMicR:'end', texto: fin }); };
+    try{ rec.start(); }catch(err){ manda({ lucasMicR:'error', error:'not-allowed' }); manda({ lucasMicR:'end', texto:'' }); }
+  });
+})();
+</script>
 </body>
 </html>

@@ -2277,9 +2277,21 @@ var lastPicks = {};
      ===================================================================== */
   (function(){
     var REC = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var rec=null, oyendo=false, final='';
+    var rec=null, oyendo=false, final='', PUENTE=false, cb=null;
+    // El panel va dentro de un iframe de Google que no deja usar el micro: la página de fuera (GitHub) escucha y nos pasa el texto
+    function alTop(msg){ try{ window.top.postMessage(msg, '*'); }catch(e){} }
+    window.addEventListener('message', function(e){
+      var d=e.data; if(!d || typeof d!=='object' || !d.lucasMicR) return;
+      if(d.lucasMicR==='ok'){ PUENTE = !!d.soporta; return; }
+      if(!cb) return;
+      if(d.lucasMicR==='start') cb.start();
+      else if(d.lucasMicR==='parcial') cb.parcial(String(d.texto||''));
+      else if(d.lucasMicR==='error') cb.error(String(d.error||''));
+      else if(d.lucasMicR==='end') cb.end(String(d.texto||''));
+    });
+    if(window.top!==window) alTop({ lucasMic:'check' });
     function aviso(txt){ try{ if(typeof window.addMsg==='function') return window.addMsg(txt,'ia'); }catch(e){} try{ var box=document.getElementById('iaChatMsgs'); if(!box) return; var d=document.createElement('div'); d.style.cssText='margin:6px 0;padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #eee;max-width:85%'; d.textContent=txt; box.appendChild(d); box.scrollTop=box.scrollHeight; }catch(e){} }
-    function planB(){ aviso('No he podido usar el micrófono aquí. Para dictar, pulsa Windows + H (o el micrófono del teclado si estás en el móvil) y habla dentro de la caja de texto.'); }
+    function planB(){ aviso('No he podido usar el micrófono. Revisa que el navegador tenga permiso de micrófono para el panel (el candado de la barra de direcciones) y vuelve a pulsar 🎤.'); }
     function pinta(b, on){ b.textContent = on ? '⏺' : '🎤'; b.style.background = on ? '#e53935' : '#eee'; b.style.color = on ? '#fff' : ''; b.style.animation = on ? 'lucasMicPulso 1s infinite' : ''; b.title = on ? 'Escuchando… pulsa para parar' : 'Hablar con Lucas'; }
     function montar(){
       var old=document.getElementById('iaChatMic'), input=document.getElementById('iaChatInput'), send=document.getElementById('iaChatSend');
@@ -2287,17 +2299,25 @@ var lastPicks = {};
       if(!document.getElementById('lucasMicCss')){ var st=document.createElement('style'); st.id='lucasMicCss'; st.textContent='@keyframes lucasMicPulso{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,.6)}50%{box-shadow:0 0 0 6px rgba(229,57,53,0)}}'; document.head.appendChild(st); }
       var b=old.cloneNode(true); b.setAttribute('data-voz','1'); old.parentNode.replaceChild(b, old); pinta(b,false);
       b.addEventListener('click', function(){
-        if(!REC) return planB();
-        if(oyendo){ try{ rec.stop(); }catch(e){} return; }
+        if(oyendo){ if(PUENTE) alTop({ lucasMic:'stop' }); else { try{ rec.stop(); }catch(e){} } return; }
+        if(!PUENTE && !REC) return planB();
         try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+        var antes=input.value, fallo=false; final='';
+        cb = {
+          start: function(){ oyendo=true; pinta(b,true); input.placeholder='Te escucho…'; },
+          parcial: function(tx){ input.value=tx; },
+          error: function(e){ fallo=true; if(e==='not-allowed' || e==='service-not-allowed' || e==='audio-capture') planB(); else if(e==='no-speech') aviso('No te he oído. Pulsa 🎤 y habla cuando se ponga en rojo.'); else if(e!=='aborted') aviso('El dictado ha fallado ('+e+'). Prueba otra vez.'); },
+          end: function(t){ oyendo=false; pinta(b,false); input.placeholder='Escribe tu pregunta...'; t=String(t||'').trim(); cb=null;
+            if(t){ input.value=t; try{ if(send) send.click(); else input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',keyCode:13,which:13,bubbles:true})); }catch(e){} }
+            else if(!fallo){ input.value=antes; } }
+        };
+        if(PUENTE){ alTop({ lucasMic:'start' }); return; }
         rec=new REC(); rec.lang='es-ES'; rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=1;
-        final=''; var antes=input.value, fallo=false;
-        rec.onstart=function(){ oyendo=true; pinta(b,true); input.placeholder='Te escucho…'; };
-        rec.onresult=function(ev){ var tmp=''; for(var i=ev.resultIndex;i<ev.results.length;i++){ var tx=ev.results[i][0].transcript; if(ev.results[i].isFinal) final+=tx; else tmp+=tx; } input.value=(final+tmp).trim(); };
-        rec.onerror=function(ev){ fallo=true; var e=ev && ev.error; if(e==='not-allowed' || e==='service-not-allowed' || e==='audio-capture') planB(); else if(e==='no-speech') aviso('No te he oído. Pulsa 🎤 y habla cuando se ponga en rojo.'); else if(e!=='aborted') aviso('El dictado ha fallado ('+e+'). Prueba otra vez.'); };
-        rec.onend=function(){ oyendo=false; pinta(b,false); input.placeholder='Escribe tu pregunta...'; var t=final.trim();
-          if(t){ input.value=t; try{ if(send) send.click(); else input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',keyCode:13,which:13,bubbles:true})); }catch(e){} }
-          else if(!fallo){ input.value=antes; } };
+        var c=cb;
+        rec.onstart=function(){ c.start(); };
+        rec.onresult=function(ev){ var tmp=''; for(var i=ev.resultIndex;i<ev.results.length;i++){ var tx=ev.results[i][0].transcript; if(ev.results[i].isFinal) final+=tx; else tmp+=tx; } c.parcial((final+tmp).trim()); };
+        rec.onerror=function(ev){ c.error(ev && ev.error); };
+        rec.onend=function(){ c.end(final); };
         try{ rec.start(); }catch(e){ planB(); }
       });
       return true;
