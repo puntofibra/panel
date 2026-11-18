@@ -3034,3 +3034,14 @@ var lastPicks = {};
     }catch(e){}
   })();
 })();
+
+/* ===== Avisar a la página principal (móvil) para que mantenga el audio de fondo y Lucas se oiga con la pantalla apagada ===== */
+(function(){
+  try{
+    if(window.__pfAvisoFondo || window.top === window) return; window.__pfAvisoFondo = true;
+    var avisar = function(){ try{ window.top.postMessage({ pf:'lucasHabla' }, '*'); }catch(e){} };
+    document.addEventListener('touchend', avisar, { passive:true });
+    var SS = window.speechSynthesis;
+    if(SS && SS.speak){ var sp = SS.speak.bind(SS); SS.speak = function(u){ avisar(); return sp(u); }; }
+  }catch(e){}
+})();

@@ -595,5 +595,56 @@
   });
 })();
 </script>
+<script>
+/* ===== MÓVIL: solo vertical en pantallas pequeñas (el Fold abierto puede girar) + Lucas se sigue oyendo en segundo plano ===== */
+(function(){
+  var tactil = window.matchMedia && matchMedia('(pointer:coarse)').matches;
+  if(!tactil) return;
+  function pequena(){ return Math.min(screen.width, screen.height) < 600; }   /* móvil normal o Fold cerrado; Fold abierto y tablets no */
+  function apaisado(){ return window.innerWidth > window.innerHeight; }
+  var ov = document.createElement('div');
+  ov.id = 'pfGira';
+  ov.innerHTML = '<div style="font-size:64px;animation:pfGiraAnim 1.6s ease-in-out infinite">📱</div><div style="font-weight:900;font-size:20px;margin-top:14px">Gira el móvil</div><div style="opacity:.75;margin-top:6px;font-size:14px">Esta web solo se usa en vertical</div>';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#0f172a;color:#fff;font-family:system-ui,sans-serif';
+  var st = document.createElement('style');
+  st.textContent = '@keyframes pfGiraAnim{0%,100%{transform:rotate(90deg)}50%{transform:rotate(0deg)}}';
+  document.head.appendChild(st);
+  function aplicar(){
+    if(!document.body) return;
+    if(!ov.parentNode) document.body.appendChild(ov);
+    var bloquear = pequena();
+    try{
+      if(screen.orientation && screen.orientation.lock){
+        if(bloquear) screen.orientation.lock('portrait').catch(function(){});
+        else if(screen.orientation.unlock) screen.orientation.unlock();
+      }
+    }catch(e){}
+    ov.style.display = (bloquear && apaisado()) ? 'flex' : 'none';
+  }
+  window.addEventListener('resize', aplicar);
+  window.addEventListener('orientationchange', function(){ setTimeout(aplicar, 150); });
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicar); else aplicar();
+
+  /* Mantener la página «viva» con un audio casi inaudible en bucle: así el móvil no congela la web
+     y la voz de Lucas se sigue oyendo con la web en segundo plano o la pantalla apagada */
+  var au = null;
+  function despertar(){
+    if(au) { if(au.paused) au.play().catch(function(){}); return; }
+    au = new Audio('lucas-fondo.wav');
+    au.loop = true; au.volume = 0.02; au.setAttribute('playsinline','');
+    au.play().catch(function(){ au = null; });
+    try{
+      if('mediaSession' in navigator){
+        navigator.mediaSession.metadata = new MediaMetadata({ title:'Lucas está atento', artist:'Puntofibra', artwork:[{ src:'icon-192.png', sizes:'192x192', type:'image/png' }] });
+        navigator.mediaSession.setActionHandler('pause', function(){ if(au){ au.pause(); } navigator.mediaSession.playbackState = 'paused'; });
+        navigator.mediaSession.setActionHandler('play', function(){ if(au){ au.play().catch(function(){}); } navigator.mediaSession.playbackState = 'playing'; });
+        navigator.mediaSession.playbackState = 'playing';
+      }
+    }catch(e){}
+  }
+  ['touchend','click'].forEach(function(ev){ document.addEventListener(ev, despertar, { passive:true }); });
+  window.addEventListener('message', function(e){ if(e && e.data && e.data.pf === 'lucasHabla') despertar(); });
+})();
+</script>
 </body>
 </html>
