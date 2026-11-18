@@ -2236,6 +2236,7 @@ var lastPicks = {};
     try{ if(typeof VIP_MODE!=='undefined' && VIP_MODE) return true; }catch(e){}
     try{ if(typeof FIBRA_MODE!=='undefined' && FIBRA_MODE) return true; }catch(e){}
     try{ if(typeof OMITIR_MODE!=='undefined' && OMITIR_MODE) return true; }catch(e){}
+    if(B._finst) return true;   // botón «Fecha inst.»
     try{ if(typeof ICON_FILTERS!=='undefined' && ICON_FILTERS && (ICON_FILTERS.col44 || ICON_FILTERS.col45)) return true; }catch(e){}
     return false;
   }
@@ -2362,9 +2363,9 @@ var lastPicks = {};
       try{ r=af.apply(this, arguments); }
       finally{
         try{
-          if(LSNAP && FIA && Array.isArray(FILTERED)){
-            var set={}; LSNAP.forEach(function(k){ set[k]=1; });
-            FILTERED = FILTERED.filter(function(it){ return set[it.__row]; });
+          if(((LSNAP && FIA) || B._finst) && Array.isArray(FILTERED)){
+            if(LSNAP && FIA){ var set={}; LSNAP.forEach(function(k){ set[k]=1; }); FILTERED = FILTERED.filter(function(it){ return set[it.__row]; }); }
+            if(B._finst){ var quiereVerde = B._finst===2; FILTERED = FILTERED.filter(function(it){ var t=String(it['15']||'').trim(); if(!t) return false; return instVerde(it)===quiereVerde; }); }
             var maxP=Math.max(1, Math.ceil(FILTERED.length/500)); if(typeof PAGE==='number' && PAGE>maxP) PAGE=maxP;
             rp();
           }
@@ -2375,7 +2376,7 @@ var lastPicks = {};
       return r;
     };
     window.applyFilters.__lp = true;
-    if(typeof window.clearSearch==='function'){ var cs0=window.clearSearch; var csW=function(){ LSNAP=null; return cs0.apply(this, arguments); }; for(var k in cs0){ try{ csW[k]=cs0[k]; }catch(e){} } window.clearSearch=csW; }
+    if(typeof window.clearSearch==='function'){ var cs0=window.clearSearch; var csW=function(){ LSNAP=null; B._finst=0; try{ pintarFinst(); }catch(e){} return cs0.apply(this, arguments); }; for(var k in cs0){ try{ csW[k]=cs0[k]; }catch(e){} } window.clearSearch=csW; }
     return true;
   }
   (function(){ var n=0, iv=setInterval(function(){ if(montarPersistencia() || ++n>300) clearInterval(iv); }, 1000); })();
@@ -2857,6 +2858,43 @@ var lastPicks = {};
           }
         }catch(err){}
       });
+      return true;
+    }
+    var n=0, iv=setInterval(function(){ if(montar() || ++n>120) clearInterval(iv); }, 1000);
+  })();
+
+  /* =====================================================================
+     BOTÓN «Fecha inst.» (entre 🛜❌ y OMITIR): 1ª pulsación → fechas de
+     instalación en negro; 2ª → en verde (🆗 o 00-00-0000); LIMPIAR FILTROS → todas.
+     ===================================================================== */
+  B._finst = 0;
+  function instVerde(it){ return String(it['45']||'').trim()==='🆗' || /^0{1,2}[\/\-]0{1,2}[\/\-]0{2,4}$/.test(String(it['15']||'').trim()); }
+  function pintarFinst(){
+    var b=document.getElementById('btnFechaInst'); if(!b) return;
+    var on=B._finst;
+    b.classList.toggle('active', !!on);
+    b.style.borderColor = on===1 ? '#111' : (on===2 ? '#16a34a' : '');
+    b.style.boxShadow = on ? (on===1 ? '0 0 0 2px rgba(0,0,0,.18)' : '0 0 0 2px rgba(22,163,74,.25)') : '';
+    b.style.background = on===1 ? '#f1f1f1' : (on===2 ? '#e9f9ef' : '');
+    b.title = on===1 ? 'Mostrando fechas de instalación en negro (pulsa para ver las verdes)' : (on===2 ? 'Mostrando fechas de instalación en verde (pulsa para ver las negras)' : 'Filtrar por fecha de instalación: negro / verde');
+  }
+  (function(){
+    function montar(){
+      if(document.getElementById('btnFechaInst')) return true;
+      var ref=document.getElementById('btnFibraNo'); if(!ref || !ref.parentNode) return false;
+      var b=document.createElement(ref.tagName.toLowerCase()==='button' ? 'button' : 'button');
+      b.type='button'; b.id='btnFechaInst'; b.className=ref.className.replace(/\bactive\b/g,'').trim();
+      b.innerHTML='<b style="color:#111">Fecha</b>&nbsp;<b style="color:#16a34a">inst.</b>';
+      b.style.whiteSpace='nowrap';
+      b.addEventListener('click', function(){
+        B._finst = B._finst===1 ? 2 : 1;
+        pintarFinst();
+        try{ PAGE=1; }catch(e){}
+        try{ applyFilters(); }catch(e){}
+        try{ pintarBtnIA(); }catch(e){}
+      });
+      ref.parentNode.insertBefore(b, ref.nextSibling);
+      pintarFinst();
       return true;
     }
     var n=0, iv=setInterval(function(){ if(montar() || ++n>120) clearInterval(iv); }, 1000);
