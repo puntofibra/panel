@@ -736,7 +736,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(function(){ 
 function openConsole(){
     CON.auth = !window.PF_SUB && semOn('consolaSinPin');   // en un subpanel siempre pide las claves de Google CON.ask = null; CON.esperando = false;
     audio(); CON.on = true; CON.dir = 'PANEL'; CON.q = []; CON.typing = false; CON.busy = true; CON.pend = []; conIn.value = ''; clearTimeout(conTimer); conOut.innerHTML = '';
-    box.classList.remove('off'); box.classList.add('on', 'boot'); conLayout(); try{ if(window.matchMedia('(pointer:coarse)').matches && Math.min(window.innerWidth, window.innerHeight) < 560 && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function(){}); }catch(e){} setTimeout(function(){ box.classList.remove('boot'); }, 800); setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(x){} }, 150); setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(x){} }, 600);
+    box.classList.remove('off'); box.classList.add('on', 'boot'); conLayout(); try{ window.top.postMessage({ pf:'consola', abierta:true }, '*'); }catch(e){} try{ if(window.matchMedia('(pointer:coarse)').matches && Math.min(window.innerWidth, window.innerHeight) < 560 && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function(){}); }catch(e){} setTimeout(function(){ box.classList.remove('boot'); }, 800); setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(x){} }, 150); setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(x){} }, 600);
     try{ conIn.focus({ preventScroll:true }); }catch(e){}
     tone(60, 900, 0.5, 'sawtooth', 0.06); tone(3000, 3000, 0.25, 'sine', 0.03, 0.3);
     setTimeout(function(){
@@ -752,7 +752,7 @@ function openConsole(){
       else conLoginInicio();
     }, 650);
   }
-  function closeConsole(){ conNfcParar();
+  function closeConsole(){ conNfcParar(); try{ window.top.postMessage({ pf:'consola', abierta:false }, '*'); }catch(e){}
     if(!CON.on) return; CON.on = false; try{ if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }catch(e){} CON.q = []; clearTimeout(conTimer); try{ conIn.blur(); }catch(e){}
     box.classList.add('off'); tone(900, 50, 0.35, 'sawtooth', 0.06);
     setTimeout(function(){ box.classList.remove('on', 'off'); }, 460);
