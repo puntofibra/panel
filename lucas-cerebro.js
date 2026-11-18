@@ -2330,7 +2330,7 @@ var lastPicks = {};
      vuelve a filtrar; aquí se recuerdan las filas que filtró Lucas y se
      vuelven a aplicar hasta pulsar LIMPIAR FILTROS (o usar otro filtro a mano).
      ===================================================================== */
-  var LSNAP=null, enAF=false;
+  var LSNAP=null, enAF=false, LREF=null;
   B._lucasSnapClear=function(){ LSNAP=null; };
   function montarPersistencia(){
     if(typeof window.applyFilters!=='function' || typeof window.renderContratosPage!=='function') return false;
@@ -2338,12 +2338,12 @@ var lastPicks = {};
     var af=window.applyFilters, rp=window.renderContratosPage;
     window.renderContratosPage=function(){
       var r=rp.apply(this, arguments);
-      try{ if(!enAF && FIA && Array.isArray(FILTERED)) LSNAP=FILTERED.map(function(it){ return it.__row; }); }catch(e){}
+      // solo cuando Lucas pone una lista nueva (no al pasar de página): esa es la base que se combina con los filtros a mano
+      try{ if(!enAF && FIA && Array.isArray(FILTERED) && FILTERED!==LREF) LSNAP=FILTERED.map(function(it){ return it.__row; }); LREF=FILTERED; }catch(e){}
       return r;
     };
     window.applyFilters=function(){
-      var ev=window.event, aMano = !!(ev && ev.isTrusted && /^(input|click|change|keyup|keydown|dblclick|paste|search)$/.test(ev.type));
-      if(aMano) LSNAP=null;                                   // el usuario ha tocado un filtro: manda el suyo
+      // los filtros a mano se SUMAN a lo que filtró Lucas, hasta pulsar LIMPIAR FILTROS
       enAF=true; var r;
       try{ r=af.apply(this, arguments); }
       finally{
@@ -2354,6 +2354,7 @@ var lastPicks = {};
             var maxP=Math.max(1, Math.ceil(FILTERED.length/500)); if(typeof PAGE==='number' && PAGE>maxP) PAGE=maxP;
             rp();
           }
+          LREF=FILTERED;
         }catch(e){ console.warn('[Lucas] filtro persistente', e); }
         enAF=false;
       }
