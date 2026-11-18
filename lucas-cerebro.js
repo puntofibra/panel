@@ -2263,7 +2263,7 @@ var lastPicks = {};
         // si tocas tú los filtros a mano, el filtro de Lucas deja de estar activo
         ['q','companyFilter','dateFrom','dateTo'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.addEventListener('input', function(){ setTimeout(pintarBtnIA, 300); }); el.addEventListener('change', function(){ setTimeout(pintarBtnIA, 300); }); } });
       }
-      if(typeof window.clearSearch==='function' && !window.clearSearch.__ia){ var cs=window.clearSearch; window.clearSearch=function(){ resetFibraVip(); var r=cs.apply(this, arguments); resetCompania(); FIA=false; setTimeout(function(){ fijarBase(); pintarBtnIA(); }, 150); return r; }; window.clearSearch.__ia=true; }
+      if(typeof window.clearSearch==='function' && !window.clearSearch.__ia){ var cs=window.clearSearch; window.clearSearch=function(){ try{ B._lucasSnapClear && B._lucasSnapClear(); }catch(e){} resetFibraVip(); var r=cs.apply(this, arguments); resetCompania(); FIA=false; setTimeout(function(){ fijarBase(); pintarBtnIA(); }, 150); return r; }; window.clearSearch.__ia=true; }
       var act = FIA || hayAlgunFiltro();
       b.classList.toggle('iaOn', act); b.disabled=!act;
     }catch(e){}
@@ -2301,6 +2301,88 @@ var lastPicks = {};
       });
       return true;
     }
+    var n=0, iv=setInterval(function(){ if(montar() || ++n>120) clearInterval(iv); }, 1000);
+  })();
+
+  /* =====================================================================
+     FILTRO DE LUCAS PERSISTENTE: al guardar un contrato el panel recarga y
+     vuelve a filtrar; aquí se recuerdan las filas que filtró Lucas y se
+     vuelven a aplicar hasta pulsar LIMPIAR FILTROS (o usar otro filtro a mano).
+     ===================================================================== */
+  var LSNAP=null, enAF=false;
+  B._lucasSnapClear=function(){ LSNAP=null; };
+  function montarPersistencia(){
+    if(typeof window.applyFilters!=='function' || typeof window.renderContratosPage!=='function') return false;
+    if(window.applyFilters.__lp) return true;
+    var af=window.applyFilters, rp=window.renderContratosPage;
+    window.renderContratosPage=function(){
+      var r=rp.apply(this, arguments);
+      try{ if(!enAF && FIA && Array.isArray(FILTERED)) LSNAP=FILTERED.map(function(it){ return it.__row; }); }catch(e){}
+      return r;
+    };
+    window.applyFilters=function(){
+      var ev=window.event, aMano = !!(ev && ev.isTrusted && /^(input|click|change|keyup|keydown|dblclick|paste|search)$/.test(ev.type));
+      if(aMano) LSNAP=null;                                   // el usuario ha tocado un filtro: manda el suyo
+      enAF=true; var r;
+      try{ r=af.apply(this, arguments); }
+      finally{
+        try{
+          if(LSNAP && FIA && Array.isArray(FILTERED)){
+            var set={}; LSNAP.forEach(function(k){ set[k]=1; });
+            FILTERED = FILTERED.filter(function(it){ return set[it.__row]; });
+            var maxP=Math.max(1, Math.ceil(FILTERED.length/500)); if(typeof PAGE==='number' && PAGE>maxP) PAGE=maxP;
+            rp();
+          }
+        }catch(e){ console.warn('[Lucas] filtro persistente', e); }
+        enAF=false;
+      }
+      return r;
+    };
+    window.applyFilters.__lp = true;
+    if(typeof window.clearSearch==='function'){ var cs0=window.clearSearch; var csW=function(){ LSNAP=null; return cs0.apply(this, arguments); }; for(var k in cs0){ try{ csW[k]=cs0[k]; }catch(e){} } window.clearSearch=csW; }
+    return true;
+  }
+  (function(){ var n=0, iv=setInterval(function(){ if(montarPersistencia() || ++n>300) clearInterval(iv); }, 1000); })();
+
+  /* =====================================================================
+     PARPADEO DE LUCAS: solo cuando está entero fuera (fotogramas 5 y 6).
+     Párpados en imágenes aparte encima del fotograma: medio, cerrado, medio.
+     ===================================================================== */
+  (function(){
+    var BASE='https://puntofibra.github.io/panel/';
+    var ov={}, orig=null, peek=null, estable=0, frame=-1, enBlink=false;
+    function frameActual(){ if(!orig) return -1; for(var i=0;i<orig.length;i++) if(orig[i].classList.contains('on')) return i; return -1; }
+    function ocultar(){ for(var k in ov) ov[k].style.opacity='0'; }
+    function montar(){
+      peek=document.getElementById('lucasPeek'); if(!peek) return false;
+      if(peek.getAttribute('data-blink')) return true;
+      orig=Array.prototype.slice.call(peek.querySelectorAll('img')).slice(0,6); if(orig.length<6) return false;
+      peek.setAttribute('data-blink','1');
+      [['5a',4],['5b',4],['6a',5],['6b',5]].forEach(function(x){
+        var im=document.createElement('img'); im.src=BASE+'lucas-f'+x[0]+'.png'; im.alt='';
+        im.style.cssText='position:absolute;left:0;top:0;width:171px;height:140px;opacity:0;pointer-events:none;user-select:none;-webkit-user-drag:none;transition:none;';
+        im.className='lucasBlink'; peek.appendChild(im); ov[x[0]]=im;
+      });
+      var mo=new MutationObserver(function(){ var f=frameActual(); if(f!==frame){ frame=f; estable=Date.now(); ocultar(); enBlink=false; } });
+      orig.forEach(function(im){ mo.observe(im,{attributes:true,attributeFilter:['class']}); });
+      frame=frameActual(); estable=Date.now();
+      programar();
+      return true;
+    }
+    function pasoBlink(seq, i, f, fin){
+      if(frame!==f){ ocultar(); enBlink=false; return; }          // se ha movido: fuera párpados
+      ocultar(); if(i>=seq.length){ enBlink=false; if(fin) fin(); return; }
+      if(seq[i][0]) ov[f===4?'5'+seq[i][0]:'6'+seq[i][0]].style.opacity='1';
+      setTimeout(function(){ pasoBlink(seq, i+1, f, fin); }, seq[i][1]);
+    }
+    function parpadear(){
+      var f=frameActual();
+      if((f!==4 && f!==5) || Date.now()-estable<380 || enBlink || document.hidden) return;
+      enBlink=true;
+      var seq=[['a',45],['b',75],['a',55],[null,0]];
+      pasoBlink(seq, 0, f, function(){ if(Math.random()<0.2){ setTimeout(function(){ if(frameActual()===f && !enBlink){ enBlink=true; pasoBlink(seq,0,f); } }, 170); } });
+    }
+    function programar(){ setTimeout(function(){ try{ parpadear(); }catch(e){} programar(); }, 1800+Math.random()*3400); }
     var n=0, iv=setInterval(function(){ if(montar() || ++n>120) clearInterval(iv); }, 1000);
   })();
 })();
