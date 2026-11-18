@@ -212,7 +212,12 @@
 
   // ---------- API (POST al Apps Script) ----------
   async function api(datos){
-    const r = await fetch(EXEC_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:JSON.stringify(datos), redirect:'follow' });
+    const ctl = ('AbortController' in window) ? new AbortController() : null;
+    const tm = ctl ? setTimeout(() => ctl.abort(), 25000) : 0;   // si Google tarda demasiado, avisamos en vez de quedarnos en «Comprobando…»
+    let r;
+    try{ r = await fetch(EXEC_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:JSON.stringify(datos), redirect:'follow', signal: ctl ? ctl.signal : undefined }); }
+    catch(e){ throw new Error(e && e.name === 'AbortError' ? 'el servidor tarda demasiado, vuelve a intentarlo' : (e.message || e)); }
+    finally{ clearTimeout(tm); }
     if(!r.ok) throw new Error('El servidor no responde (' + r.status + ')');
     return r.json();
   }
