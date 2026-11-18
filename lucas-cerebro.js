@@ -614,8 +614,8 @@ var lastPicks = {};
     if(md.k){
       var S=sumar(base), dd=desc||'en total', cc=numU(S.c)+' '+plural(S.c,'contrato','contratos');
       var txtM = md.k==='fibras' ? fill(pick('mF',['{X} {f} {fw} {d} (en {cc}).','Llevas {f} {fw} {d}, repartidas en {cc}.','He sumado {f} {fw} {d} ({cc}).']),{X:pick('mFx',['Se han hecho','Salen','En total hay']),f:numM('fibras',S.f),fw:nomMedida('fibras',S.f),d:dd,cc:cc})
-               : md.k==='lineas' ? fill(pick('mL',['Llevas {l} {lw} {d}: {lc} de cliente y {le} extra (en {cc}).','He sumado {l} {lw} {d} ({lc} de cliente y {le} extra), en {cc}.','En total hay {l} {lw} {d}: {lc} de cliente más {le} extra ({cc}).']),{l:numM('lineas',S.l),lw:nomMedida('lineas',S.l),lc:S.lc,le:S.le,d:dd,cc:cc})
-               : md.k==='lcli' ? fill(pick('mLC',['Llevas {n} {w} {d} (en {cc}). Aparte hay {le} extra.','He sumado {n} {w} {d}, en {cc}. Las extra son {le} más.']),{n:numM('lcli',S.lc),w:nomMedida('lcli',S.lc),le:S.le,d:dd,cc:cc})
+               : md.k==='lineas' ? fill(pick('mL',['Llevas {l} {lw} {d} (en {cc}).','He sumado {l} {lw} {d}, en {cc}.','En total hay {l} {lw} {d} ({cc}).']),{l:numM('lineas',S.l),lw:nomMedida('lineas',S.l),lc:S.lc,le:S.le,d:dd,cc:cc})
+               : md.k==='lcli' ? fill(pick('mLC',['Llevas {n} {w} {d} (en {cc}).','He sumado {n} {w} {d}, en {cc}.']),{n:numM('lcli',S.lc),w:nomMedida('lcli',S.lc),le:S.le,d:dd,cc:cc})
                : fill(pick('mLE',['Llevas {n} {w} {d} (en {cc}).','He sumado {n} {w} {d}, repartidas en {cc}.']),{n:numM('lext',S.le),w:nomMedida('lext',S.le),d:dd,cc:cc});
       if(md.fib && md.k!=='fibras') txtM += ' Y '+numM('fibras',S.f)+' '+nomMedida('fibras',S.f)+'.';
       return { say: txtM };
@@ -976,7 +976,7 @@ var lastPicks = {};
         if(!l.length) return done({ say: fill(pick('rs0',['{D} todavía no hay ningún contrato.','Nada {d}: cero contratos.','{D} no ha entrado ningún contrato.']),{d:r.label,D:cap(sinDe(r.label))}) });
         var det=g.slice(0,5).map(function(x){ return x.n+' de '+compName(x.c); }); if(g.length>5) det.push('y '+(g.length-5)+' compañías más');
         var fib=l.filter(tieneFibra).length;
-        done({ say: fill(pick('rs',['{D} llevas {n} {c}: {det}. {f}','Resumen {d}: {n} {c} ({det}). {f}','{D}: {n} {c}. Por compañías: {det}. {f}']),{D:cap(sinDe(r.label)),d:r.label,n:numU(l.length),c:plural(l.length,'contrato','contratos'),det:listaTxt(det),f:(function(){ var S=sumar(l); return 'En total, '+numM('fibras',S.f)+' '+nomMedida('fibras',S.f)+' y '+numM('lineas',S.l)+' '+nomMedida('lineas',S.l)+' ('+S.lc+' de cliente y '+S.le+' extra).'; })()}).trim() });
+        done({ say: fill(pick('rs',['{D} llevas {n} {c}: {det}. {f}','Resumen {d}: {n} {c} ({det}). {f}','{D}: {n} {c}. Por compañías: {det}. {f}']),{D:cap(sinDe(r.label)),d:r.label,n:numU(l.length),c:plural(l.length,'contrato','contratos'),det:listaTxt(det),f:(function(){ var S=sumar(l); return 'En total, '+numM('fibras',S.f)+' '+nomMedida('fibras',S.f)+' y '+numM('lineas',S.l)+' '+nomMedida('lineas',S.l)+'.'; })()}).trim() });
       });
       return true;
     }
