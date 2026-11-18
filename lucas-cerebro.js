@@ -2658,6 +2658,71 @@ var lastPicks = {};
       var cuando = dias<0 ? 'ya tocaba hace '+(-dias)+' '+plural(-dias,'día','días') : (dias===0 ? 'avisa hoy' : 'avisa en '+dias+' '+plural(dias,'día','días'));
       return { t:(dias<=0?'⚠️ ':'⏳ ')+fmtD(new Date(v))+' · '+titleCase(String(it['21']||'').trim()||'—')+(it['2']?' ('+compName(it['2'])+')':'')+' · '+cuando, rojo:dias<=0, amar:dias>0&&dias<=7 };
     }
+
+    // ---- ventana emergente con el listado y botón de PDF ----
+    function cargarJsPDF(cb){
+      if(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable) return cb(true);
+      var urls=[['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'],
+                ['https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js','https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js']];
+      function carga(lst, i, ok){ if(i>=lst.length) return ok(false); var sc=document.createElement('script'); sc.src=lst[i]; sc.onload=function(){ ok(true); }; sc.onerror=function(){ carga(lst, i+1, ok); }; document.head.appendChild(sc); }
+      var need0=!(window.jspdf && window.jspdf.jsPDF);
+      (need0 ? function(k){ carga(urls[0],0,k); } : function(k){ k(true); })(function(a){ if(!a) return cb(false); carga(urls[1],0,function(b){ cb(!!b); }); });
+    }
+    function pdf(lista){
+      cargarJsPDF(function(ok){
+        if(!ok) return alert('No se ha podido preparar el PDF. Revisa la conexión e inténtalo otra vez.');
+        try{
+          var doc=new window.jspdf.jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+          var hoy=new Date();
+          doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(10,120,60); doc.text('Informe de pausas y dobles pausas', 14, 16);
+          doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90); doc.text('Generado el '+fmtD(hoy)+' a las '+('0'+hoy.getHours()).slice(-2)+':'+('0'+hoy.getMinutes()).slice(-2)+' · '+lista.length+' contratos · aviso a los 90 días', 14, 22);
+          doc.autoTable({ startY:27, head:[['#','Tipo','Cliente','Dirección','Compañía','Fecha de aviso','Estado']],
+            body: lista.map(function(x,i){ return [i+1, x.tipo===2?'Doble pausa':'Pausa', x.cliente, x.dir||'—', x.comp||'—', fmtD(new Date(x.v)), x.falta]; }),
+            styles:{ fontSize:8.5, cellPadding:2.2, valign:'middle' }, headStyles:{ fillColor:[12,90,50], textColor:255, fontStyle:'bold' },
+            alternateRowStyles:{ fillColor:[242,250,245] }, columnStyles:{ 0:{ cellWidth:8, halign:'center' }, 1:{ cellWidth:20 }, 5:{ cellWidth:24, halign:'center' }, 6:{ cellWidth:30 } },
+            didParseCell:function(d){ if(d.section==='body' && d.column.index===6 && lista[d.row.index] && lista[d.row.index].dias<=0){ d.cell.styles.textColor=[200,30,30]; d.cell.styles.fontStyle='bold'; } } });
+          doc.save('informe-pausas-'+iso(hoy)+'.pdf');
+        }catch(e){ alert('No se ha podido crear el PDF.'); }
+      });
+    }
+    function esc1(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+    function modal(lista){
+      try{
+        var old=document.getElementById('lucasInfPausas'); if(old) old.remove();
+        var ov=document.createElement('div'); ov.id='lucasInfPausas';
+        ov.style.cssText='position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(3,10,7,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);opacity:0;transition:opacity .25s;';
+        var c=document.createElement('div');
+        c.style.cssText='width:min(980px,100%);max-height:88vh;display:flex;flex-direction:column;border-radius:18px;overflow:hidden;background:#0b1410;color:#e6fff0;border:1px solid #17ff5f;box-shadow:0 0 30px rgba(23,255,95,.35),0 20px 60px rgba(0,0,0,.5);transform:translateY(18px) scale(.97);transition:transform .3s cubic-bezier(.2,1.3,.4,1);font-family:inherit;';
+        var venc=lista.filter(function(x){ return x.dias<=0; }).length;
+        var head='<div style="display:flex;align-items:center;gap:12px;padding:16px 18px;background:linear-gradient(90deg,#0f2a1c,#0b1410);border-bottom:1px solid rgba(23,255,95,.35)">'
+          +'<div style="font-size:26px">📋</div><div style="flex:1;min-width:0"><div style="font-weight:900;font-size:17px;letter-spacing:.4px;color:#17ff5f">INFORME DE PAUSAS</div>'
+          +'<div style="font-size:12px;color:#9fdcb7">'+lista.length+' '+plural(lista.length,'contrato','contratos')+' con aviso programado a los 90 días'+(venc?' · <b style="color:#ff8a8a">'+venc+' ya '+(venc===1?'pasado':'pasados')+' de fecha</b>':'')+'</div></div>'
+          +'<button type="button" id="lucasInfPdf" style="border:none;border-radius:12px;padding:10px 14px;font-weight:900;cursor:pointer;color:#05140c;background:linear-gradient(90deg,#17ff5f,#00d4ff);box-shadow:0 0 14px rgba(23,255,95,.45);white-space:nowrap">⬇️ Descargar PDF</button>'
+          +'<button type="button" id="lucasInfX" title="Cerrar" style="border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;width:38px;height:38px;border-radius:10px;font-size:20px;line-height:1;cursor:pointer">✕</button></div>';
+        var filas=lista.map(function(x,i){
+          var col = x.dias<=0 ? '#ff8a8a' : (x.dias<=7 ? '#ffd166' : '#9fdcb7');
+          return '<tr style="border-bottom:1px solid rgba(255,255,255,.06)'+(i%2?';background:rgba(23,255,95,.035)':'')+'">'
+            +'<td style="padding:9px 10px;text-align:center;opacity:.6">'+(i+1)+'</td>'
+            +'<td style="padding:9px 10px;white-space:nowrap"><span style="display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;'+(x.tipo===2?'background:rgba(255,77,77,.15);color:#ff9b9b;border:1px solid rgba(255,77,77,.4)':'background:rgba(0,212,255,.12);color:#7fe3ff;border:1px solid rgba(0,212,255,.4)')+'">'+(x.tipo===2?'⏸️⏸️ Doble pausa':'⏸️ Pausa')+'</span></td>'
+            +'<td style="padding:9px 10px;font-weight:700">'+esc1(x.cliente)+(x.comp?'<div style="font-size:11px;font-weight:400;opacity:.65">'+esc1(x.comp)+'</div>':'')+'</td>'
+            +'<td style="padding:9px 10px;font-size:12.5px;opacity:.9">'+esc1(x.dir||'—')+'</td>'
+            +'<td style="padding:9px 10px;white-space:nowrap;font-weight:800">'+fmtD(new Date(x.v))+'</td>'
+            +'<td style="padding:9px 10px;white-space:nowrap;color:'+col+';font-weight:700">'+(x.dias<=0?'⚠️ ':'')+esc1(x.falta)+'</td></tr>';
+        }).join('');
+        var body='<div style="overflow:auto;flex:1;-webkit-overflow-scrolling:touch"><table style="width:100%;border-collapse:collapse;font-size:13px;color:#e6fff0;font-family:inherit">'
+          +'<thead><tr style="position:sticky;top:0;background:#10241a;color:#17ff5f;text-align:left;font-size:11.5px;letter-spacing:.6px;text-transform:uppercase">'
+          +'<th style="padding:10px">#</th><th style="padding:10px">Tipo</th><th style="padding:10px">Cliente</th><th style="padding:10px">Dirección</th><th style="padding:10px">Fecha de aviso</th><th style="padding:10px">Estado</th></tr></thead>'
+          +'<tbody>'+(filas||'<tr><td colspan="6" style="padding:24px;text-align:center;opacity:.6">No hay pausas ni dobles pausas con aviso programado.</td></tr>')+'</tbody></table></div>';
+        c.innerHTML=head+body; ov.appendChild(c); document.body.appendChild(ov);
+        requestAnimationFrame(function(){ ov.style.opacity='1'; c.style.transform='none'; });
+        var cerrar=function(){ ov.style.opacity='0'; c.style.transform='translateY(18px) scale(.97)'; document.removeEventListener('keydown', esc); setTimeout(function(){ try{ ov.remove(); }catch(e){} }, 260); };
+        var esc=function(e){ if(e.key==='Escape') cerrar(); };
+        document.addEventListener('keydown', esc);
+        c.querySelector('#lucasInfX').onclick=cerrar;
+        ov.addEventListener('click', function(e){ if(e.target===ov) cerrar(); });
+        var bp=c.querySelector('#lucasInfPdf'); bp.onclick=function(){ bp.textContent='⏳ Preparando…'; pdf(lista); setTimeout(function(){ bp.textContent='⬇️ Descargar PDF'; }, 2500); };
+      }catch(e){ console.warn('[Lucas] informe pausas', e); }
+    }
     function informe(done){
       ensureContratos(function(){
         var hoy=new Date(), hoy0=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()).getTime();
@@ -2680,6 +2745,12 @@ var lastPicks = {};
             setTimeout(function(){ box.appendChild(wrap); box.scrollTop=box.scrollHeight; }, 400);
           }
         }catch(e){}
+        var lista = p1.map(function(x){ x.tipo=1; return x; }).concat(p2.map(function(x){ x.tipo=2; return x; })).map(function(x){
+          var dias=Math.round((x.v-hoy0)/86400000);
+          return { tipo:x.tipo, v:x.v, dias:dias, cliente:titleCase(String(x.it['21']||'').trim()||'—'), dir:String(x.it['23']||'').trim(), comp:x.it['2']?compName(x.it['2']):'',
+                   falta: dias<0 ? 'Hace '+(-dias)+' '+plural(-dias,'día','días') : (dias===0 ? 'Hoy' : 'En '+dias+' '+plural(dias,'día','días')) };
+        }).sort(function(a,b){ return a.v-b.v; });   // primero el aviso más cercano
+        setTimeout(function(){ modal(lista); }, 700);
         var venc = p1.concat(p2).filter(function(x){ return x.v<=hoy0; }).length, prox=p1.concat(p2).filter(function(x){ return x.v>hoy0; }).sort(function(a,b){ return a.v-b.v; })[0];
         var txt = fill(pick('infP',['Aquí tienes el informe: {a} {ca} en pausa y {b} en doble pausa con aviso programado.','Te enseño las pausas programadas: {a} de pausa y {b} de doble pausa.','Informe de pausas listo: {a} en ⏸️ y {b} en ⏸️⏸️ con su fecha de aviso.']),{a:p1.length,b:p2.length,ca:plural(p1.length,'contrato','contratos')});
         if(venc) txt += ' '+fill(pick('infPv',['Ojo, {n} ya {v} de fecha.','{n} ya {t} que estar gestionados.']),{n:venc,v:venc===1?'está pasado':'están pasados',t:venc===1?'tendría':'tendrían'});
