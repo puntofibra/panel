@@ -434,16 +434,21 @@ function later(fn, ms){ var t = setTimeout(fn, ms); timers.push(t); return t; }
 function NP(){ return P.length; }
 function calcMode(){ return (innerWidth >= 980 && innerWidth / innerHeight >= 1.1) ? 'sp' : 'sg'; }
 function maxS(){ return mode === 'sp' ? L : L - 1; }
-function snd(){
+function snd(soft){
   if (!sound) return;
   try{
     AC = AC || new (window.AudioContext || window.webkitAudioContext)();
-    var t = AC.currentTime, len = Math.floor(AC.sampleRate * 0.3), b = AC.createBuffer(1, len, AC.sampleRate), d = b.getChannelData(0);
-    for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.7);
+    var t = AC.currentTime, len = Math.floor(AC.sampleRate * 0.5), b = AC.createBuffer(1, len, AC.sampleRate), d = b.getChannelData(0), y = 0, y2 = 0;
+    for (var i = 0; i < len; i++){
+      var w = Math.random() * 2 - 1;
+      y = y * 0.9 + w * 0.1; y2 = y2 * 0.9 + y * 0.1;
+      d[i] = y2 * Math.sin(Math.PI * Math.pow(i / len, 0.6)) * 9;
+    }
     var s = AC.createBufferSource(); s.buffer = b;
-    var f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(2600, t); f.frequency.exponentialRampToValueAtTime(650, t + 0.27); f.Q.value = 0.8;
-    var g = AC.createGain(); g.gain.value = 0.17;
-    s.connect(f); f.connect(g); g.connect(AC.destination); s.start(t);
+    var lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(1500, t); lp.frequency.exponentialRampToValueAtTime(520, t + 0.45); lp.Q.value = 0.3;
+    var hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 140;
+    var g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(soft ? 0.05 : 0.09, t + 0.07); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
+    s.connect(lp); lp.connect(hp); hp.connect(g); g.connect(AC.destination); s.start(t);
   }catch(e){}
 }
 function mkPage(i, cls){
@@ -492,8 +497,8 @@ function render(){
   fit(); book.style.transition = 'none'; shift(); void book.offsetWidth; book.style.transition = '';
   markVis(); label();
 }
-function flip(j, fw, dur){
-  var lf = leaves[j]; lf.style.zIndex = 1000 + j; lf.classList.remove('go'); void lf.offsetWidth; lf.classList.add('go'); lf.classList.toggle('fl', fw); snd();
+function flip(j, fw, dur, quiet){
+  var lf = leaves[j]; lf.style.zIndex = 1000 + j; lf.classList.remove('go'); void lf.offsetWidth; lf.classList.add('go'); lf.classList.toggle('fl', fw); if (!quiet) snd(dur < 0.9);
   later(function(){ lf.classList.remove('go'); zFix(j); }, dur * 1000 + 20);
 }
 function go(t){
@@ -505,7 +510,7 @@ function go(t){
   book.style.setProperty('--d', dur + 's');
   if (dir > 0){ for (k = S; k < t; k++) seq.push(k); } else { for (k = S - 1; k >= t; k--) seq.push(k); }
   visOff();
-  seq.forEach(function(j, idx){ later(function(){ flip(j, dir > 0, dur); }, idx * stag); });
+  seq.forEach(function(j, idx){ later(function(){ flip(j, dir > 0, dur, n > 1 && idx % 2 === 1); }, idx * stag); });
   S = t; shift(); label();
   later(function(){ busy = false; markVis(); if (pending !== null){ var p = pending; pending = null; go(p); } }, (n - 1) * stag + dur * 1000 + 90);
 }
