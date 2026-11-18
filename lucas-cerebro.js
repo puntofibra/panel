@@ -2446,4 +2446,91 @@ var lastPicks = {};
     }
     setTimeout(revisar, 8000); setInterval(revisar, 20000);
   })();
+
+  /* =====================================================================
+     CHAT ENTRE EMPLEADOS: «chat» → ¿a quién? → escribes el mensaje → le llega
+     en su ordenador (semillas chatManu / chatJorge / chatMaicol / chatSebas).
+     ===================================================================== */
+  (function(){
+    var PERS=[['Manu','chatManu'],['Jorge','chatJorge'],['Maicol','chatMaicol'],['Sebas','chatSebas']];
+    function yo(){ return PERS.filter(function(p){ return semilla(p[1]); }).map(function(p){ return p[0]; }); }
+    function nombreDe(t){ t=fold(t); var r=null; PERS.forEach(function(p){ if(new RegExp('\\b'+fold(p[0])+'\\b').test(t)) r=p[0]; }); if(!r && /\bsebastian\b/.test(t)) r='Sebas'; if(!r && /\b(michael|maikol)\b/.test(t)) r='Maicol'; return r; }
+    var ESPERA=null;   // { para, at }
+    function preguntarA(done){
+      var me=yo();
+      if(!me.length) return done({ say: pick('chat0',['Este ordenador no tiene el chat activado, así que no puedo enviar mensajes desde aquí.','Desde este ordenador el chat no está activado. Pídeselo al administrador.']) });
+      var otros=PERS.map(function(p){ return p[0]; }).filter(function(n){ return me.indexOf(n)<0; });
+      done({ say: pick('chatQ',['💬 ¿A quién le quieres enviar un mensaje?','💬 ¿Para quién es el mensaje?','💬 Vale, ¿a quién se lo mando?']), buttons: otros.map(function(n){ return { t:'💬 '+n, v:'chat:para:'+n }; }) });
+    }
+    function pedirTexto(para, done){
+      ESPERA={ para:para, at:Date.now() };
+      done({ say: fill(pick('chatT',['✍️ Escribe el mensaje para {n}.','✍️ Perfecto, ¿qué le digo a {n}?','✍️ Adelante, escribe lo que quieres que le llegue a {n}.']),{n:para}) });
+    }
+    function enviar(texto, done){
+      var para=ESPERA.para, de=yo()[0]; ESPERA=null;
+      if(!de) return done({ say:'Este ordenador no tiene el chat activado.' });
+      if(SALDO!=null && SALDO<COSTE) return sinSaldo(done);
+      try{
+        google.script.run.withSuccessHandler(function(r){
+          if(!r || !r.ok) return done({ say:'❌ No he podido enviar el mensaje. Inténtalo otra vez.' });
+          saldoConsumir();
+          done({ say: fill(pick('chatOK',['✅ Mensaje enviado a {n}.','✅ Hecho, {n} ya tiene tu mensaje.','✅ Enviado. Se lo digo a {n} en cuanto tenga el panel abierto.']),{n:para}) });
+        }).withFailureHandler(function(){ done({ say:'❌ No he podido enviar el mensaje. Inténtalo otra vez.' }); }).apiChatEnviar(de, para, String(texto).slice(0,1000));
+      }catch(e){ done({ say:'❌ No he podido enviar el mensaje.' }); }
+    }
+    var h0=B.handle;
+    B.handle=function(raw, done){
+      var t=fold(raw);
+      if(ESPERA && Date.now()-ESPERA.at>10*60000) ESPERA=null;
+      if(ESPERA){
+        if(/^(cancelar|cancela|nada|olvidalo|dejalo|no)$/.test(t)){ ESPERA=null; return done({ say: pick('chatX',['Vale, mensaje cancelado.','Cancelado, no envío nada.']) }); }
+        if(String(raw||'').trim()) return enviar(String(raw).trim(), done);
+      }
+      if(/^(chat|chatear|abrir chat|mandar (un )?mensaje|enviar (un )?mensaje|escribir (un )?mensaje)$/.test(t)) return preguntarA(done);
+      var mC=t.match(/^(?:chat|mensaje|manda(?:r|le)? (?:un )?mensaje|escribe(?:le)?)\s+(?:con |a |para )?(\w+)$/);
+      if(mC){ var n=nombreDe(mC[1]); if(n && yo().length && yo().indexOf(n)<0) return pedirTexto(n, done); }
+      return h0(raw, done);
+    };
+    var p0=B.pick;
+    B.pick=function(v, done){
+      v=String(v||'');
+      if(v.indexOf('chat:para:')===0){ if(!yo().length) return preguntarA(done); return pedirTexto(v.slice(10), done); }
+      if(v.indexOf('chat:ok:')===0 || v.indexOf('chat:resp:')===0){
+        var pz=v.split(':'), id=pz[2], de=pz.slice(3).join(':'), resp=pz[1]==='resp';
+        try{ google.script.run.withFailureHandler(function(){}).apiChatLeido([id]); }catch(e){}
+        if(resp) return pedirTexto(de, done);
+        return done({ say: fill(pick('chatAck',['👍 Hecho, {d} sabrá que has recibido su mensaje.','👍 Perfecto, le aviso a {d} de que lo has leído.','👍 Listo, {d} verá que su mensaje te ha llegado.']),{d:de}) });
+      }
+      return p0(v, done);
+    };
+    // ---- recibir: cada 15 s mira si hay mensajes para las personas con semilla en este ordenador ----
+    var vistos={}, ocupado=false;
+    function recibir(){
+      var me=yo(); if(!me.length || ocupado) return;
+      var app=document.getElementById('app'); if(app && app.classList.contains('hidden')) return;
+      ocupado=true;
+      try{
+        google.script.run.withSuccessHandler(function(r){
+          ocupado=false;
+          var items=(r && r.items)||[];
+          items.forEach(function(m){
+            if(vistos[m.id]) return; vistos[m.id]=1;
+            var intro=fill(pick('chatIn',['📩 Tienes un mensaje de {d}:','📩 {d} te ha escrito:','📩 Tengo un mensaje para ti de {d}:','📩 Mensaje nuevo de {d}:','📩 {d} te dice:','📩 Te escribe {d}:']),{d:m.de});
+            var para = me.length>1 ? ' (para '+m.para+')' : '';
+            var pide=fill(pick('chatPide',['Pulsa Aceptar para que {d} sepa que has recibido su mensaje.','Dale a Aceptar y {d} sabrá que lo has leído.','Pulsa Aceptar para avisar a {d} de que te ha llegado.']),{d:m.de});
+            B.duckSay(intro.replace(/:$/, para+':')+' «'+m.texto+'» '+pide, [{ t:'✅ Aceptar', v:'chat:ok:'+m.id+':'+m.de }, { t:'↩️ Responder a '+m.de, v:'chat:resp:'+m.id+':'+m.de }]);
+          });
+          // acuses de lectura de los mensajes que he enviado yo
+          var ac=(r && r.acuses)||[], idsA=[];
+          ac.forEach(function(a){
+            if(vistos['A'+a.id]) return; vistos['A'+a.id]=1; idsA.push(a.id);
+            var corto=String(a.texto||''); if(corto.length>60) corto=corto.slice(0,57)+'…';
+            B.duckSay(fill(pick('chatRec',['✅ {p} ha recibido tu mensaje: «{t}».','✅ {p} ya ha leído tu mensaje: «{t}».','👀 {p} ha visto tu mensaje: «{t}».']),{p:a.para,t:corto}));
+          });
+          if(idsA.length){ try{ google.script.run.withFailureHandler(function(){}).apiChatAcuseVisto(idsA); }catch(e){} }
+        }).withFailureHandler(function(){ ocupado=false; }).apiChatPendientes(me);
+      }catch(e){ ocupado=false; }
+    }
+    setTimeout(recibir, 6000); setInterval(recibir, 15000);
+  })();
 })();
