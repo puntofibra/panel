@@ -38,7 +38,7 @@
   @keyframes pfmFlota{ 50%{ transform:translate(30px,40px) scale(1.15); } }
   #pfm header{ position:relative; z-index:2; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; background:linear-gradient(180deg,rgba(7,13,26,.96),rgba(7,13,26,.82)); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid rgba(148,163,184,.14); }
   #pfm .fila1{ display:flex; align-items:center; gap:10px; }
-  #pfm .logo{ height:30px; width:auto; filter:drop-shadow(0 3px 10px rgba(56,189,248,.35)); }
+  #pfm .logo{ height:36px; width:auto; filter:drop-shadow(0 3px 10px rgba(56,189,248,.35)); }
   #pfm .tt{ flex:1; font-weight:900; font-size:16px; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #pfm .ib{ width:40px; height:40px; border-radius:12px; border:1px solid rgba(148,163,184,.22); background:rgba(255,255,255,.05); color:#e6edf7; font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto; transition:transform .15s, background .2s; }
   #pfm .ib:active{ transform:scale(.9); background:rgba(56,189,248,.18); }
@@ -163,7 +163,7 @@
   root.innerHTML =
     '<div class="bg"><i></i><i></i></div>' +
     '<header>' +
-      '<div class="fila1"><img class="logo" src="https://i.postimg.cc/vZwLhn6g/descarga.png" alt=""><div class="tt">Puntofibra</div>' +
+      '<div class="fila1"><img class="logo" src="https://i.postimg.cc/vZwLhn6g/descarga.png" alt=""><div style="flex:1"></div>' +
       '<button class="ib" id="pfmRef" title="Actualizar">⟳</button><button class="ib" id="pfmMas" title="Más">⋮</button></div>' +
       '<div class="tabs" id="pfmTabs"><span class="pill"></span><button data-t="borradores" class="on">📝 Borradores<span class="n" id="pfmNb">·</span></button><button data-t="contratos">📄 Contratos<span class="n" id="pfmNc">·</span></button></div>' +
       '<div class="busca" id="pfmBusca"><span class="lu">🔍</span><input id="pfmQ" type="search" placeholder="Buscar por nombre, documento, cuenta, dirección…" autocomplete="off" enterkeyhint="search"><button class="x" id="pfmQx">✕</button></div>' +
