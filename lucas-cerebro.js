@@ -2800,4 +2800,65 @@ var lastPicks = {};
     };
     B._informePausas = informe;
   })();
+
+  /* =====================================================================
+     CHAT EN VIVO: pegar imágenes (Ctrl+V) y verlas en miniatura; al pulsar,
+     pantalla completa con ✕.
+     ===================================================================== */
+  (function(){
+    function idDe(href){ var m=String(href||'').match(/[?&]id=([\w-]+)/) || String(href||'').match(/\/d\/([\w-]+)/); return m ? m[1] : null; }
+    function abrir(id){
+      var old=document.getElementById('chatImgFull'); if(old) old.remove();
+      var ov=document.createElement('div'); ov.id='chatImgFull';
+      ov.style.cssText='position:fixed;inset:0;z-index:2147483300;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .2s;cursor:zoom-out;';
+      var img=document.createElement('img'); img.src='https://drive.google.com/thumbnail?id='+id+'&sz=w2400'; img.alt='';
+      img.style.cssText='max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 10px 50px rgba(0,0,0,.6);cursor:default;';
+      var x=document.createElement('button'); x.type='button'; x.textContent='✕'; x.title='Cerrar';
+      x.style.cssText='position:absolute;top:14px;right:14px;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;font-size:22px;cursor:pointer;';
+      var dl=document.createElement('a'); dl.textContent='⬇️ Descargar'; dl.href='https://drive.google.com/uc?export=download&id='+id; dl.target='_blank'; dl.rel='noopener';
+      dl.style.cssText='position:absolute;top:18px;right:72px;padding:9px 14px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;font-weight:800;font-size:13px;text-decoration:none;';
+      ov.appendChild(img); ov.appendChild(dl); ov.appendChild(x); document.body.appendChild(ov);
+      requestAnimationFrame(function(){ ov.style.opacity='1'; });
+      var cerrar=function(){ ov.style.opacity='0'; document.removeEventListener('keydown', esc); setTimeout(function(){ try{ ov.remove(); }catch(e){} }, 200); };
+      var esc=function(e){ if(e.key==='Escape') cerrar(); };
+      document.addEventListener('keydown', esc);
+      x.onclick=cerrar; ov.addEventListener('click', function(e){ if(e.target===ov) cerrar(); });
+    }
+    function convertir(box){
+      var as=box.querySelectorAll('a.chatFileMsg:not([data-mini])');
+      for(var i=0;i<as.length;i++){
+        var a=as[i]; a.setAttribute('data-mini','1');
+        var ic=a.querySelector('.chatFileIcon'); if(!ic || ic.textContent.indexOf('🖼')<0) continue;
+        var id=idDe(a.getAttribute('href')); if(!id) continue;
+        var img=document.createElement('img'); img.src='https://drive.google.com/thumbnail?id='+id+'&sz=w400'; img.alt='Imagen'; img.title='Pulsa para verla en grande';
+        img.style.cssText='display:block;max-width:170px;max-height:170px;border-radius:10px;cursor:zoom-in;box-shadow:0 2px 8px rgba(0,0,0,.18);margin:2px 0;background:#eee;';
+        (function(id, a, img){ img.onclick=function(e){ e.preventDefault(); e.stopPropagation(); abrir(id); }; img.onerror=function(){ a.style.display=''; try{ img.remove(); }catch(x){} }; })(id, a, img);
+        a.style.display='none'; a.parentNode.insertBefore(img, a);
+      }
+    }
+    function montar(){
+      var box=document.getElementById('chatMessages'), inp=document.getElementById('chatMsgInput');
+      if(!box || !inp) return false;
+      if(box.getAttribute('data-mini')) return true; box.setAttribute('data-mini','1');
+      convertir(box);
+      new MutationObserver(function(){ convertir(box); }).observe(box, { childList:true, subtree:true });
+      inp.addEventListener('paste', function(e){
+        try{
+          var it=(e.clipboardData && e.clipboardData.items) || [];
+          for(var i=0;i<it.length;i++){
+            if(it[i].kind==='file' && /^image\//.test(it[i].type)){
+              var f=it[i].getAsFile(); if(!f) continue;
+              e.preventDefault();
+              var ext=(f.type.split('/')[1]||'png').replace('jpeg','jpg');
+              var nf; try{ nf=new File([f], 'captura-'+new Date().toISOString().slice(0,19).replace(/[T:]/g,'-')+'.'+ext, { type:f.type }); }catch(x){ nf=f; }
+              if(typeof window.chatSendFile==='function') window.chatSendFile(nf);
+              return;
+            }
+          }
+        }catch(err){}
+      });
+      return true;
+    }
+    var n=0, iv=setInterval(function(){ if(montar() || ++n>120) clearInterval(iv); }, 1000);
+  })();
 })();
