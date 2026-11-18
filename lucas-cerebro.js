@@ -2520,6 +2520,58 @@ var lastPicks = {};
     };
     // ---- recibir: cada 15 s mira si hay mensajes para las personas con semilla en este ordenador ----
     var vistos={}, ocupado=false;
+    function burbujaImg(id, mia){
+      try{
+        var box=document.getElementById('iaChatMsgs'); if(!box || !id) return;
+        var w=document.createElement('div'); w.style.cssText='margin:6px 0;display:flex;justify-content:'+(mia?'flex-end':'flex-start');
+        var img=document.createElement('img'); img.alt='Imagen'; img.title='Pulsa para verla en grande';
+        img.src=String(id).indexOf('data:')===0 ? id : 'https://drive.google.com/thumbnail?id='+id+'&sz=w400';
+        img.style.cssText='max-width:170px;max-height:170px;border-radius:12px;cursor:zoom-in;box-shadow:0 2px 10px rgba(0,0,0,.25);background:#eee;'+(mia?'border:2px solid #111;':'');
+        img.onclick=function(){ var rid=img.getAttribute('data-id')||id; if(String(rid).indexOf('data:')===0) return; if(B._verImagen) B._verImagen(rid); };
+        w.appendChild(img); box.appendChild(w); box.scrollTop=box.scrollHeight;
+        return img;
+      }catch(e){}
+    }
+    function enviarImagen(file){
+      var para=ESPERA.para, de=yo()[0];
+      if(!de) return;
+      if(SALDO!=null && SALDO<COSTE) return sinSaldo(function(r){ if(r && r.say && window.__lucasSay) window.__lucasSay(r.say); });
+      ESPERA=null;
+      var rd=new FileReader();
+      rd.onload=function(){
+        var url=String(rd.result||''), b64=url.slice(url.indexOf(',')+1);
+        var prev=burbujaImg(url, true); if(prev) prev.style.opacity='.55';
+        try{
+          google.script.run.withSuccessHandler(function(r){
+            if(!r || !r.ok){ if(window.__lucasSay) window.__lucasSay('❌ No he podido enviar la imagen. Inténtalo otra vez.'); if(prev) prev.parentNode.remove(); return; }
+            if(prev){ prev.style.opacity='1'; prev.setAttribute('data-id', r.id); }
+            saldoConsumir();
+            if(window.__lucasSay) window.__lucasSay(fill(pick('chatImgOK',['✅ Imagen enviada a {n}.','✅ Hecho, {n} ya tiene tu imagen.']),{n:para}));
+          }).withFailureHandler(function(){ if(window.__lucasSay) window.__lucasSay('❌ No he podido enviar la imagen.'); if(prev) prev.parentNode.remove(); }).apiChatLucasImagen(de, para, b64, file.type||'image/png');
+        }catch(e){}
+      };
+      rd.readAsDataURL(file);
+    }
+    (function(){
+      var n=0, iv=setInterval(function(){
+        var inp=document.getElementById('iaChatInput'); if(!inp && ++n<120) return; clearInterval(iv); if(!inp || inp.getAttribute('data-pegaimg')) return;
+        inp.setAttribute('data-pegaimg','1');
+        inp.addEventListener('paste', function(e){
+          try{
+            var it=(e.clipboardData && e.clipboardData.items) || [];
+            for(var i=0;i<it.length;i++){
+              if(it[i].kind==='file' && /^image\//.test(it[i].type)){
+                var f=it[i].getAsFile(); if(!f) continue;
+                e.preventDefault();
+                if(ESPERA && Date.now()-ESPERA.at<10*60000) enviarImagen(f);
+                else if(window.__lucasSay) window.__lucasSay(pick('chatImgNo',['Para enviar una imagen, escribe «chat», elige a quién y luego pega la imagen.','Primero escribe «chat» y dime a quién se la mando; después pega la imagen.']));
+                return;
+              }
+            }
+          }catch(err){}
+        });
+      }, 1000);
+    })();
     function recibir(){
       var me=yo(); if(!me.length || ocupado) return;
       var app=document.getElementById('app'); if(app && app.classList.contains('hidden')) return;
@@ -2536,13 +2588,15 @@ var lastPicks = {};
             var intro=fill(pick('chatIn',['📩 Tienes un mensaje de {d}:','📩 {d} te ha escrito:','📩 Tengo un mensaje para ti de {d}:','📩 Mensaje nuevo de {d}:','📩 {d} te dice:','📩 Te escribe {d}:']),{d:m.de});
             var para = me.length>1 ? ' (para '+m.para+')' : '';
             var pide=fill(pick('chatPide',['Pulsa Aceptar para que {d} sepa que has recibido su mensaje.','Dale a Aceptar y {d} sabrá que lo has leído.','Pulsa Aceptar para avisar a {d} de que te ha llegado.']),{d:m.de});
-            B.duckSay(intro.replace(/:$/, para+':')+' «'+m.texto+'» '+pide, [{ t:'✅ Aceptar', v:'chat:ok:'+m.id+':'+m.de }, { t:'↩️ Responder a '+m.de, v:'chat:resp:'+m.id+':'+m.de }]);
+            var esImg=/^\[\[IMG\]\]/.test(m.texto||''), imgId=esImg ? String(m.texto).slice(7).trim() : '';
+            if(esImg){ intro=fill(pick('chatInImg',['📩 {d} te ha enviado una imagen:','📩 Tienes una imagen de {d}:','📩 {d} te manda una imagen:']),{d:m.de}); setTimeout(function(){ burbujaImg(imgId, false); }, 2600); }
+            B.duckSay(intro.replace(/:$/, para+':')+(esImg ? '' : ' «'+m.texto+'»')+' '+pide, [{ t:'✅ Aceptar', v:'chat:ok:'+m.id+':'+m.de }, { t:'↩️ Responder a '+m.de, v:'chat:resp:'+m.id+':'+m.de }]);
           });
           // acuses de lectura de los mensajes que he enviado yo
           var ac=(r && r.acuses)||[], idsA=[];
           ac.forEach(function(a){
             if(vistos['A'+a.id]) return; vistos['A'+a.id]=1; idsA.push(a.id);
-            var corto=String(a.texto||''); if(corto.length>60) corto=corto.slice(0,57)+'…';
+            var corto=String(a.texto||''); if(/^\[\[IMG\]\]/.test(corto)) corto='🖼️ imagen'; if(corto.length>60) corto=corto.slice(0,57)+'…';
             B.duckSay(fill(pick('chatRec',['✅ {p} ha recibido tu mensaje: «{t}».','✅ {p} ya ha leído tu mensaje: «{t}».','👀 {p} ha visto tu mensaje: «{t}».']),{p:a.para,t:corto}));
           });
           if(idsA.length){ try{ google.script.run.withFailureHandler(function(){}).apiChatAcuseVisto(idsA); }catch(e){} }
@@ -2808,6 +2862,7 @@ var lastPicks = {};
      ===================================================================== */
   (function(){
     function idDe(href){ var m=String(href||'').match(/[?&]id=([\w-]+)/) || String(href||'').match(/\/d\/([\w-]+)/); return m ? m[1] : null; }
+    B._verImagen = function(id){ abrir(id); };
     function abrir(id){
       var old=document.getElementById('chatImgFull'); if(old) old.remove();
       var ov=document.createElement('div'); ov.id='chatImgFull';
