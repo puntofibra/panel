@@ -2409,4 +2409,41 @@ var lastPicks = {};
     function programar(){ setTimeout(function(){ try{ parpadear(); }catch(e){} programar(); }, 1800+Math.random()*3400); }
     var n=0, iv=setInterval(function(){ if(montar() || ++n>120) clearInterval(iv); }, 1000);
   })();
+
+  /* =====================================================================
+     AVISOS DE FICHAJE (semilla «avisosFichaje»): en cuanto un empleado
+     ficha la entrada o la salida, Lucas lo avisa en este ordenador.
+     ===================================================================== */
+  (function(){
+    var CLAVE='pfFichVistos', primera=true;
+    function leer(){ try{ var o=JSON.parse(localStorage.getItem(CLAVE)||'{}'); return o && o.dia===iso(new Date()) ? o : { dia:iso(new Date()), k:{} }; }catch(e){ return { dia:iso(new Date()), k:{} }; } }
+    function guardar(o){ try{ localStorage.setItem(CLAVE, JSON.stringify(o)); }catch(e){} }
+    function minutos(h){ var m=String(h||'').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1])*60+(+m[2]) : null; }
+    function revisar(){
+      try{
+        if(!semilla('avisosFichaje')) return;
+        var app=document.getElementById('app'); if(app && app.classList.contains('hidden')) return;   // aún en el login
+        google.script.run.withSuccessHandler(function(res){
+          var items = (res && res.items) || [], vis=leer(), ahora=new Date(), mAhora=ahora.getHours()*60+ahora.getMinutes(), nuevos=[];
+          items.forEach(function(x){
+            var k=(x.empleado||'?')+'|'+(x.tipo||'')+'|'+(x.hora||''); if(vis.k[k]) return;
+            vis.k[k]=1;
+            var mm=minutos(x.hora);
+            // al abrir el panel no avisa de fichajes viejos: solo de los de los últimos 10 minutos
+            if(primera && (mm==null || mAhora-mm>10)) return;
+            nuevos.push(x);
+          });
+          primera=false; guardar(vis);
+          nuevos.forEach(function(x, i){
+            var ent = String(x.tipo||'').toUpperCase()==='ENTRADA';
+            var msg = ent
+              ? fill(pick('avFE',['🟢 {e} acaba de fichar la ENTRADA a las {h}.','🟢 Fichaje de entrada: {e} ha empezado a trabajar a las {h}.','🟢 {e} ya está aquí: entrada fichada a las {h}.']),{e:x.empleado||'Un empleado',h:x.hora||''})
+              : fill(pick('avFS',['🔴 {e} acaba de fichar la SALIDA a las {h}.','🔴 Fichaje de salida: {e} se ha ido a las {h}.','🔴 {e} ha terminado: salida fichada a las {h}.']),{e:x.empleado||'Un empleado',h:x.hora||''});
+            setTimeout(function(){ try{ B.duckSay(msg); }catch(e){} }, i*4000);
+          });
+        }).withFailureHandler(function(){}).apiFichajeLucasDia(iso(new Date()));
+      }catch(e){}
+    }
+    setTimeout(revisar, 8000); setInterval(revisar, 20000);
+  })();
 })();
