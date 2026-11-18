@@ -2520,6 +2520,20 @@ var lastPicks = {};
     };
     // ---- recibir: cada 15 s mira si hay mensajes para las personas con semilla en este ordenador ----
     var vistos={}, ocupado=false;
+    // la miniatura sale justo debajo del mensaje de Lucas que la anuncia (cuando lo dice, no antes)
+    var IMG_COLA=[];
+    function imgTrasMensaje(de, id){
+      IMG_COLA.push({ de:de, id:id });
+      if(window.__lucasSay && !window.__lucasSay.__img){
+        var s0=window.__lucasSay;
+        window.__lucasSay=function(msg){
+          var r=s0.apply(this, arguments);
+          try{ for(var i=0;i<IMG_COLA.length;i++){ var q=IMG_COLA[i]; if(/imagen/i.test(String(msg)) && String(msg).indexOf(q.de)>=0){ IMG_COLA.splice(i,1); setTimeout(function(){ burbujaImg(q.id, false); }, 150); break; } } }catch(e){}
+          return r;
+        };
+        window.__lucasSay.__img=true;
+      }
+    }
     function burbujaImg(id, mia){
       try{
         var box=document.getElementById('iaChatMsgs'); if(!box || !id) return;
@@ -2589,7 +2603,7 @@ var lastPicks = {};
             var para = me.length>1 ? ' (para '+m.para+')' : '';
             var pide=fill(pick('chatPide',['Pulsa Aceptar para que {d} sepa que has recibido su mensaje.','Dale a Aceptar y {d} sabrá que lo has leído.','Pulsa Aceptar para avisar a {d} de que te ha llegado.']),{d:m.de});
             var esImg=/^\[\[IMG\]\]/.test(m.texto||''), imgId=esImg ? String(m.texto).slice(7).trim() : '';
-            if(esImg){ intro=fill(pick('chatInImg',['📩 {d} te ha enviado una imagen:','📩 Tienes una imagen de {d}:','📩 {d} te manda una imagen:']),{d:m.de}); setTimeout(function(){ burbujaImg(imgId, false); }, 2600); }
+            if(esImg){ intro=fill(pick('chatInImg',['📩 {d} te ha enviado una imagen:','📩 Tienes una imagen de {d}:','📩 {d} te manda una imagen:']),{d:m.de}); imgTrasMensaje(m.de, imgId); }
             B.duckSay(intro.replace(/:$/, para+':')+(esImg ? '' : ' «'+m.texto+'»')+' '+pide, [{ t:'✅ Aceptar', v:'chat:ok:'+m.id+':'+m.de }, { t:'↩️ Responder a '+m.de, v:'chat:resp:'+m.id+':'+m.de }]);
           });
           // acuses de lectura de los mensajes que he enviado yo
@@ -2609,7 +2623,7 @@ var lastPicks = {};
       Object.keys(PEND).forEach(function(id){
         var p=PEND[id]; if(ahora-p.ult < 5*60000 || p.n>=3) return;
         p.ult=ahora; p.n++;
-        var corto=String(p.texto||''); if(corto.length>70) corto=corto.slice(0,67)+'…';
+        var corto=String(p.texto||''), esImgR=/^\[\[IMG\]\]/.test(corto); if(esImgR){ imgTrasMensaje(p.de, corto.slice(7).trim()); corto='una imagen'; } if(corto.length>70) corto=corto.slice(0,67)+'…';
         var msg=fill(pick('chatRecu',[
           '⏳ {d} seguramente esté esperando la confirmación de que has recibido su mensaje. Pulsa Aceptar y le diré que ya lo tienes.',
           '⏳ Oye, {d} te escribió hace un rato: «{t}». Dale a Aceptar para que sepa que te ha llegado.',
@@ -2955,5 +2969,39 @@ var lastPicks = {};
       return true;
     }
     var n=0, iv=setInterval(function(){ if(montar() || ++n>120) clearInterval(iv); }, 1000);
+  })();
+
+  /* =====================================================================
+     AUTO-ACTUALIZAR: si se publica una versión nueva de Lucas, el panel se
+     recarga solo cuando nadie lo está usando (1 min sin tocar nada y sin escribir).
+     ===================================================================== */
+  (function(){
+    var URL0='https://puntofibra.github.io/panel/lucas-cerebro.js', firma=null, ultimoUso=Date.now();
+    ['mousedown','keydown','touchstart','wheel'].forEach(function(ev){ window.addEventListener(ev, function(){ ultimoUso=Date.now(); }, true); });
+    function firmaDe(r){ return r.headers.get('etag') || r.headers.get('last-modified') || ''; }
+    function ocupado(){
+      if(Date.now()-ultimoUso < 60000) return true;
+      var a=document.activeElement; if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && String(a.value||'').trim()) return true;
+      var ia=document.getElementById('iaChatInput'), ch=document.getElementById('chatMsgInput');
+      if((ia && ia.value.trim()) || (ch && ch.value.trim())) return true;
+      if(document.querySelector('#lucasInfPausas,#chatImgFull,#lucasSinSaldo') ) return true;
+      return false;
+    }
+    function mirar(){
+      try{
+        fetch(URL0+'?chk='+Date.now(), { method:'HEAD', cache:'no-store' }).then(function(r){
+          var f=firmaDe(r); if(!f) return;
+          if(firma===null){ firma=f; return; }
+          if(f!==firma){
+            var intento=function(){
+              if(ocupado()) return setTimeout(intento, 30000);
+              try{ window.top.postMessage({ pf:'recargar' }, '*'); }catch(e){}
+            };
+            intento();
+          }
+        }).catch(function(){});
+      }catch(e){}
+    }
+    setTimeout(mirar, 20000); setInterval(mirar, 180000);
   })();
 })();

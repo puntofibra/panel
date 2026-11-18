@@ -201,6 +201,7 @@
   window.addEventListener('message', ev => {
     const d = ev.data || {};
     if(d.pf === 'ready') ocultarSplash();
+    if(d.pf === 'recargar' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) location.reload();   // hay versión nueva de Lucas
     if(d.pf === 'nfc' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) llavePedidaPorPanel(ev, d);
     if(d.pf === 'nfcCerrar' && llOrigen) { llOrigen = null; cerrarLlave(); }
     if(d.pf === 'logout'){
