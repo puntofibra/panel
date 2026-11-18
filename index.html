@@ -281,10 +281,14 @@
     ev.preventDefault();
     const usuario = 'Puntofibra', password = $('password').value.trim();
     if(!password){ hint('Escribe tu contraseña', true); $('password').focus(); return; }
+    if(password === '000000'){ $('password').value = ''; hint(''); abrirSemillaMenu(); return; }   // menú para plantar la semilla de un panel
     const b = $('entrar'); b.disabled = true; hint('Comprobando…');
     try{
       const r = SUB ? await api({ accion:'subLogin', sub:SUB.id, password }) : await api({ accion:'login', password });
-      if(!r || !r.ok){ hint((r && r.error) || 'Contraseña incorrecta', true); $('password').select(); return; }
+      if(!r || !r.ok){
+        hint((r && r.error) || 'Contraseña incorrecta', true); $('password').select();
+        return;
+      }
       $('password').value = '';
       hint('');
       abrirApp(r.token);
@@ -316,6 +320,45 @@
     p.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); clearTimeout(tAuto); enviar(); } });
   })();
 
+  // ---------- 000000 en la contraseña -> menú para plantar la semilla de un panel (fede, wil…) ----------
+  function abrirSemillaMenu(){
+    let ov = $('semMenu');
+    if(!ov){
+      ov = document.createElement('div'); ov.id = 'semMenu';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(3,7,18,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+      ov.innerHTML = '<div style="width:min(360px,100%);background:#fff;border-radius:18px;padding:22px 20px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;text-align:center">'
+        + '<div style="font-size:34px">🌱</div><div style="font-weight:900;font-size:18px;margin:6px 0 4px;color:#0f172a">¿Quieres plantar una semilla en este dispositivo?</div>'
+        + '<div id="semActual" style="font-size:12.5px;color:#64748b;margin-bottom:12px"></div>'
+        + '<input id="semNombre" type="text" placeholder="Escribe aquí el nombre de la semilla" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;box-sizing:border-box;padding:13px 14px;border-radius:12px;border:1px solid #cbd5e1;font-size:16px;text-align:center">'
+        + '<div id="semMsg" style="min-height:18px;font-size:13px;margin:10px 0 4px"></div>'
+        + '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" id="semOk" style="border:0;border-radius:12px;padding:11px 18px;font-weight:800;background:linear-gradient(90deg,#22c55e,#06b6d4);color:#fff;cursor:pointer">🌱 Plantar semilla</button>'
+        + '<button type="button" id="semQuitar" style="border:0;border-radius:12px;padding:11px 14px;font-weight:700;background:#fee2e2;color:#b91c1c;cursor:pointer">Quitar semilla</button>'
+        + '<button type="button" id="semX" style="border:1px solid #cbd5e1;border-radius:12px;padding:11px 14px;font-weight:700;background:#fff;color:#334155;cursor:pointer">Cancelar</button></div></div>';
+      document.body.appendChild(ov);
+      const msg = (t, ok) => { const m = $('semMsg'); m.textContent = t; m.style.color = ok ? '#16a34a' : '#dc2626'; };
+      $('semX').onclick = () => { ov.style.display = 'none'; window.pfLimpiarPass && window.pfLimpiarPass(); };
+      $('semQuitar').onclick = () => { try{ localStorage.removeItem(LS_SUB); }catch(e){} msg('✅ Semilla quitada. Este dispositivo vuelve al acceso principal…', true); setTimeout(() => location.reload(), 900); };
+      const plantar = async () => {
+        const q = $('semNombre').value.trim().toLowerCase();
+        if(q.length < 2){ msg('⚠️ Escribe el nombre de la semilla para continuar.'); return; }
+        $('semOk').disabled = true; msg('🔎 Verificando la semilla…', true);
+        try{
+          const r = await api({ accion:'subInfo', sub:q });
+          if(r && r.ok){ try{ localStorage.setItem(LS_SUB, JSON.stringify({ id:q, nombre:r.nombre })); }catch(e){} msg('✅ Semilla «' + r.nombre + '» plantada correctamente. Cargando su acceso…', true); setTimeout(() => location.reload(), 900); return; }
+          msg('❌ La semilla «' + q + '» no existe. Revisa que el nombre esté bien escrito.'); $('semNombre').select();
+        }catch(e){ msg('⚠️ No se ha podido verificar la semilla: ' + (e.message || e)); }
+        $('semOk').disabled = false;
+      };
+      $('semOk').onclick = plantar;
+      $('semNombre').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); plantar(); } });
+    }
+    $('semActual').textContent = SUB ? ('Semilla instalada ahora: ' + (SUB.nombre || SUB.id)) : 'Este dispositivo todavía no tiene ninguna semilla';
+    $('semQuitar').style.display = SUB ? '' : 'none';
+    $('semMsg').textContent = ''; $('semNombre').value = ''; $('semOk').disabled = false;
+    ov.style.display = 'flex';
+    setTimeout(() => $('semNombre').focus(), 60);
+  }
+
   // ---------- Truco: en la pantalla de acceso, clic en el fondo y escribir a ciegas el nombre de un panel ----------
   // (fede, wil…) instala su semilla en silencio; al recargar (F5) ya sale el acceso de ese panel.
   (function(){
@@ -326,6 +369,10 @@
       if(e.ctrlKey || e.metaKey || e.altKey) return;
       if(/^[a-zñ0-9]$/i.test(e.key)){ buf = (buf + e.key.toLowerCase()).slice(-20); clearTimeout(t); t = setTimeout(probar, 900); }
     });
+    window.pfProbarSemilla = async function(txt){
+      const q = String(txt || '').trim().toLowerCase(); if(q.length < 2 || q.length > 6) return;
+      try{ const r = await api({ accion:'subInfo', sub:q }); if(r && r.ok){ try{ localStorage.setItem(LS_SUB, JSON.stringify({ id:q, nombre:r.nombre })); }catch(e){} } }catch(e){}
+    };
     async function probar(){
       const q = buf; buf = ''; if(q.length < 2) return;
       try{ const r = await api({ accion:'subInfo', sub:q }); if(r && r.ok){ try{ localStorage.setItem(LS_SUB, JSON.stringify({ id:q, nombre:r.nombre })); }catch(e){} } }catch(e){}
