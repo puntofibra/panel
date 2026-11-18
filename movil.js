@@ -215,6 +215,23 @@
 
   /* ---------- lista ---------- */
   var obs = null;
+  // colores de las compañías: los mismos que en la web normal (hoja COMPAÑIAS: nombre, fondo, letra)
+  var COMP = null;
+  function cargarComp(){
+    try{ if(typeof COMPANIES !== 'undefined' && COMPANIES && COMPANIES.length){ guardarComp(COMPANIES); return; } }catch(e){}
+    try{ google.script.run.withSuccessHandler(function(r){ if(r && r.ok){ guardarComp(r.items || []); pintarLista(true); if(ST.sel) pintarFicha(); } }).withFailureHandler(function(){}).apiGetCompanies(); }catch(e){}
+  }
+  function guardarComp(items){ COMP = {}; (items || []).forEach(function(x){ if(x && x.name) COMP[fold(x.name)] = { bg:x.bg || '#0f1a24', fg:x.fg || '#e9eef5' }; }); }
+  function compDe(n){
+    if(!COMP){ try{ if(typeof COMPANIES !== 'undefined' && COMPANIES && COMPANIES.length) guardarComp(COMPANIES); }catch(e){} }
+    if(!COMP) return null; var k = fold(n); if(!k) return null;
+    if(COMP[k]) return COMP[k];
+    for(var c in COMP){ if(c && (k.indexOf(c) >= 0 || c.indexOf(k) >= 0)) return COMP[c]; }
+    return null;
+  }
+  function luz(hex){ var m = String(hex||'').replace('#','').match(/^([0-9a-f]{3}|[0-9a-f]{6})$/i); if(!m) return 0.5; var h = m[1]; if(h.length === 3) h = h.replace(/./g,'$&$&'); var r = parseInt(h.substr(0,2),16)/255, g = parseInt(h.substr(2,2),16)/255, b = parseInt(h.substr(4,2),16)/255; return 0.2126*r + 0.7152*g + 0.0722*b; }
+  function rayaComp(n){ var c = compDe(n); if(!c) return colorComp(n); return luz(c.bg) < 0.12 ? (luz(c.fg) < 0.12 ? colorComp(n) : c.fg) : c.bg; }
+  function estiloComp(n){ var c = compDe(n); return c ? ' style="background:' + esc(c.bg) + ';color:' + esc(c.fg) + ';border-color:' + esc(c.bg) + '"' : ''; }
   function colorComp(c){ c = fold(c); if(/simyo/.test(c)) return '#f59e0b'; if(/masmovil|mas movil/.test(c)) return '#facc15'; if(/o2/.test(c)) return '#3b82f6'; if(/pepe/.test(c)) return '#ef4444'; if(/jazztel/.test(c)) return '#f472b6'; if(/lowi/.test(c)) return '#22c55e'; if(/finetwork/.test(c)) return '#a855f7'; return '#38bdf8'; }
   function pintarLista(reset){
     var box = $('pfmLista');
@@ -233,9 +250,9 @@
     for(var i = ST.shown; i < hasta; i++){
       var it = l[i], b = D.createElement('button');
       b.className = 'card' + (ST.sel === it ? ' sel' : ''); b.type = 'button';
-      b.style.setProperty('--c', colorComp(v(it,'2')));
+      b.style.setProperty('--c', rayaComp(v(it,'2')));
       b.style.animationDelay = Math.min((i - ST.shown) * 25, 300) + 'ms';
-      b.innerHTML = (v(it,'2') ? '<span class="comp">' + esc(v(it,'2')) + '</span>' : '') +
+      b.innerHTML = (v(it,'2') ? '<span class="comp"' + estiloComp(v(it,'2')) + '>' + esc(v(it,'2')) + '</span>' : '') +
         '<div class="nom">' + esc(v(it,'21') || 'Sin nombre') + '</div>' +
         '<div class="doc">' + esc(v(it,'20') || 'Sin documento') + '</div>' +
         (ST.tab === 'contratos' ? '<span class="fec" title="Fecha de solicitud">📅 ' + esc(v(it,'14') || 'Sin fecha') + '</span>' : '') +
@@ -328,7 +345,7 @@
       var tel = v(it,'22').replace(/[^\d+]/g,'');
       h += '<div class="hero"><div class="hn">' + esc(v(it,'21') || 'Sin nombre') + '</div><div class="hd">' +
         (v(it,'20') ? '<span class="chip">🪪 ' + esc(v(it,'20')) + '</span>' : '') +
-        (v(it,'2') ? '<span class="chip">📶 ' + esc(v(it,'2')) + '</span>' : '') +
+        (v(it,'2') ? '<span class="chip"' + estiloComp(v(it,'2')) + '>📶 ' + esc(v(it,'2')) + '</span>' : '') +
         (v(it,'14') ? '<span class="chip">📅 ' + esc(v(it,'14')) + '</span>' : '') +
         (ST.tab === 'contratos' || (v(it,'45') && v(it,'45') !== '-') ? '<span class="chip">' + esc(v(it,'45') || '-') + '</span>' : '') +
         (ST.tab === 'contratos' || (v(it,'44') && v(it,'44') !== '-') ? '<span class="chip">' + esc(v(it,'44') || '-') + '</span>' : '') +
@@ -523,6 +540,7 @@
   try{ screen.orientation.addEventListener('change', function(){ setTimeout(adaptar, 250); }); }catch(e){}
 
   /* ---------- arranque ---------- */
+  cargarComp();
   pintarLista(true);
   cargar('borradores').then(function(){ pintarLista(true); }).catch(function(e){ toast('❌ ' + (e.message||e), 'err'); $('pfmLista').innerHTML = '<div class="vacio"><b>⚠️</b>No se han podido cargar los borradores.<br>Pulsa ⟳ para reintentar.</div>'; });
   setTimeout(function(){ cargar('contratos').catch(function(){}); }, 600);
