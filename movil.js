@@ -20,7 +20,7 @@
   /* ---------- estilos ---------- */
   var css = `
   body.pfMovil{ overflow:hidden !important; }
-  body.pfMovil .chatWidget, body.pfMovil #pfcon{ display:none !important; }
+  body.pfMovil .chatWidget{ display:none !important; }   /* la consola (CONSOLA en el buscador) sí se ve en el formato móvil */
   body.pfMovil #lucasDock{ z-index:2147482300 !important; right:max(8px, env(safe-area-inset-right)) !important; width:min(380px, calc(100vw - 16px)) !important; max-width:none !important; height:min(520px, 72vh) !important; }
   body.pfMovil #lucasDock:not(.on){ display:none !important; }
   #pfm .lista{ padding-bottom:calc(150px + env(safe-area-inset-bottom)) !important; }
@@ -525,7 +525,12 @@
   [].forEach.call($('pfmTabs').querySelectorAll('button'), function(b){ b.onclick = function(){ vib(10); cambiarTab(b.getAttribute('data-t')); }; });
   var tQ = 0;
   $('pfmQ').addEventListener('input', function(){ $('pfmBusca').classList.toggle('lleno', !!this.value); var val = this.value; clearTimeout(tQ); tQ = setTimeout(function(){ ST.q = val.trim(); pintarLista(true); }, 180); });
-  $('pfmQ').addEventListener('keydown', function(e){ if(e.key === 'Enter') this.blur(); });
+  $('pfmQ').addEventListener('keydown', function(e){
+    if(e.key !== 'Enter') return;
+    // «consola» + Intro abre la consola (respaldo por si el teclado del móvil no avisa al ir escribiendo)
+    if(/consola/i.test(this.value) && window.PFConsola){ this.value = this.value.replace(/consola/ig, ''); try{ this.dispatchEvent(new Event('input')); }catch(x){} try{ this.blur(); }catch(x){} window.PFConsola.abrir(); return; }
+    this.blur();
+  });
   $('pfmQx').onclick = function(){ $('pfmQ').value = ''; $('pfmBusca').classList.remove('lleno'); ST.q = ''; pintarLista(true); $('pfmQ').focus(); };
   $('pfmRef').onclick = refrescar;
   $('pfmMas').onclick = menu;
