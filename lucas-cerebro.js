@@ -2575,4 +2575,46 @@ var lastPicks = {};
     }
     var n=0, iv=setInterval(function(){ if(fijar() || ++n>120) clearInterval(iv); }, 1000);
   })();
+
+  /* =====================================================================
+     AVISOS DE PAUSA (semilla «avisosPausa»): un contrato que lleva 90 días
+     en ⏸️ (fecha guardada en ID 53 al ponerle ese estado) → toca baja o doble pausa.
+     Recuerda cada hora mientras siga en ⏸️.
+     ===================================================================== */
+  (function(){
+    var KEY='pfPausaUltAviso', ULT=[];
+    function esPausaSimple(it){ return (String(it['44']||'').match(/⏸/g)||[]).length===1; }
+    function vigila(force){
+      try{
+        if(!semilla('avisosPausa')) return;
+        var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+        var ult=0; try{ ult=parseInt(localStorage.getItem(KEY)||'0',10)||0; }catch(e){}
+        if(!force && Date.now()-ult < 3600000) return;
+        google.script.run.withSuccessHandler(function(res){
+          if(!res || !res.ok || !res.items || !res.items.length) return;
+          try{ localStorage.setItem(KEY, String(Date.now())); }catch(e){}
+          ULT=res.items;
+          var n=res.items.length, it0=res.items[0], q=titleCase(it0.nombre||''), c=it0.compania ? ' ('+compName(it0.compania)+')' : '';
+          var msg = n===1
+            ? fill(pick('p1a',['⏸️ El contrato de {q}{c} lleva ya 90 días en pausa. Toca darlo de baja o hacerle la doble pausa.','⏸️ Ojo: {q}{c} sigue en pausa desde hace 90 días. Decide si lo das de baja o le pones la doble pausa ⏸️⏸️.','⏸️ Recordatorio: el contrato de {q}{c} ya ha cumplido 90 días en pausa. Hay que darlo de baja o pasarlo a doble pausa.']),{q:q,c:c})
+            : fill(pick('pNa',['⏸️ Tienes {n} contratos que llevan 90 días o más en pausa. El más antiguo es el de {q}{c}. Toca darlos de baja o hacerles la doble pausa.','⏸️ Ojo: {n} contratos siguen en pausa desde hace 90 días o más (el primero, {q}{c}). Dales de baja o ponles la doble pausa ⏸️⏸️.','⏸️ Recordatorio: {n} contratos en pausa ya han cumplido los 90 días. Hay que decidir: baja o doble pausa.']),{n:n,q:q,c:c});
+          B.duckSay(msg, [{ t:'👀 Ver contratos', v:'p1:ver' }]);
+        }).withFailureHandler(function(){}).apiGetPausaVencidos(90);
+      }catch(e){}
+    }
+    setInterval(vigila, 60000); setTimeout(vigila, 30000);
+    var p0=B.pick;
+    B.pick=function(v, done){
+      if(String(v)==='p1:ver'){
+        return ensureContratos(function(){
+          var rows={}; ULT.forEach(function(x){ rows[x.row]=x; });
+          var l=contratos().filter(function(it){ return rows[it.__row] && esPausaSimple(it); });
+          if(!l.length) return done({ say: pick('p1v0',['Ya no queda ninguno en pausa con más de 90 días. ¡Bien hecho!','Parece que ya los has gestionado todos.']) });
+          render(l, null, true);
+          done({ say: fill(pick('p1v',['Aquí tienes {n} {c} que llevan 90 días o más en pausa.','Te enseño {n} {c} en pausa desde hace 90 días o más.']),{n:numU(l.length),c:plural(l.length,'contrato','contratos')}) });
+        });
+      }
+      return p0(v, done);
+    };
+  })();
 })();
