@@ -2053,6 +2053,15 @@ var lastPicks = {};
      DOBLE PAUSA ⏸️⏸️: avisa (solo con la semilla «doblePausa») de los contratos que ya toca dar de baja
      y lo recuerda cada hora hasta que se les cambia el estado a ❌
      ===================================================================== */
+
+  // cobro de avisos automáticos: 1,9 cént. si trae algún contrato que no se había avisado antes; 0,1 cént. si solo repite
+  function cobrarAviso(tipo, rows){
+    var k='pfAvisados_'+tipo, vis={}; try{ vis=JSON.parse(localStorage.getItem(k)||'{}')||{}; }catch(e){ vis={}; }
+    var nuevo=false; (rows||[]).forEach(function(r){ if(!vis[r]){ nuevo=true; vis[r]=1; } });
+    try{ localStorage.setItem(k, JSON.stringify(vis)); }catch(e){}
+    try{ saldoConsumir(nuevo ? COSTE : 1); }catch(e){}
+  }
+  B._cobrarAviso = cobrarAviso;
   var DP_KEY = 'pfDoblePausaUltAviso';
   B._dpLast = [];
   // fecha en que toca dar de baja un ⏸️⏸️: fecha de doble pausa (ID 52) + 90 días; si no la tiene, instalación (ID 15) + 270 días
@@ -2116,6 +2125,7 @@ var lastPicks = {};
           ? fill(pick('dp1',['Ojo: el contrato de {q}{c} ya está para dar de baja. Lleva en doble pausa desde hace mucho. Dalo de baja y ponle la ❌.','Recordatorio: toca dar de baja el contrato de {q}{c}, que sigue en doble pausa. Cuando lo hagas, cámbiale el estado a ❌.','Tienes pendiente dar de baja a {q}{c}: ya ha cumplido el tiempo en doble pausa.']),{q:quien||'un cliente',c:comp})
           : fill(pick('dpN',['Ojo: tienes {n} contratos en doble pausa que ya toca dar de baja. El más antiguo es el de {q}{c}. Cuando los des de baja, ponles la ❌.','Recordatorio: {n} contratos en doble pausa están ya para dar de baja. Empieza por {q}{c}.','Tienes {n} contratos en doble pausa pendientes de dar de baja. ¿Te los enseño?']),{n:n,q:quien||'un cliente',c:comp});
         B.duckSay(msg, [{ t:'👀 Ver contratos', v:'dp:ver' }]);
+        cobrarAviso('doblePausa', res.items.map(function(x){ return x.row+'|'+(x.fecha||x.instalacion||''); }));
       }).withFailureHandler(function(){}).apiGetDoblePausaVencidos(90);
     }catch(e){}
   }
@@ -2601,6 +2611,7 @@ var lastPicks = {};
             ? fill(pick('p1a',['⏸️ El contrato de {q}{c} lleva ya 90 días en pausa. Toca darlo de baja o hacerle la doble pausa.','⏸️ Ojo: {q}{c} sigue en pausa desde hace 90 días. Decide si lo das de baja o le pones la doble pausa ⏸️⏸️.','⏸️ Recordatorio: el contrato de {q}{c} ya ha cumplido 90 días en pausa. Hay que darlo de baja o pasarlo a doble pausa.']),{q:q,c:c})
             : fill(pick('pNa',['⏸️ Tienes {n} contratos que llevan 90 días o más en pausa. El más antiguo es el de {q}{c}. Toca darlos de baja o hacerles la doble pausa.','⏸️ Ojo: {n} contratos siguen en pausa desde hace 90 días o más (el primero, {q}{c}). Dales de baja o ponles la doble pausa ⏸️⏸️.','⏸️ Recordatorio: {n} contratos en pausa ya han cumplido los 90 días. Hay que decidir: baja o doble pausa.']),{n:n,q:q,c:c});
           B.duckSay(msg, [{ t:'👀 Ver contratos', v:'p1:ver' }]);
+          try{ B._cobrarAviso('pausa', res.items.map(function(x){ return x.row+'|'+(x.fecha||''); })); }catch(e){}
         }).withFailureHandler(function(){}).apiGetPausaVencidos(90);
       }catch(e){}
     }
