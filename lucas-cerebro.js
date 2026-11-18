@@ -2923,7 +2923,7 @@ var lastPicks = {};
      instalación en negro; 2ª → en verde (🆗 o 00-00-0000); LIMPIAR FILTROS → todas.
      ===================================================================== */
   B._finst = 0;
-  function instVerde(it){ return String(it['45']||'').trim()==='🆗' || /^0{1,2}[\/\-]0{1,2}[\/\-]0{2,4}$/.test(String(it['15']||'').trim()); }
+  function instVerde(it){ return String(it['45']||'').trim()==='🆗' || String(it['54']||'').trim()==='1' || /^0{1,2}[\/\-]0{1,2}[\/\-]0{2,4}$/.test(String(it['15']||'').trim()); }
   function pintarFinst(){
     var b=document.getElementById('btnFechaInst'); if(!b) return;
     var on=B._finst;
