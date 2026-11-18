@@ -722,7 +722,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(function(){ 
 function openConsole(){
     CON.auth = !window.PF_SUB && semOn('consolaSinPin');   // en un subpanel siempre pide las claves de Google CON.ask = null; CON.esperando = false;
     audio(); CON.on = true; CON.dir = 'PANEL'; CON.q = []; CON.typing = false; CON.busy = true; CON.pend = []; conIn.value = ''; clearTimeout(conTimer); conOut.innerHTML = '';
-    box.classList.remove('off'); box.classList.add('on', 'boot'); conLayout(); try{ if(window.matchMedia('(pointer:coarse)').matches && Math.min(window.innerWidth, window.innerHeight) < 560 && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function(){}); }catch(e){} setTimeout(function(){ box.classList.remove('boot'); }, 800);
+    box.classList.remove('off'); box.classList.add('on', 'boot'); conLayout(); try{ if(window.matchMedia('(pointer:coarse)').matches && Math.min(window.innerWidth, window.innerHeight) < 560 && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function(){}); }catch(e){} setTimeout(function(){ box.classList.remove('boot'); }, 800); setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(x){} }, 150); setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(x){} }, 600);
     try{ conIn.focus({ preventScroll:true }); }catch(e){}
     tone(60, 900, 0.5, 'sawtooth', 0.06); tone(3000, 3000, 0.25, 'sine', 0.03, 0.3);
     setTimeout(function(){
@@ -810,6 +810,9 @@ function openConsole(){
   });
   box.addEventListener('pointerdown', function(e){ if(e.target.id !== 'pfconX') conTapSkip(); });
   box.addEventListener('pointerup', function(e){ if(e.target.id === 'pfconX') return; try{ conIn.focus({ preventScroll:true }); }catch(x){} });
+  box.addEventListener('mousedown', function(e){ if(e.target.id !== 'pfconX') e.preventDefault(); });
+  box.addEventListener('click', function(e){ if(e.target.id === 'pfconX') return; try{ conIn.focus({ preventScroll:true }); }catch(x){} });
+  conIn.addEventListener('blur', function(){ setTimeout(function(){ if(CON.on && (!document.activeElement || document.activeElement === document.body)){ try{ conIn.focus({ preventScroll:true }); }catch(x){} } }, 120); });
   $('pfconX').addEventListener('click', closeConsole);
 
   // escribir CONSOLA en cualquier parte (teclado del PC o cualquier casilla de texto del móvil) abre la consola
