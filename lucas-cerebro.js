@@ -1285,6 +1285,7 @@ var lastPicks = {};
     var a=B._pinAsk; if(!a || Date.now()-a.at > 3*60000){ B._pinAsk=null; return false; }
     var t=String(raw||'').trim();
     if(/^(cancelar|cancela|nada|da igual|dejalo|déjalo|olvidalo|olvídalo|no)$/i.test(t)){ B._pinAsk=null; done({ say: pick('pinC',['Vale, lo dejamos.','Cancelado. Cuando quieras, escribe «pin».']) }); return true; }
+    if(!/\d/.test(t)){ B._pinAsk=null; return false; }   // ha escrito otra cosa: deja el PIN y responde normal
     if(!/^\d{4}$/.test(t)){ done({ say: pick('pinF',['El PIN son 4 cifras. Escríbelo, por favor.','Necesito solo los 4 números de tu PIN.','Escribe tu PIN de 4 cifras (o «cancelar»).']) }); return true; }
     pinOcultar(t);
     pinHash(t, function(h){
@@ -1452,7 +1453,7 @@ var lastPicks = {};
   }
   // las reglas no la entienden: espera a la IA (aunque tenga que cargar)
   function iaPlanB(t, raw, now, done){
-    iaMatch(raw||t, true, function(m){ if(!m) return done({ say: pick('noentiendo',NO_ENTIENDO) }); iaResponder(m, t, now, done); });
+    iaMatch(raw||t, true, function(m){ if(!m){ B._gratis=true; return done({ say: pick('noentiendo',NO_ENTIENDO) }); } iaResponder(m, t, now, done); });
   }
   // las reglas sí responden, pero la frase no habla de contratos ni de compañías: si la IA ve claro que es otra cosa, manda ella
   var IA_MANDA = { bajas:1, pausar:1, instalar:1, recordatorios:1, fichajes:1, ayuda:1, limpiar:1, borradores:1, comparar:1, ranking:1, mejordia:1 };
@@ -1467,8 +1468,8 @@ var lastPicks = {};
     var raw0 = String(raw||'');
     var t = fold(raw);
     if(B.fichPending()){ return B._fichAnswer(done); }   // contestación al fichaje: cualquier respuesta vale
-    if(B._pinAsk && pinRespuesta(raw, done)) return;                         // esperando el PIN de 4 cifras
-    if(/^\s*(?:oye\s+|lucas\s+)?(?:mi\s+|el\s+|meter\s+(?:el\s+)?|poner\s+(?:el\s+)?|introducir\s+(?:el\s+)?)?pin\s*[.!?]*\s*$/i.test(String(raw))) return pinPedir(done);
+    if(B._pinAsk){ B._gratis=true; if(pinRespuesta(raw, done)) return; B._gratis=false; }                         // esperando el PIN de 4 cifras
+    if(/^\s*(?:oye\s+|lucas\s+)?(?:mi\s+|el\s+|meter\s+(?:el\s+)?|poner\s+(?:el\s+)?|introducir\s+(?:el\s+)?)?pin\s*[.!?]*\s*$/i.test(String(raw))){ B._gratis=true; return pinPedir(done); }
     try{ raw = recErratas(raw); }catch(e){}                                    // «recodatorios», «recuedame»… -> bien escrito
     if(B._recPend && recPendiente(raw, done)) return;                         // esperando el día/hora de un recordatorio
     var mtR = plano(raw).match(REC_TRIG); if(mtR) return recNuevo(raw, mtR, done);   // «recuérdame el día 21 que tengo reunión…»
@@ -1477,7 +1478,7 @@ var lastPicks = {};
     if(B._fichFlow && B._fichFlow(fold(raw), done)) return;
     if(B._fibAsk){ if(Date.now()-B._fibAsk.at > 5*60000) B._fibAsk=null; else { var fa=fold(raw).trim(); if(/\bfibras?\b/.test(fa)) return B._fibAnswer('fibra', done); if(/^(todos|todas|todo|los dos|ambos|todos los contratos|da igual)\b/.test(fa)) return B._fibAnswer('todos', done); B._fibAsk=null; } }
     if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
-    if(!t){ return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
+    if(!t){ B._gratis=true; return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
     try{ var tN = entender(t); if(tN && tN!==t){ t = tN; raw = tN; } }catch(e){ console.warn('[Lucas] entender', e); }
     var greet = isGreeting(t) || /^lucas$/.test(t);
@@ -1486,8 +1487,8 @@ var lastPicks = {};
 
     var st = smallTalk(rest||t, now);
     if(st==='__CLEAR__'){ ensureContratos(function(){ try{ clearSearch(); }catch(e){ render(contratos(),null); } done({ say: pick('clear',['Filtros quitados. Ya ves todos los contratos.','Listo, tabla limpia.','Hecho, sin filtros.']) }); }); return; }
-    if(st && typeof st==='string' && st==='__AYUDA__') return done({ say: pick('ayudaQ',['Aquí tienes los accesos rápidos. Pulsa uno y te lo saco:','Atajos rápidos, pulsa el que quieras:','Toma, accesos directos. Dale a uno:']), buttons: B.AYUDA_BTNS });
-    if(st) return done({ say: st });
+    if(st && typeof st==='string' && st==='__AYUDA__'){ B._gratis=true; return done({ say: pick('ayudaQ',['Aquí tienes los accesos rápidos. Pulsa uno y te lo saco:','Atajos rápidos, pulsa el que quieras:','Toma, accesos directos. Dale a uno:']), buttons: B.AYUDA_BTNS }); }
+    if(st){ B._gratis=true; return done({ say: st }); }
 
     if(/\bborrador/.test(rest||t)) return borradores(rest||t, done);
     if(extras(rest||t, now, done)) return;
@@ -1495,14 +1496,14 @@ var lastPicks = {};
     var hasDate = !!parseDates(rest||t, now);
     var hasComp = findCompanies(rest||t).length>0;
     var ctx = { contractWords: CONTRACT_WORDS.test(rest||t) };
-    if(greet && !rest) return done({ say: B.greetReply(t, now) });
+    if(greet && !rest){ B._gratis=true; return done({ say: B.greetReply(t, now) }); }
 
     var debil = !/\bcontratos?\b/.test(rest||t) && !hasComp;
     ensureContratos(function(){ iaAntes(rest||t, raw0, now, debil, function(){
       var r = contratoQuery(rest||t, raw, now, ctx);
       if(!r.notUnderstood && (r.say || r.clients)){ B._ctx = { t: rest||t, at: Date.now() }; guardarHist(rest||t); }   // memoria para «¿y en noviembre?» y «vuelve atrás»
       if(r.notUnderstood){
-        if(greet) return done({ say: B.greetReply(t, now) });
+        if(greet){ B._gratis=true; return done({ say: B.greetReply(t, now) }); }
         return iaPlanB(rest||t, raw0, now, done);
       }
       if(greet && r.say){ var gp=B.greetPrefix(t, now); r.say = gp+(/[!.]$/.test(gp)?' ':'. ')+r.say; }
@@ -2181,9 +2182,10 @@ var lastPicks = {};
     if(B._enHandle || B._porBoton) return handleBase(raw, done);
     if(SALDO!=null && SALDO<COSTE) return sinSaldo(done);
     try{ caducarTemporales(); }catch(e){}
-    B._enHandle = true;
-    try{ handleBase(raw, done); } finally{ B._enHandle = false; }
-    saldoConsumir();
+    B._enHandle = true; B._gratis = false;
+    // saludos, chistes, la hora, charla, el PIN y lo que no sabe responder: gratis. Lo útil (contratos, recordatorios, fichajes…) cobra
+    var cobrado=false;
+    try{ handleBase(raw, function(r){ var fallo = r && /\b(no he podido|se me ha atascado|ha fallado|algo ha fallado|no puedo (leer|acceder|conectar)|error al)\b/i.test(String(r.say||'')); var c = !cobrado && !B._gratis && !fallo && r && !r.notUnderstood; B._gratis=false; cobrado=true; done(r); if(c) saldoConsumir(); }); } finally{ B._enHandle = false; }
   };
   var pickBase = B.pick;
   B.pick = function(v, done){ B._porBoton = true; try{ return pickBase(v, done); } finally{ B._porBoton = false; } };
