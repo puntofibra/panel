@@ -2061,17 +2061,34 @@ var lastPicks = {};
      BORRADORES NUEVOS: si en el servidor hay borradores que esta pantalla aún no muestra, avisa
      ===================================================================== */
   function firmaB(it){ return [String(it['14']||'').trim(), String(it['20']||'').trim().toUpperCase(), fold(it['21']), String(it['2']||'').trim().toUpperCase(), String(it['22']||'').replace(/\D/g,'')].join('|'); }
-  var knownB = null, avisadosB = {};
+  var knownB = null, avisadosB = {}, sigB = null;   // sigB: «foto» de los borradores del servidor en la última comprobación
   function localB(){ try{ return (typeof BORRADORES!=='undefined' && BORRADORES) ? BORRADORES : []; }catch(e){ return []; } }
   function vigilaBorradores(){
     try{
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
       google.script.run.withSuccessHandler(function(res){
         if(!res || !res.ok || !res.items) return;
-        var loc = localB();
-        if(!knownB){ knownB = {}; (loc.length ? loc : res.items).forEach(function(it){ knownB[firmaB(it)] = 1; }); return; }
+        var loc = localB(), sig = '';
+        try{ sig = JSON.stringify(res.items); }catch(e){}
+        if(!knownB){ knownB = {}; (loc.length ? loc : res.items).forEach(function(it){ knownB[firmaB(it)] = 1; }); sigB = sig; return; }
         loc.forEach(function(it){ knownB[firmaB(it)] = 1; });       // lo que ya se ve en pantalla
         var nuevos = res.items.filter(function(it){ var k = firmaB(it); return !knownB[k] && !avisadosB[k]; });
+        // CAMBIO EN UN BORRADOR QUE YA EXISTÍA (lo han editado y guardado en otro ordenador, o ya no está):
+        // la lista se actualiza en silencio, sin cartel y sin cambiar de sección; al volver a Borradores ya está al día
+        if(sigB !== null && sig !== sigB && !(nuevos.length && res.items.length > loc.length)){
+          if(novEditando() || novCartel || novBusy) return;       // con una ventana de edición abierta se espera a la siguiente vuelta
+          sigB = sig;
+          res.items.forEach(function(it){ knownB[firmaB(it)] = 1; });
+          try{
+            var pag = 1; try{ pag = PAGE_B; }catch(e){}
+            if(typeof loadBorradores === 'function') loadBorradores(function(){
+              localB().forEach(function(it){ knownB[firmaB(it)] = 1; });
+              try{ if(pag > 1){ PAGE_B = pag; renderBorradoresPage(); } }catch(e){}   // se queda en la página en la que estaba
+            });
+          }catch(e){}
+          return;
+        }
+        sigB = sig;
         if(!nuevos.length) return;
         var modoB = pfNovedad('borradores', nuevos.length);       // el panel se actualiza solo o pide ACEPTAR
         if(modoB === 'auto' || semilla('borradores')){ nuevos.forEach(function(it){ avisadosB[firmaB(it)] = 1; }); return; }   // sin aviso de voz
@@ -2093,7 +2110,7 @@ var lastPicks = {};
       }).withFailureHandler(function(){}).apiGetContratos('borradores');
     }catch(e){}
   }
-  setInterval(vigilaBorradores, 90000);
+  setInterval(vigilaBorradores, 45000);
   setTimeout(vigilaBorradores, 20000);
   B._refreshB = function(done){
     try{ if(typeof goView==='function') goView('borradores'); }catch(e){}
