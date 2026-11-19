@@ -3336,3 +3336,23 @@ var lastPicks = {};
     if(SS && SS.speak){ var sp = SS.speak.bind(SS); SS.speak = function(u){ avisar(); return sp(u); }; }
   }catch(e){}
 })();
+
+/* ===== La voz no lee los emoticonos: se quitan del texto justo antes de hablar (en pantalla se siguen viendo) ===== */
+(function(){
+  try{
+    var SS = window.speechSynthesis;
+    if(!SS || !SS.speak || SS.__sinEmoji) return;
+    var RE = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{25A0}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
+    var sp = SS.speak.bind(SS);
+    SS.speak = function(u){
+      try{
+        if(u && typeof u.text === 'string'){
+          var t = u.text.replace(RE, ' ').replace(/\s{2,}/g, ' ').replace(/^\s+|\s+$/g, '');
+          if(t !== u.text) u.text = t;
+        }
+      }catch(e){}
+      return sp(u);
+    };
+    SS.__sinEmoji = true;
+  }catch(e){}
+})();
