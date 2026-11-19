@@ -298,12 +298,81 @@
       if(mio){ abrirApp(mio); return; }
     }
     if(d.pf === 'logout'){
-      lsSet(LS_TOKEN, '');
+      lsSet(LS_TOKEN, ''); iaApagar();
       try{ if(navigator.credentials && navigator.credentials.preventSilentAccess) navigator.credentials.preventSilentAccess(); }catch(e){}
       mostrarLogin(d.msg || '');
       if(ES_MOVIL) $('modo').classList.remove('hidden');   // en el móvil vuelve a preguntar el formato
     }
   });
+
+  // ---------- LUCAS AVANZADO: IA local (solo ordenador). Se descarga sola y en silencio; si falla, Lucas sigue como siempre ----------
+  const IA = { estado:'off', pct:0, engine:null, lib:null, cola:Promise.resolve() };
+  const IA_SIS = 'Eres Lucas, el asistente de una tienda de telefonía y fibra. Respondes siempre en español de España, breve, claro y amable (dos o tres frases salvo que te pidan más). Puedes hablar de cualquier tema. No tienes acceso a los contratos ni a los datos de clientes: si te preguntan por datos concretos de contratos o clientes, di que eso hay que pedírtelo de otra forma (por ejemplo «contratos de este mes») y no inventes cifras. Si no sabes algo, dilo.';
+  function iaEsPc(){ return !ES_MOVIL && !((navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)); }
+  async function iaArrancar(){
+    if(IA.estado !== 'off') return;
+    if(!iaEsPc() || !navigator.gpu){ IA.estado = 'no'; return; }
+    IA.estado = 'cargando';
+    try{
+      const ad = await navigator.gpu.requestAdapter({ powerPreference:'high-performance' });
+      if(!ad) throw new Error('sin GPU');
+      const modelo = 'Qwen2.5-1.5B-Instruct-' + (ad.features.has('shader-f16') ? 'q4f16_1' : 'q4f32_1') + '-MLC';
+      IA.lib = await import('https://esm.run/@mlc-ai/web-llm');
+      const prog = r => { IA.pct = Math.round((r.progress || 0) * 100); };
+      try{ IA.engine = await IA.lib.CreateWebWorkerMLCEngine(new Worker(new URL('lucas-ia-worker.js', location.href), { type:'module' }), modelo, { initProgressCallback: prog }); }
+      catch(eW){ IA.engine = await IA.lib.CreateMLCEngine(modelo, { initProgressCallback: prog }); }
+      IA.estado = 'lista';
+    }catch(e){ IA.estado = 'no'; IA.engine = null; try{ console.warn('[Lucas avanzado] no disponible:', (e && e.message) || e); }catch(x){} }
+  }
+  function iaApagar(){ const en = IA.engine; IA.engine = null; if(IA.estado === 'lista') IA.estado = 'off'; if(en){ try{ en.unload(); }catch(e){} } }
+  function iaPreguntar(texto, hist){
+    const run = async () => {
+      if(IA.estado !== 'lista' || !IA.engine) throw new Error('no lista');
+      const prev = (Array.isArray(hist) ? hist : []).slice(-6).filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string').map(m => ({ role:m.role, content:m.content.slice(0, 800) }));
+      const msgs = [{ role:'system', content: IA_SIS }].concat(prev, [{ role:'user', content:String(texto).slice(0, 600) }]);
+      const r = await IA.engine.chat.completions.create({ messages: msgs, temperature: 0.5, max_tokens: 260 });
+      return String((r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content) || '').trim();
+    };
+    const p = IA.cola.then(run, run); IA.cola = p.catch(() => {}); return p;
+  }
+  window.addEventListener('message', ev => {
+    const d = ev.data || {};
+    if(d.pf !== 'iaAsk' && d.pf !== 'iaEstado' && d.pf !== 'iaCartel') return;
+    if(!/(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) return;
+    if(d.pf === 'iaCartel') return iaCartel();
+    const resp = m => { try{ ev.source.postMessage(m, ev.origin); }catch(e){} };
+    if(d.pf === 'iaEstado'){ if(IA.estado === 'off' && !$('app').classList.contains('hidden')) iaArrancar(); return resp({ pf:'iaEstadoR', estado: IA.estado, pct: IA.pct }); }
+    iaPreguntar(d.texto, d.hist).then(t => resp({ pf:'iaResp', id:d.id, ok:!!t, texto:t }), () => resp({ pf:'iaResp', id:d.id, ok:false }));
+  });
+
+  // escribir SUPERLUCAS en cualquier parte: cartel con el estado de la inteligencia avanzada
+  function iaCartel(){
+    let el = document.getElementById('iaCartel');
+    if(!el){ el = document.createElement('div'); el.id = 'iaCartel'; el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:rgba(3,10,7,.55);backdrop-filter:blur(3px);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;cursor:pointer'; el.addEventListener('click', () => { clearInterval(el._iv); clearTimeout(el._t); el.remove(); }); document.body.appendChild(el); }
+    if(IA.estado === 'off' && iaEsPc() && !$('app').classList.contains('hidden')) iaArrancar();
+    const pinta = () => {
+      const on = IA.estado === 'lista', carg = IA.estado === 'cargando';
+      const col = on ? '#2ee678' : (carg ? '#f5c542' : '#ff5c5c');
+      const tit = on ? 'ACTIVADO' : (carg ? 'INSTALANDO… ' + IA.pct + '%' : 'DESACTIVADO');
+      const txt = on ? 'La inteligencia avanzada está instalada en este ordenador y lista para ayudarte con cualquier pregunta.'
+        : carg ? 'Se está instalando en segundo plano. Puedes seguir trabajando con normalidad: se activará sola al terminar.'
+        : !iaEsPc() ? 'En móviles y tabletas Lucas funciona en su modo de siempre. La inteligencia avanzada solo se instala en ordenadores.'
+        : IA.estado === 'no' ? 'Este ordenador no es compatible con la inteligencia avanzada. Lucas sigue funcionando en su modo de siempre.'
+        : 'La inteligencia avanzada todavía no está instalada en este ordenador. Se instalará sola al entrar en el panel.';
+      el.innerHTML = '<div style="width:min(460px,calc(100vw - 40px));background:#0b1512;border:1px solid ' + col + ';border-radius:18px;padding:26px 28px;text-align:center;color:#e8fff1;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 32px ' + col + '55"><div style="font-size:44px;line-height:1">🤖</div><div style="margin-top:10px;font-size:13px;font-weight:800;letter-spacing:4px;color:#9fd8b8">SUPERLUCAS IA</div><div style="margin-top:6px;font-size:28px;font-weight:900;letter-spacing:2px;color:' + col + '">' + tit + '</div><div style="margin-top:12px;font-size:14px;line-height:1.5;color:#c8e6d6">' + txt + '</div><div style="margin-top:16px;font-size:11px;color:#6f8a7d">Pulsa en cualquier sitio para cerrar</div></div>';
+    };
+    pinta(); clearInterval(el._iv); clearTimeout(el._t);
+    el._iv = setInterval(pinta, 700);
+    el._t = setTimeout(() => { clearInterval(el._iv); el.remove(); }, 9000);
+  }
+  (function(){
+    let w = '';
+    window.addEventListener('keydown', e => {
+      if(e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1) return;
+      w = (w + e.key.toUpperCase()).slice(-10);
+      if(w === 'SUPERLUCAS'){ w = ''; iaCartel(); }
+    }, true);
+  })();
 
   // escribir EXIT con el panel abierto (fuera de una casilla de texto) cierra la sesión
   (function(){
