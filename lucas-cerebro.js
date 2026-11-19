@@ -1978,7 +1978,14 @@ var lastPicks = {};
     var hecho = false, fin = function(){ if(hecho) return; hecho = true; cb(); };
     setTimeout(fin, 20000);                                   // por si el servidor no contesta
     try{
-      if(tipo==='borradores' && typeof loadBorradores==='function') return loadBorradores(function(){ localB().forEach(function(it){ (knownB = knownB || {})[firmaB(it)] = 1; }); fin(); });
+      if(tipo==='borradores' && typeof loadBorradores==='function'){
+        var pag = 1; try{ pag = PAGE_B; }catch(e){}
+        return loadBorradores(function(){
+          localB().forEach(function(it){ (knownB = knownB || {})[firmaB(it)] = 1; });
+          try{ if(pag > 1){ PAGE_B = pag; renderBorradoresPage(); } }catch(e){}   // se queda en la página en la que estaba
+          fin();
+        });
+      }
       if(tipo==='contratos' && typeof loadContratos==='function') return loadContratos(fin);
     }catch(e){}
     fin();
@@ -2051,7 +2058,8 @@ var lastPicks = {};
   // devuelve 'auto' (se actualiza solo, sin avisar) o 'cartel' (sale el cartel con ACEPTAR)
   function pfNovedad(tipo, n){
     novPend[tipo] = Math.max(1, (tipo === 'contratos' ? 0 : novPend[tipo]) + (n || 1));
-    if(!novModo[tipo]) novModo[tipo] = (Date.now() - novActT) < 5*60000 ? 'cartel' : 'auto';
+    // los borradores nuevos entran siempre en silencio; el cartel con ACEPTAR es solo para contratos nuevos y si se está usando el panel
+    if(!novModo[tipo]) novModo[tipo] = (tipo !== 'borradores' && (Date.now() - novActT) < 5*60000) ? 'cartel' : 'auto';
     var m = novModo[tipo];
     setTimeout(novTick, 50);
     return m;
