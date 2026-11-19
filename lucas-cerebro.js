@@ -2106,7 +2106,7 @@ var lastPicks = {};
   function pfNovedad(tipo, n){
     novPend[tipo] = Math.max(1, (tipo === 'contratos' ? 0 : novPend[tipo]) + (n || 1));
     // los borradores nuevos entran siempre en silencio; el cartel con ACEPTAR es solo para contratos nuevos y si se está usando el panel
-    if(!novModo[tipo]) novModo[tipo] = (tipo !== 'borradores' && (Date.now() - novActT) < 5*60000) ? 'cartel' : 'auto';
+    if(!novModo[tipo]) novModo[tipo] = 'auto';   // ya no sale el cartel con ACEPTAR: borradores y contratos nuevos entran solos (cada fila va por su identificador)
     var m = novModo[tipo];
     setTimeout(novTick, 50);
     return m;
@@ -2197,11 +2197,11 @@ var lastPicks = {};
       avisadoC.n = badge;
       var n = badge - local;
       var modoC = pfNovedad('contratos', n);                    // el panel se actualiza solo o pide ACEPTAR
-      if(modoC === 'auto' || !semilla('contratos')) return;     // el aviso de voz, solo con la semilla «contratos» y si sale el cartel
+      // Lucas solo informa (no cobra saldo y no pide nada): la lista se actualiza sola
       var msg = n===1
-        ? pick('cnew1',['¡Contrato nuevo! Se acaba de finalizar uno que tu pantalla todavía no muestra. Pulsa el botón para actualizar.','Buenas noticias: ha entrado un contrato nuevo. ¿Actualizo la lista para que lo veas?','Novedad en contratos: hay uno nuevo de hoy que aún no ves. Dale al botón y te lo enseño.'])
-        : fill(pick('cnewN',['¡Contratos nuevos! Se han finalizado {n} que tu pantalla todavía no muestra. Pulsa el botón para actualizar.','Buenas noticias: han entrado {n} contratos nuevos. ¿Actualizo la lista?','Novedad: {n} contratos nuevos de hoy sin ver. Dale al botón y los verás.']),{n:n});
-      B.duckSay(msg, [{ t:'🔄 Actualizar contratos', v:'refreshC' }]);
+        ? pick('cnew1',['📒 Ha entrado un contrato nuevo desde otro ordenador. No tienes que hacer nada: tu lista se actualiza sola.','📒 Contrato nuevo registrado. Ya lo estoy cargando en tu pantalla, sigue con lo tuyo.','📒 Novedad: se acaba de finalizar un contrato. Tu panel se pone al día solo en unos segundos.','📒 Acaban de tramitar un contrato en otro puesto. Lo verás en tu lista enseguida, sin tocar nada.','📒 Un contrato más en el sistema. Actualizo tu pantalla en segundo plano.'])
+        : fill(pick('cnewN',['📒 Han entrado {n} contratos nuevos desde otros ordenadores. No tienes que hacer nada: tu lista se actualiza sola.','📒 {n} contratos nuevos registrados. Ya los estoy cargando en tu pantalla, sigue con lo tuyo.','📒 Novedad: se acaban de finalizar {n} contratos. Tu panel se pone al día solo en unos segundos.','📒 Acaban de tramitar {n} contratos en otros puestos. Los verás en tu lista enseguida, sin tocar nada.','📒 {n} contratos más en el sistema. Actualizo tu pantalla en segundo plano.']),{n:n});
+      B.duckSay(msg);
     }catch(e){}
   }
   setInterval(vigilaContratos, 30000);
