@@ -881,6 +881,27 @@ function openConsole(){
   }, true);
   window.PFConsola = { abrir: openConsole, cerrar: closeConsole, comandos: COMANDOS };
 
+  // escribir EXIT en cualquier parte cierra la sesión (en una casilla de texto solo si es lo único escrito, para no saltar con «exitoso»)
+  (function(){
+    var w = '', hecho = false;
+    function salir(){
+      if(hecho) return; hecho = true; setTimeout(function(){ hecho = false; }, 4000);
+      try{ if(CON.on) closeConsole(); }catch(x){}
+      try{ if(typeof logout === 'function') logout(); else window.top.postMessage({ pf:'logout' }, '*'); }catch(x){ try{ window.top.postMessage({ pf:'logout' }, '*'); }catch(y){} }
+    }
+    function esCampo(t){ return !!t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable); }
+    window.addEventListener('keydown', function(e){
+      if(e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1){ if(e.key && e.key.length > 1 && e.key !== 'Shift') w = ''; return; }
+      if(esCampo(e.target)){ w = ''; return; }
+      w = (w + e.key.toUpperCase()).slice(-4);
+      if(w === 'EXIT'){ w = ''; e.preventDefault(); salir(); }
+    }, true);
+    document.addEventListener('input', function(e){
+      var t = e.target; if(!t || !/^(INPUT|TEXTAREA)$/.test(t.tagName) || typeof t.value !== 'string' || t.type === 'password') return;
+      if(/^\s*exit\s*$/i.test(t.value)){ t.value = ''; try{ t.dispatchEvent(new Event('input',{bubbles:true})); t.blur(); }catch(x){} salir(); }
+    }, true);
+  })();
+
   /* =====================================================================
      ACCESO RESTRINGIDO (Ajustes sin la llave NFC)
      ===================================================================== */
