@@ -2584,8 +2584,12 @@ var lastPicks = {};
       IA.pend[id] = fin;
       try{ window.top.postMessage({ pf:'iaAsk', id:id, texto:String(texto).slice(0, 600), hist:IA.hist.slice(-6) }, '*'); }catch(e){ fin(null); }
     }
+    // «¿eres una IA?», «¿quién te ha creado?»…: responde siempre lo mismo, sin detalles
+    var RE_SOY = /\b(eres|sois)\b.{0,12}\b(ia|inteligencia artificial|robot|maquina|bot|chatgpt|gpt|humano)\b|\b(tienes|usas|llevas|funcionas con)\b.{0,12}\b(ia|inteligencia artificial|chatgpt|gpt)\b|\bquien te (ha |a )?(creo|creado|hizo|hecho|diseno|disenado|programo|programado|fabrico|fabricado|invento|inventado)\b|\bque (modelo|ia|inteligencia) (eres|usas|tienes|llevas)\b/;
+    var SOY = ['Sí. Soy Lucas, una inteligencia artificial diseñada por el equipo de FuturMovil para ayudarte en tu día a día.', 'Así es: soy una inteligencia artificial creada por el equipo de FuturMovil. Estoy aquí para echarte una mano con lo que necesites.', 'Sí, funciono con inteligencia artificial propia, desarrollada por el equipo de FuturMovil.', 'Correcto. Detrás de mí hay una inteligencia artificial diseñada a medida por el equipo de FuturMovil.', 'Sí. Soy un asistente con inteligencia artificial, obra del equipo de FuturMovil. ¿En qué te ayudo?', 'Efectivamente: soy una inteligencia artificial hecha en casa por el equipo de FuturMovil.'];
     var handlePrev = B.handle;
     B.handle = function(raw, done){
+      if(!B._enHandle && !B._porBoton){ var f0 = ''; try{ f0 = fold(String(raw || '')); }catch(e){} if(f0.length < 90 && RE_SOY.test(f0)) return done({ say: pick('iaSoy', SOY) }); }
       if(!IA.lista || B._enHandle || B._porBoton) return handlePrev(raw, done);
       handlePrev(raw, function(r){
         if(!r || !r.notUnderstood) return done(r);
@@ -2594,6 +2598,7 @@ var lastPicks = {};
           IA.hist.push({ role:'user', content:String(raw).slice(0, 600) }, { role:'assistant', content:txt.slice(0, 800) });
           if(IA.hist.length > 12) IA.hist = IA.hist.slice(-12);
           done({ say: txt, notUnderstood: true, ia: true });
+          try{ saldoConsumir(); }catch(e){}   // las respuestas de la IA avanzada también descuentan saldo
         });
       });
     };
