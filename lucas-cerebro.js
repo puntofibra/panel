@@ -1613,6 +1613,10 @@ var lastPicks = {};
   B.ringBell = ringBell;
   var sayQ=[], sayBusy=false;
   B.duckSay = function(msg, buttons){ sayQ.push({ m:msg, b:buttons||null }); if(!sayBusy) nextSay(); };
+  // ---- voz completa: cuando un aviso se escribe recortado con «…», Lucas lo narra entero ----
+  var VOZ={};
+  B.vozDe = function(mostrado, hablado){ mostrado=String(mostrado||''); hablado=String(hablado||''); if(mostrado && hablado && mostrado!==hablado) VOZ[mostrado]=hablado; };
+  (function(){ try{ var ss=window.speechSynthesis; if(!ss || ss.__pfVoz) return; var sp=ss.speak; ss.speak=function(u){ try{ var k=u && u.text; if(k && VOZ[k]){ u.text=VOZ[k]; delete VOZ[k]; } }catch(e){} return sp.call(ss, u); }; ss.__pfVoz=true; }catch(e){} })();
   // ===== Carga inicial del panel: mientras bajan los contratos el menú está bloqueado y Lucas lo explica =====
   (function(){
     var FR = [
@@ -2959,8 +2963,10 @@ var lastPicks = {};
           ac.forEach(function(a){
             if(vistos['A'+a.id]) return; vistos['A'+a.id]=1; idsA.push(a.id);
             if(/^\[\[INACT\]\]/.test(a.texto||'')) return;   // los avisos de inactividad no generan acuse
-            var corto=String(a.texto||''); if(/^\[\[IMG\]\]/.test(corto)) corto='🖼️ imagen'; if(corto.length>60) corto=corto.slice(0,57)+'…';
-            B.duckSay(fill(pick('chatRec',['✅ {p} ha recibido tu mensaje: «{t}».','✅ {p} ya ha leído tu mensaje: «{t}».','👀 {p} ha visto tu mensaje: «{t}».']),{p:a.para,t:corto}));
+            var corto=String(a.texto||''); if(/^\[\[IMG\]\]/.test(corto)) corto='🖼️ imagen'; var entero=corto; if(corto.length>60) corto=corto.slice(0,57)+'…';
+            var tplRec=pick('chatRec',['✅ {p} ha recibido tu mensaje: «{t}».','✅ {p} ya ha leído tu mensaje: «{t}».','👀 {p} ha visto tu mensaje: «{t}».']), msgRec=fill(tplRec,{p:a.para,t:corto});
+            B.vozDe(msgRec, fill(tplRec,{p:a.para,t:entero}));
+            B.duckSay(msgRec);
           });
           if(idsA.length){ try{ google.script.run.withFailureHandler(function(){}).apiChatAcuseVisto(idsA); }catch(e){} }
         }).withFailureHandler(function(){ ocupado=false; }).apiChatPendientes(me);
@@ -2972,14 +2978,15 @@ var lastPicks = {};
       Object.keys(PEND).forEach(function(id){
         var p=PEND[id]; if(ahora-p.ult < 5*60000 || p.n>=3) return;
         p.ult=ahora; p.n++;
-        var corto=String(p.texto||''), esImgR=/^\[\[IMG\]\]/.test(corto); if(esImgR){ imgTrasMensaje(p.de, corto.slice(7).trim()); corto='una imagen'; } if(corto.length>70) corto=corto.slice(0,67)+'…';
-        var msg=fill(pick('chatRecu',[
+        var corto=String(p.texto||''), esImgR=/^\[\[IMG\]\]/.test(corto); if(esImgR){ imgTrasMensaje(p.de, corto.slice(7).trim()); corto='una imagen'; } var enteroR=corto; if(corto.length>70) corto=corto.slice(0,67)+'…';
+        var tplRecu=pick('chatRecu',[
           '⏳ {d} seguramente esté esperando la confirmación de que has recibido su mensaje. Pulsa Aceptar y le diré que ya lo tienes.',
           '⏳ Oye, {d} te escribió hace un rato: «{t}». Dale a Aceptar para que sepa que te ha llegado.',
           '⏳ Tienes pendiente el mensaje de {d}. Pulsa Aceptar y le aviso de que lo has leído.',
           '⏳ {d} todavía no sabe si has visto su mensaje. Pulsa Aceptar o respóndele y se lo hago saber.',
           '⏳ Recordatorio: el mensaje de {d} sigue sin confirmar. Un toque en Aceptar y {d} se queda tranquilo.'
-        ]),{d:p.de,t:corto});
+        ]), msg=fill(tplRecu,{d:p.de,t:corto});
+        B.vozDe(msg, fill(tplRecu,{d:p.de,t:enteroR}));
         B.duckSay(msg, [{ t:'✅ Aceptar', v:'chat:ok:'+id+':'+p.de }, { t:'↩️ Responder a '+p.de, v:'chat:resp:'+id+':'+p.de }]);
       });
     }
