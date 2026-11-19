@@ -2596,7 +2596,7 @@ var lastPicks = {};
     var IA = { lista:false, pend:{}, n:0, hist:[] };
     window.addEventListener('message', function(e){
       var d = e && e.data; if(!d || typeof d !== 'object') return;
-      if(d.pf === 'iaEstadoR') IA.lista = d.estado === 'lista';
+      if(d.pf === 'iaEstadoR'){ IA.lista = d.estado === 'lista'; if(typeof d.sem === 'boolean'){ try{ if(d.sem) localStorage.setItem('pfSemilla_superlucas', '1'); else localStorage.removeItem('pfSemilla_superlucas'); }catch(x){} } }   // la semilla SuperLucas vive en la página exterior; aquí solo se refleja para la consola
       if(d.pf === 'iaResp' && IA.pend[d.id]) IA.pend[d.id](d);
     });
     function estado(){ try{ window.top.postMessage({ pf:'iaEstado' }, '*'); }catch(e){} }
