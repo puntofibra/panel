@@ -1479,7 +1479,7 @@ var lastPicks = {};
   }
   // las reglas no la entienden: espera a la IA (aunque tenga que cargar)
   function iaPlanB(t, raw, now, done){
-    iaMatch(raw||t, true, function(m){ if(!m){ B._gratis=true; return done({ say: pick('noentiendo',NO_ENTIENDO) }); } iaResponder(m, t, now, done); });
+    iaMatch(raw||t, true, function(m){ if(!m){ B._gratis=true; return done({ say: pick('noentiendo',NO_ENTIENDO), notUnderstood:true }); } iaResponder(m, t, now, done); });
   }
   // las reglas sí responden, pero la frase no habla de contratos ni de compañías: si la IA ve claro que es otra cosa, manda ella
   var IA_MANDA = { bajas:1, pausar:1, instalar:1, recordatorios:1, fichajes:1, ayuda:1, limpiar:1, borradores:1, comparar:1, ranking:1, mejordia:1 };
@@ -2567,6 +2567,48 @@ var lastPicks = {};
     var cobrado=false;
     try{ handleBase(raw, function(r){ var fallo = r && /\b(no he podido|se me ha atascado|ha fallado|algo ha fallado|no puedo (leer|acceder|conectar)|error al)\b/i.test(String(r.say||'')); var c = !cobrado && !B._gratis && !fallo && r && !r.notUnderstood; B._gratis=false; cobrado=true; done(r); if(c) saldoConsumir(); }); } finally{ B._enHandle = false; }
   };
+  /* ===== LUCAS AVANZADO (solo ordenador): si las reglas no entienden la pregunta, contesta la IA local que carga la página exterior ===== */
+  (function(){
+    var IA = { lista:false, pend:{}, n:0, hist:[] };
+    window.addEventListener('message', function(e){
+      var d = e && e.data; if(!d || typeof d !== 'object') return;
+      if(d.pf === 'iaEstadoR') IA.lista = d.estado === 'lista';
+      if(d.pf === 'iaResp' && IA.pend[d.id]) IA.pend[d.id](d);
+    });
+    function estado(){ try{ window.top.postMessage({ pf:'iaEstado' }, '*'); }catch(e){} }
+    setTimeout(estado, 25000); setInterval(estado, 20000);
+    function preguntar(texto, cb){
+      var id = 'ia' + (++IA.n) + '_' + Date.now(), hecho = false, t = null;
+      var fin = function(d){ if(hecho) return; hecho = true; clearTimeout(t); delete IA.pend[id]; cb(d && d.ok && d.texto ? String(d.texto).trim() : ''); };
+      t = setTimeout(function(){ fin(null); }, 60000);
+      IA.pend[id] = fin;
+      try{ window.top.postMessage({ pf:'iaAsk', id:id, texto:String(texto).slice(0, 600), hist:IA.hist.slice(-6) }, '*'); }catch(e){ fin(null); }
+    }
+    var handlePrev = B.handle;
+    B.handle = function(raw, done){
+      if(!IA.lista || B._enHandle || B._porBoton) return handlePrev(raw, done);
+      handlePrev(raw, function(r){
+        if(!r || !r.notUnderstood) return done(r);
+        preguntar(raw, function(txt){
+          if(!txt) return done(r);
+          IA.hist.push({ role:'user', content:String(raw).slice(0, 600) }, { role:'assistant', content:txt.slice(0, 800) });
+          if(IA.hist.length > 12) IA.hist = IA.hist.slice(-12);
+          done({ say: txt, notUnderstood: true, ia: true });
+        });
+      });
+    };
+    B.iaLista = function(){ return IA.lista; };
+    // escribir SUPERLUCAS en cualquier parte: cartel con el estado de la inteligencia avanzada (lo pinta la página exterior)
+    var sw = '';
+    window.addEventListener('keydown', function(e){
+      if(e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1) return;
+      sw = (sw + e.key.toUpperCase()).slice(-10);
+      if(sw !== 'SUPERLUCAS') return;
+      sw = ''; var t = e.target;
+      if(t && /^(INPUT|TEXTAREA)$/.test(t.tagName)) setTimeout(function(){ try{ t.value = t.value.replace(/superluca?s?$/i, ''); t.dispatchEvent(new Event('input',{bubbles:true})); }catch(x){} }, 0);
+      e.preventDefault(); try{ window.top.postMessage({ pf:'iaCartel' }, '*'); }catch(x){}
+    }, true);
+  })();
   var pickBase = B.pick;
   B.pick = function(v, done){ B._porBoton = true; try{ return pickBase(v, done); } finally{ B._porBoton = false; } };
 
