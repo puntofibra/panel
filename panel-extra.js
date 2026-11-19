@@ -59,6 +59,9 @@
     ['RECHARGE', 'RECARGA EL SALDO DEL ASISTENTE LUCAS (SE SUMA AL QUE YA HAY)', function(a, say){ recPaso1(say); }],
     ['SEMILLA', 'INSTALA O BORRA SEMILLAS EN ESTE ORDENADOR (DESACTIVAN COSAS SOLO AQUÍ)', function(a, say){ semMenu(say); }],
     ['PANEL', 'SUBPANELES (FEDE, WIL…): CONTRASEÑA, SEMILLA DEL PC, SALDO DE LUCAS Y NUEVO PANEL', function(a, say){ panMenu(say); }],
+    ['FEDE', 'VER EL PANEL DE FEDE EN ESTE ORDENADOR (SOLO AHORA; PARA VOLVER ESCRIBE MANU)', function(a, say){ verPanel('Fede', say); }],
+    ['WIL', 'VER EL PANEL DE WIL EN ESTE ORDENADOR (SOLO AHORA; PARA VOLVER ESCRIBE MANU)', function(a, say){ verPanel('Wil', say); }],
+    ['MANU', 'VOLVER A TU PANEL DESPUÉS DE VER EL DE FEDE O EL DE WIL', function(a, say){ verPanel('Manu', say); }],
     ['EDIT', 'TRAS LISTAR FICHAJES: MUESTRA [ELIMINAR] AL LADO DE CADA REGISTRO', function(a, say){ fichEdit(say); }],
     ['SCRIPT', 'SCRIPTS DE TAMPERMONKEY: ELIGES UNO Y SE COPIA PARA PEGARLO', function(a, say){ scrMenu(say); }],
     ['SEBASTIAN', 'ATAJO: FICHAJES DE SEBASTIAN', function(a, say){ fichEmp = 'Sebastián'; fichMenu(say); }],
@@ -358,6 +361,37 @@
     window.addEventListener('message', oir);
     try{ window.top.postMessage(msg, '*'); }catch(e){}
     setTimeout(function(){ if(!hecho){ window.removeEventListener('message', oir); cb(undefined); } }, 2500);
+  }
+  // ---------- FEDE / WIL / MANU: cambiar de panel solo en este ordenador y solo por ahora ----------
+  // La página de fuera (la del login) es la que guarda la sesión de Manu y la que pide el acceso al servidor
+  window.__pfVisita = false;
+  (function(){
+    function oir(e){ var d = e.data || {}; if(d.pf === 'visitaR') window.__pfVisita = !!d.visita; }
+    window.addEventListener('message', oir);
+    try{ window.top.postMessage({ pf:'visitaVer' }, '*'); }catch(e){}
+  })();
+  function verPanel(nombre, say){
+    var N = String(nombre).toUpperCase(), hecho = false;
+    say(N === 'MANU' ? '>> VOLVIENDO A TU PANEL…' : '>> ABRIENDO EL PANEL DE ' + N + '…', 'g big', 20);
+    function oir(e){
+      var d = e.data || {}; if(d.pf !== 'verPanelR') return;
+      hecho = true; window.removeEventListener('message', oir);
+      if(d.ok){
+        if(N === 'MANU'){ say('   LISTO. CARGANDO TU PANEL…', 'y', 10); }
+        else {
+          say('   ACCESO CONCEDIDO. CARGANDO EL PANEL DE ' + String(d.nombre || N).toUpperCase() + ' CON SUS CONTRATOS…', 'y', 10);
+          say('   SOLO CAMBIA ESTE ORDENADOR Y SOLO POR AHORA. PARA VOLVER AL TUYO: ABRE LA CONSOLA Y ESCRIBE MANU.', 'd', 0, true);
+        }
+        tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+      } else if(d.ya){
+        say('   YA ESTÁS EN TU PANEL.', 'y', 10);
+      } else {
+        say('   NO SE HA PODIDO: ' + String(d.error || 'ERROR').toUpperCase(), 'r', 10); errTone();
+      }
+    }
+    window.addEventListener('message', oir);
+    try{ window.top.postMessage({ pf:'verPanel', nombre:nombre }, '*'); }catch(e){}
+    setTimeout(function(){ if(!hecho){ window.removeEventListener('message', oir); say('   SIN RESPUESTA. ABRE EL PANEL DESDE PUNTOFIBRA.GITHUB.IO/PANEL Y RECÁRGALO (F5).', 'r', 10); errTone(); } }, 30000);
   }
   function panMenu(say){
     say('>> SUBPANELES 🧩', 'g big', 20);
@@ -735,7 +769,7 @@ function conLayout(){
 window.addEventListener('resize', function(){ if(CON.on) conLayout(); });
 window.addEventListener('orientationchange', function(){ setTimeout(function(){ if(CON.on) conLayout(); }, 250); });
 function openConsole(){
-    CON.auth = !window.PF_SUB && semOn('consolaSinPin');   // en un subpanel siempre pide las claves de Google CON.ask = null; CON.esperando = false;
+    CON.auth = (!window.PF_SUB || window.__pfVisita) && semOn('consolaSinPin');   // en un subpanel siempre pide las claves de Google CON.ask = null; CON.esperando = false;
     audio(); CON.on = true; CON.dir = 'PANEL'; CON.q = []; CON.typing = false; CON.busy = true; CON.pend = []; conIn.value = ''; clearTimeout(conTimer); conOut.innerHTML = '';
     box.classList.remove('off'); box.classList.add('on', 'boot'); conLayout(); try{ window.top.postMessage({ pf:'consola', abierta:true }, '*'); }catch(e){} try{ if(window.matchMedia('(pointer:coarse)').matches && Math.min(window.innerWidth, window.innerHeight) < 560 && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function(){}); }catch(e){} setTimeout(function(){ box.classList.remove('boot'); }, 800); setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(x){} }, 150); setTimeout(function(){ try{ conIn.focus({ preventScroll:true }); }catch(x){} }, 600);
     try{ conIn.focus({ preventScroll:true }); }catch(e){}
