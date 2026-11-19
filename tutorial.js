@@ -1,4 +1,5 @@
-/* ===== TUTORIAL PUNTOFIBRA · edicion 1 · 19-11-2026 · panel v497 =====
+/* ===== TUTORIAL PUNTOFIBRA · edicion 2 · 19-11-2026 · panel v526 =====
+   Edicion 2: menu lateral nuevo (placas con icono a color), capitulo 2 «Inicio: tus graficas» (los demas capitulos se corren uno).
    Libro con paginas 3D, indice clicable, maquetas PC y movil.
    Capitulos PC: 1 Conoce el panel · 2 Entrar · 3 Contratos · 4 Nuevo contrato y edicion · 5 Estados e iconos
    · 6 Borradores · 7 Caja/Retos/Deudas · 8 Tarjetas · 9 Notas · 10 Agenda · 11 Chat en vivo · 12 Lucas · 13 Trucos
@@ -7,7 +8,7 @@
 (function(){
 'use strict';
 if (window.PFTutorial) return;
-var EDICION = 1, FECHA = '19-11-2026';
+var EDICION = 2, FECHA = '19-11-2026';
 var PW = 720, PH = 880;
 var D = document;
 var CSS = (function(){/*
@@ -123,8 +124,19 @@ var CSS = (function(){/*
 #pftut .m-logo{border:1px solid #e3e8f0;border-radius:9px;padding:5px;margin-bottom:3px;min-height:36px;display:flex;align-items:center;justify-content:center}
 #pftut .m-logo img{max-width:100%;max-height:32px}
 #pftut .m-logo b{font-size:14px;font-weight:900;color:#1d3a8a;font-style:italic}#pftut .m-logo i{font-size:14px;font-weight:900;color:#f97316}
-#pftut .m-nv{position:relative;border:1px solid #e3e8f0;border-radius:8px;padding:5px 6px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:8.5px;background:#fff;white-space:nowrap;gap:3px}
-#pftut .m-nv.on{border-color:rgba(37,99,235,.4);background:rgba(37,99,235,.08)}
+#pftut .m-nv{position:relative;border:1px solid #b9bcc1;border-radius:8px;padding:4px 6px 5px 4px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:8.5px;background:linear-gradient(180deg,#fff,#f6f6f8);white-space:nowrap;gap:3px;box-shadow:inset 0 -2px 0 #a3a6aa}
+#pftut .m-nv.on{border-color:#22c24f;background:linear-gradient(180deg,#f3f3f4,#e8e8ec);box-shadow:inset 0 -2px 0 #22c24f,0 0 6px rgba(22,190,90,.55)}
+#pftut .m-nv > span:first-child{display:flex;align-items:center;gap:4px}
+#pftut .m-ic{display:inline-block;width:17px;height:14.5px;flex:0 0 17px;background-repeat:no-repeat;background-size:102.9px auto;background-position:-2.84px -10.05px;mix-blend-mode:multiply;filter:brightness(1.12)}
+#pftut .m-ic.xl{width:34px;height:29px;flex:0 0 34px;background-size:205.8px auto;background-position:-5.68px -20.1px}
+#pftut .m-seg{display:inline-flex;border:1px solid #d5dbe6;border-radius:8px;background:#f1f3f7;padding:2px;gap:2px;font-weight:800;font-size:8px;position:relative}
+#pftut .m-seg b{padding:3px 6px;border-radius:6px;font-weight:800;color:#64748b}#pftut .m-seg b.on{background:#fff;color:#0f172a;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+#pftut .m-kp{flex:1;background:#fff;border:1px solid #e3e8f0;border-radius:9px;padding:6px 7px;min-width:0}
+#pftut .m-kp small{display:block;font-size:7px;font-weight:800;color:#64748b;letter-spacing:.3px;margin-bottom:3px}
+#pftut .m-kp div{display:flex;gap:8px}#pftut .m-kp p{margin:0;flex:1;font-size:7px;color:#475569;line-height:1.25}#pftut .m-kp p b{display:block;font-size:14px;color:#0f172a;line-height:1.1}
+#pftut .m-kp .up{color:#15803d;font-weight:800}#pftut .m-kp .dn{color:#c62828;font-weight:800}
+#pftut .m-hb{display:grid;grid-template-columns:52px 1fr;gap:3px 5px;align-items:center;font-size:7.5px;font-weight:700}
+#pftut .m-hb i{display:block;height:4px;border-radius:3px;margin:1px 0}
 #pftut .m-pl{font-style:normal;text-decoration:none;font-size:7.5px;font-weight:700;border:1px solid #e3e8f0;border-radius:99px;padding:1px 5px;color:#64748b;margin-left:1px}
 #pftut .m-pl.r{background:#fecaca;color:#7a1315;border-color:#fecaca}#pftut .m-pl.g{background:#bbf7d0;color:#14532d;border-color:#bbf7d0}#pftut .m-pl.y{background:#fde68a;color:#78350f;border-color:#fde68a}#pftut .m-pl.b{background:#bfdbfe;color:#1e3a8a;border-color:#bfdbfe}
 #pftut .m-chat{margin:auto -7px 0;background:#075e54;color:#fff;font-weight:800;font-size:9px;padding:7px 9px;position:relative}
@@ -218,15 +230,18 @@ function H(n, cls, inner, tag, st){ tag = tag || 'div'; return '<' + tag + ' cla
 function shot(body, h){ h += 36; return '<div class="tt-shot" style="height:' + h + 'px"><div class="tt-bar0"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span class="tt-url">🔒 puntofibra.github.io/panel</span></div><div class="tt-scr" style="height:' + (h - 24) + 'px">' + body + '</div></div>'; }
 function cur(x0, y0, x1, y1){ return '<div class="tt-cur" style="--x0:' + x0 + 'px;--y0:' + y0 + 'px;--x1:' + x1 + 'px;--y1:' + y1 + 'px"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z" fill="#111" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div><div class="tt-rip" style="left:' + x1 + 'px;top:' + y1 + 'px"></div>'; }
 function tap(x, y){ return '<div class="ptap" style="left:' + x + 'px;top:' + y + 'px"></div>'; }
+var ICO = 'https://puntofibra.github.io/panel/';
+var IC = { ini:'Botón de panel con gráfico ascendente.png', bor:'Botón de documento con lápiz glossy.png', con:'Barra de documento con insignia de verificación.png', tar:'Botón UI con icono de tarjetas de crédito.png', not:'Panel UI con nota amarilla y chincheta roja.png', age:'Barra de calendario brillante en gris y coral.png', tut:'Botón de libro abierto.png' };
+function ic(f, xl){ return '<i class="m-ic' + (xl ? ' xl' : '') + '" style="background-image:url(\'' + ICO + encodeURIComponent(f) + '\')"></i>'; }
 function sb(act, b){
   b = b || {};
-  var it = [['bor','🗒️','BORRADORES','<i class="m-pl r">0</i>'],['con','📒','CONTRATOS','<i class="m-pl">128</i>'],['tar','💳','TARJETAS','<i class="m-pl">info</i>'],['not','📖','NOTAS','<i class="m-pl r">5</i><i class="m-pl y">4</i><i class="m-pl g">3</i><i class="m-pl b">2</i>'],['age','🗓️','AGENDA','<i class="m-pl">2</i>']];
+  var it = [['ini',IC.ini,'INICIO',''],['bor',IC.bor,'BORRADORES','<i class="m-pl r">0</i>'],['con',IC.con,'CONTRATOS','<i class="m-pl">128</i>'],['tar',IC.tar,'TARJETAS','<i class="m-pl">info</i>'],['not',IC.not,'NOTAS','<i class="m-pl r">5</i><i class="m-pl y">4</i><i class="m-pl g">3</i><i class="m-pl b">2</i>'],['age',IC.age,'AGENDA','<i class="m-pl">2</i>']];
   var c = '<div class="m-logo">' + logoHtml() + '</div>';
   it.forEach(function(x){
-    var n = b[x[0]], inner = '<span>' + x[1] + ' ' + x[2] + '</span><span>' + x[3] + '</span>', k = 'm-nv' + (x[0] === act ? ' on' : '');
+    var n = b[x[0]], inner = '<span>' + ic(x[1]) + x[2] + '</span><span>' + x[3] + '</span>', k = 'm-nv' + (x[0] === act ? ' on' : '');
     c += n ? H(n, k, inner) : '<div class="' + k + '">' + inner + '</div>';
   });
-  c += '<div class="m-nv"><span>📖 TUTORIAL</span></div>';
+  c += '<div class="m-nv"><span>' + ic(IC.tut) + 'TUTORIAL</span></div>';
   c += b.chat ? H(b.chat, 'm-chat bin', '💬 Chat en vivo') : '<div class="m-chat">💬 Chat en vivo</div>';
   return b.sb ? H(b.sb, 'm-sb bin', c) : '<div class="m-sb">' + c + '</div>';
 }
@@ -247,6 +262,29 @@ function app(main, act, b, st){ return '<div class="m-app"' + (st ? ' style="' +
 function mOverview(){
   var m = H(2, 'm-card', '<div class="m-h">📒 CONTRATOS <span class="m-btn p">➕ NUEVO CONTRATO ▾</span> <span class="m-btn">🔄 Actualizar</span></div>' + tbl({ n: 6 }) + '<div class="m-pg"><span>Mostrando 1–6 de 128</span><span>◀ ANTERIOR  PÁGINA 1  SIGUIENTE ▶</span></div>');
   return shot(app(m, 'con', { sb: 1, chat: 3 }, 'height:calc(100% - 24px)') + H(4, 'm-lu bin', '🤖'), 372);
+}
+function mInicio(){
+  var kp = function(t, a){ return '<div class="m-kp"><small>' + t + '</small><div><p><b>' + a[0] + '</b>Fibras<br><span class="' + a[1] + '">' + a[2] + '</span></p><p><b>' + a[3] + '</b>Líneas extra<br><span class="' + a[4] + '">' + a[5] + '</span></p></div></div>'; };
+  var hb = function(rows){ return '<div class="m-hb">' + rows.map(function(r){ return '<span>' + r[0] + '</span><span><i style="width:' + r[1] + '%;background:#2a78d6"></i><i style="width:' + r[2] + '%;background:#eb6834"></i></span>'; }).join('') + '</div>'; };
+  var m = '<div class="m-h" style="justify-content:space-between">📊 INICIO <span>' + H(1, 'm-seg', '<b class="on">Fibras</b><b>Líneas extra</b><b>Líneas cliente</b>', 'span') + ' ' + H(2, 'm-seg', '<b class="on">Mes</b><b>Semana</b><b>Hoy</b>', 'span') + '</span></div>' +
+    H(3, '', kp('ESTE MES', ['41','dn','▼ −5','159','up','▲ +8']) + kp('ESTA SEMANA', ['17','up','▲ +13','63','up','▲ +58']) + kp('HOY', ['3','up','▲ +1','4','up','▲ +2']), 'div', 'display:flex;gap:6px;margin-bottom:7px') +
+    H(4, '', '<div class="m-card" style="flex:1;margin:0"><div style="font-weight:900;font-size:9px;margin-bottom:5px">Fibras por compañía</div>' + hb([['SIMYO',78,88],['O2',6,6],['MÁSMÓVIL',4,1],['JAZZTEL',1,3]]) + '</div><div class="m-card" style="flex:1;margin:0"><div style="font-weight:900;font-size:9px;margin-bottom:5px">Fibras por código de tienda</div>' + hb([['TIENDA A',70,74],['TIENDA B',22,30],['OTROS',4,6]]) + '</div>', 'div', 'display:flex;gap:6px');
+  return shot(app(m, 'ini', {}), 290);
+}
+function mInicio12(){
+  var F = [73,44,83,89,61,64,74,86,68,88,89,41], Ln = [240,143,258,252,184,218,274,315,208,294,336,161], M = ['dic','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov'];
+  var W = 520, Hh = 190, L = 22, T = 16, B = 16, top = 400, hueco = (W - L - 6) / 12, bw = 13, g = '';
+  var Y = function(v){ return T + (1 - v / top) * (Hh - T - B); };
+  for (var v = 0; v <= top; v += 100) g += '<line x1="' + L + '" x2="' + W + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="#e6e8ec"/><text x="' + (L - 4) + '" y="' + (Y(v) + 3) + '" text-anchor="end" font-size="7" fill="#64748b">' + v + '</text>';
+  var bar = function(x, v, col, op, pv){ var o = ''; if (pv){ o += '<rect x="' + x + '" y="' + Y(v + pv) + '" width="' + bw + '" height="' + (Y(v) - Y(v + pv)) + '" rx="2" fill="#8a8f98" fill-opacity=".28" stroke="#8a8f98" stroke-opacity=".6" stroke-dasharray="3 2"/><text x="' + (x + bw / 2) + '" y="' + (Y(v + pv) - 3) + '" text-anchor="middle" font-size="7" font-weight="700" fill="#6b7078">' + (v + pv) + '</text>'; } return o + '<rect x="' + x + '" y="' + Y(v) + '" width="' + bw + '" height="' + (Hh - B - Y(v)) + '" rx="2" fill="' + col + '" fill-opacity="' + op + '"/><text x="' + (x + bw / 2) + '" y="' + (Y(v) - 3) + '" text-anchor="middle" font-size="7" font-weight="700" fill="#0b0b0b">' + v + '</text>'; };
+  for (var i = 0; i < 12; i++){ var cx = L + hueco * (i + 0.5), act = i === 11; g += bar(cx - bw - 1, F[i], '#2a78d6', act ? .55 : 1, act ? 39 : 0) + bar(cx + 1, Ln[i], '#e34948', act ? .55 : 1, act ? 134 : 0) + '<text x="' + cx + '" y="' + (Hh - 4) + '" text-anchor="middle" font-size="7.5" font-weight="' + (act ? 800 : 400) + '" fill="#475569">' + M[i] + '</text>'; }
+  var x11 = L + hueco * 11, pc = function(x){ return (x / W * 100).toFixed(2) + '%'; };
+  var m = '<div class="m-card" style="margin:0"><div style="display:flex;gap:10px;align-items:center;font-size:8px;margin-bottom:4px"><b style="font-size:9.5px;font-weight:900">Fibras y líneas por mes · últimos 12 meses</b>' + H(1, '', '<span style="color:#2a78d6">■</span> Fibras &nbsp;<span style="color:#e34948">■</span> Líneas', 'span') + '<span style="color:#64748b">noviembre va hasta hoy</span><span style="color:#64748b"><span style="color:#b3b7bd">■</span> Previsión con los borradores</span></div>' +
+    '<div style="position:relative"><svg viewBox="0 0 ' + W + ' ' + Hh + '" style="width:100%;display:block">' + g + '</svg>' +
+    H(2, '', '', 'div', 'position:absolute;left:' + pc(x11 + 2) + ';width:' + pc(hueco - 4) + ';top:' + (Y(161) / Hh * 100).toFixed(1) + '%;bottom:8%') +
+    H(3, '', '', 'div', 'position:absolute;left:' + pc(x11 + 2) + ';width:' + pc(hueco - 4) + ';top:' + (Y(310) / Hh * 100).toFixed(1) + '%;height:' + ((Y(161) - Y(310)) / Hh * 100 - 3).toFixed(1) + '%') +
+    H(4, '', '', 'div', 'position:absolute;left:' + pc(L + hueco * 7 + 2) + ';width:' + pc(hueco - 4) + ';top:' + (Y(330) / Hh * 100).toFixed(1) + '%;bottom:8%') + '</div></div>';
+  return shot(app(m, 'ini', {}), 280);
 }
 function mLogin(){
   var c = '<div style="height:100%;display:grid;place-items:center;background:linear-gradient(135deg,#e6efff,#f7faff)"><div style="width:230px;background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 14px 34px rgba(30,64,175,.2);text-align:center"><div class="m-logo" style="border:0;margin-bottom:8px">' + logoHtml() + '</div><div class="m-f" style="text-align:left;margin-bottom:12px"><small>CONTRASEÑA</small>' + H(1, 'm-i', '<span class="tt-type" style="--c:10">••••••••••</span>') + '</div><div class="m-btn g tt-hl" style="--i:2;display:block;padding:9px;font-size:10px;position:relative;overflow:visible">ENTRAR<i class="m-prog"></i>' + bd(2) + '<ttb class="tt-b" style="--i:3;right:auto;left:-8px">3</ttb></div></div></div>';
@@ -370,7 +408,11 @@ function addAll(){
   P.push(coverHtml()); P.push(howtoHtml()); P.push('IDX');
   chapter('pc', '🧭', 'Conoce el panel', function(n, c){ return [
     pg(n, c, 'Tu panel de un vistazo', 'Todo lo que necesitas para llevar tus clientes y contratos está en una sola web, organizada en cuatro zonas.', shot2(mOverview()), ['<b>Menú lateral.</b> Desde aquí saltas a cada sección. Los círculos de colores avisan de lo pendiente.', '<b>Zona de trabajo.</b> Aquí aparece la sección que elijas: tablas, formularios, calendario…', '<b>Chat en vivo.</b> La barra verde de abajo abre una conversación con tu equipo.', '<b>Asistente Lucas.</b> La franja negra inferior. Pulsa al robot y te ayuda a filtrar y a recordar cosas.'], 'Si ya conoces lo básico, salta directamente a un capítulo desde el índice 📑.'),
-    pg(n, c, 'El menú lateral', 'Cada botón te lleva a una sección. Estas son las que tienes a tu disposición:', cards([['🗒️','BORRADORES','Contratos a medias. El círculo rojo te dice cuántos tienes.'],['📒','CONTRATOS','La lista de todos tus contratos, con buscador y filtros.'],['💳','TARJETAS','Tus tarjetas y cuentas bancarias, protegidas con PIN.'],['📖','NOTAS','Notas con etiquetas de color. Cada color tiene su contador.'],['🗓️','AGENDA','Calendario de eventos. El número indica los de hoy.'],['💬','CHAT EN VIVO','La barra verde de abajo: habla con tu equipo.'],['🤖','ASISTENTE LUCAS','El robot de la franja negra: tu ayudante.'],['📖','TUTORIAL','Este libro, siempre a mano.']]) , null, 'Los círculos de colores del menú se actualizan solos: rojo, amarillo, verde y azul en NOTAS (uno por etiqueta).')
+    pg(n, c, 'El menú lateral', 'Cada botón te lleva a una sección. Estas son las que tienes a tu disposición:', cards([[ic(IC.ini,1),'INICIO','Tus gráficas de fibras y líneas. Es lo primero que ves al entrar.'],[ic(IC.bor,1),'BORRADORES','Contratos a medias. El número rojo te dice cuántos tienes.'],[ic(IC.con,1),'CONTRATOS','La lista de todos tus contratos, con buscador y filtros.'],[ic(IC.tar,1),'TARJETAS','Tus tarjetas y cuentas bancarias, protegidas con PIN.'],[ic(IC.not,1),'NOTAS','Notas con etiquetas de color. Cada color tiene su contador.'],[ic(IC.age,1),'AGENDA','Calendario de eventos. El número indica los de hoy.'],['💬','CHAT EN VIVO','La barra verde de abajo: habla con tu equipo.'],['🤖','ASISTENTE LUCAS','El robot de la franja negra: tu ayudante.'],[ic(IC.tut,1),'TUTORIAL','Este libro, siempre a mano.']]) , null, 'El botón de la sección abierta se marca en verde. Los números del menú se actualizan solos: rojo, amarillo, verde y azul en NOTAS (uno por etiqueta).')
+  ]; });
+  chapter('pc', '📊', 'Inicio: tus gráficas', function(n, c){ return [
+    pg(n, c, 'El Inicio de un vistazo', 'Al entrar, el panel abre siempre en INICIO: un resumen de las fibras y líneas que llevas, comparado con el mes anterior.', shot2(mInicio()), ['<b>Qué quieres contar.</b> Elige entre Fibras, Líneas extra o Líneas de cliente. Las gráficas de abajo cambian al momento.', '<b>Qué periodo.</b> Mes, Semana u Hoy. Siempre se compara con los mismos días del mes anterior.', '<b>Las tres tarjetas.</b> Lo que llevas este mes, esta semana y hoy. La flecha verde indica que vas por encima del mes anterior; la roja, por debajo.', '<b>Por compañía y por tienda.</b> La barra azul es lo de ahora y la naranja lo del mes anterior. «OTROS» reúne los contratos sin código de tienda.'], 'Mientras el panel termina de cargar verás una barra de progreso y el menú en gris unos segundos: las gráficas ya se pueden consultar.'),
+    pg(n, c, 'Los últimos 12 meses', 'La gráfica grande te enseña, mes a mes, cuántas fibras y cuántas líneas se han hecho en el último año.', shot2(mInicio12()), ['<b>Dos barras por mes.</b> La azul son las fibras y la roja las líneas (las de cliente y las extra, juntas).', '<b>El mes en curso</b> sale en un tono más claro, porque todavía no ha terminado: cuenta hasta hoy.', '<b>La previsión en gris.</b> Encima del mes en curso se suma lo que hay en Borradores. El número sobre el color es lo que llevas de verdad; el de arriba, a lo que llegarías si se tramitan todos.', '<b>Pasa el ratón</b> por cualquier mes para ver el detalle: fibras, líneas de cliente y líneas extra.'], 'La previsión solo aparece en esta gráfica y solo en el mes en curso: los borradores no cuentan en ningún otro número.')
   ]; });
   chapter('pc', '🔐', 'Entrar en el panel', function(n, c){ return [
     pg(n, c, 'Entrar en el panel', 'Sin usuarios ni complicaciones: solo necesitas tu contraseña.', shot2(mLogin()), ['Escribe tu <b>contraseña</b>. Si usas Google Authenticator, escribe en su lugar el <b>código de 6 cifras</b> que muestra la app.', 'Pulsa <b>ENTRAR</b> (o la tecla Enter).', 'Con una <b>llave NFC</b>: mantén pulsado ENTRAR 3 segundos; la barra se llena y entonces pasas la llave.', 'La sesión se cierra sola cada día a las <b>00:00</b> y al día siguiente vuelves a entrar. También puedes cerrarla tú cuando quieras con el botón <b>SALIR</b>, abajo del menú lateral.'], null)
