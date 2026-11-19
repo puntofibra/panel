@@ -600,7 +600,7 @@ function open(pagina){
   if (!D.getElementById('pftutCss')){ var st = D.createElement('style'); st.id = 'pftutCss'; st.textContent = CSS; D.head.appendChild(st); }
   addAll(); S = 0; busy = false; pending = null;
   root = D.createElement('div'); root.id = 'pftut';
-  root.innerHTML = '<div class="tt-sky"></div><div class="tt-aur"></div><div class="tt-stage"><div class="tt-scale"><div class="tt-book"></div></div></div><div class="tt-bar"><button class="tt-bt" data-a="prev">◀</button><button class="tt-bt" data-a="idx">📑 Índice</button><div class="tt-lbl"></div><button class="tt-bt" data-a="next">▶</button><button class="tt-bt" data-a="snd">🔊</button></div><button class="tt-bt tt-x" data-a="x">✕</button>';
+  root.innerHTML = '<div class="tt-sky"></div><div class="tt-aur"></div><div class="tt-stage"><div class="tt-scale"><div class="tt-book"></div></div></div><div class="tt-bar"><button class="tt-bt" data-a="prev">◀</button><button class="tt-bt" data-a="idx">📑 Índice</button><div class="tt-lbl"></div><button class="tt-bt" data-a="next">▶</button></div><button class="tt-bt tt-x" data-a="x">✕</button>';
   stage = root.querySelector('.tt-stage'); wrap = root.querySelector('.tt-scale'); book = root.querySelector('.tt-book'); lbl = root.querySelector('.tt-lbl');
   prevOv = D.documentElement.style.overflow; D.documentElement.style.overflow = 'hidden';
   D.body.appendChild(root);
