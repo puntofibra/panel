@@ -3090,6 +3090,17 @@ var lastPicks = {};
     var n=0, iv=setInterval(function(){ if(fijar() || ++n>120) clearInterval(iv); }, 1000);
   })();
 
+  /* En ordenador, la gráfica de 12 meses del Inicio deja sitio a la derecha para que Lucas no tape el mes en curso. */
+  (function(){
+    try{
+      var st=document.createElement('style'); st.id='pfIniHueco';
+      st.textContent='@media (min-width:1100px) and (hover:hover) and (pointer:fine){#iniLine{margin-right:140px!important;width:auto!important}}';
+      (document.head||document.documentElement).appendChild(st);
+      var redibuja=function(){ try{ window.dispatchEvent(new Event('resize')); }catch(e){} };
+      setTimeout(redibuja, 1500); setTimeout(redibuja, 6000);
+    }catch(e){}
+  })();
+
   /* El silencio no se recuerda: cada vez que se carga la página, Lucas empieza con el altavoz encendido. */
   (function(){
     var visto=0, n=0, iv=setInterval(function(){
