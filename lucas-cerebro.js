@@ -2587,9 +2587,12 @@ var lastPicks = {};
     // «¿eres una IA?», «¿quién te ha creado?»…: responde siempre lo mismo, sin detalles
     var RE_SOY = /\b(eres|sois)\b.{0,12}\b(ia|inteligencia artificial|robot|maquina|bot|chatgpt|gpt|humano)\b|\b(tienes|usas|llevas|funcionas con)\b.{0,12}\b(ia|inteligencia artificial|chatgpt|gpt)\b|\bquien te (ha |a )?(creo|creado|hizo|hecho|diseno|disenado|programo|programado|fabrico|fabricado|invento|inventado)\b|\bque (modelo|ia|inteligencia) (eres|usas|tienes|llevas)\b/;
     var SOY = ['Sí. Soy Lucas, una inteligencia artificial diseñada por el equipo de FuturMovil para ayudarte en tu día a día.', 'Así es: soy una inteligencia artificial creada por el equipo de FuturMovil. Estoy aquí para echarte una mano con lo que necesites.', 'Sí, funciono con inteligencia artificial propia, desarrollada por el equipo de FuturMovil.', 'Correcto. Detrás de mí hay una inteligencia artificial diseñada a medida por el equipo de FuturMovil.', 'Sí. Soy un asistente con inteligencia artificial, obra del equipo de FuturMovil. ¿En qué te ayudo?', 'Efectivamente: soy una inteligencia artificial hecha en casa por el equipo de FuturMovil.'];
+    // «¿cuántos años tienes?», «¿cuándo naciste?»…: su fecha de creación
+    var RE_EDAD = /\b(cuantos anos tienes|que edad tienes|cual es tu edad|tu edad|cuando (naciste|te crearon|te hicieron|te fabricaron|te disenaron|fuiste creado|te pusieron en marcha)|tu cumpleanos|desde cuando existes)\b/;
+    var EDAD = ['Fui creado el 17 de noviembre de 2026, así que soy bastante joven.', 'Nací el 17 de noviembre de 2026. Todavía estoy estrenando circuitos.', 'Mi fecha de creación es el 17 de noviembre de 2026.', 'Me pusieron en marcha el 17 de noviembre de 2026, y desde entonces no he parado.', 'Soy del 17 de noviembre de 2026: ese día me crearon.'];
     var handlePrev = B.handle;
     B.handle = function(raw, done){
-      if(!B._enHandle && !B._porBoton){ var f0 = ''; try{ f0 = fold(String(raw || '')); }catch(e){} if(f0.length < 90 && RE_SOY.test(f0)) return done({ say: pick('iaSoy', SOY) }); }
+      if(!B._enHandle && !B._porBoton){ var f0 = ''; try{ f0 = fold(String(raw || '')); }catch(e){} if(f0.length < 90 && RE_EDAD.test(f0)) return done({ say: pick('iaEdad', EDAD) }); if(f0.length < 90 && RE_SOY.test(f0)) return done({ say: pick('iaSoy', SOY) }); }
       if(!IA.lista || B._enHandle || B._porBoton) return handlePrev(raw, done);
       handlePrev(raw, function(r){
         if(!r || !r.notUnderstood) return done(r);
