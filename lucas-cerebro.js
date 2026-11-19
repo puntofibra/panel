@@ -2170,6 +2170,86 @@ var lastPicks = {};
   setTimeout(vigilaHorasFichadas, 25000);
 
   /* =====================================================================
+     INACTIVIDAD CON EL CONTADOR EN PLAY: el navegador donde un empleado le dio a play se queda
+     vigilando; si pasa más de 30 minutos sin actividad en el panel y su contador sigue en marcha,
+     Lucas se lo pregunta a Manu (ordenador con la semilla «chatManu»): ¿sigo contando o lo pauso?
+     ===================================================================== */
+  var INACT_MIN = 30, inactAvisado = {};
+  function inactMarcas(){ try{ var o = JSON.parse(localStorage.getItem('pfFichPlay') || '{}'); return (o && typeof o === 'object') ? o : {}; }catch(e){ return {}; } }
+  function inactGuardar(o){ try{ localStorage.setItem('pfFichPlay', JSON.stringify(o)); }catch(e){} }
+  // este navegador recuerda en qué contadores se pulsó play aquí (el de Manu no cuenta)
+  (function(){
+    var n = 0, iv = setInterval(function(){
+      if(typeof window.ficharIniciar !== 'function' || typeof window.ficharPausar !== 'function'){ if(++n > 120) clearInterval(iv); return; }
+      clearInterval(iv);
+      if(window.ficharIniciar.__inact) return;
+      var i0 = window.ficharIniciar, p0 = window.ficharPausar;
+      window.ficharIniciar = function(id){
+        try{ if(!semilla('chatManu')){ var o = inactMarcas(); o[String(id)] = Date.now(); inactGuardar(o); } novActT = Date.now(); inactAvisado = {}; }catch(e){}
+        return i0.apply(this, arguments);
+      };
+      window.ficharIniciar.__inact = true;
+      window.ficharPausar = function(id){
+        try{ var o = inactMarcas(); delete o[String(id)]; inactGuardar(o); }catch(e){}
+        return p0.apply(this, arguments);
+      };
+    }, 1000);
+  })();
+  function vigilaInactividad(){
+    try{
+      if(window.PF_SUB) return;
+      var ids = Object.keys(inactMarcas()); if(!ids.length) return;
+      var parado = Date.now() - novActT;
+      if(parado < INACT_MIN*60000){ inactAvisado = {}; return; }        // ha vuelto la actividad: se rearma el aviso
+      var faltan = ids.filter(function(id){ return !inactAvisado[id]; }); if(!faltan.length) return;
+      google.script.run.withSuccessHandler(function(res){
+        if(!res || !res.ok || !res.items) return;
+        var o = inactMarcas(), cambio = false;
+        faltan.forEach(function(id){
+          var it = null; res.items.forEach(function(x){ if(String(x.id) === id) it = x; });
+          // ya está en pausa, ya no existe, o lo volvieron a poner en marcha desde otro ordenador: este deja de vigilarlo
+          if(!it || it.estado !== 'RUNNING' || (Number(it.startTs)||0) > (Number(o[id])||0) + 10*60000){ delete o[id]; cambio = true; return; }
+          inactAvisado[id] = 1;
+          var nom = titleCase(String(it.nombre||'').trim()), f = fold(nom);
+          var de = /^maicol/.test(f) ? 'Maicol' : (/^jorge/.test(f) ? 'Jorge' : 'Sebas');
+          if(/^sebas/.test(f)) nom = 'Sebas';
+          try{ google.script.run.withFailureHandler(function(){}).apiChatEnviar(de, 'Manu', '[[INACT]]' + id + '|' + nom + '|' + Math.floor(parado/60000)); }catch(e){}
+        });
+        if(cambio) inactGuardar(o);
+      }).withFailureHandler(function(){}).apiGetFichajes();
+    }catch(e){}
+  }
+  setInterval(vigilaInactividad, 60000);
+  // en el ordenador de Manu: Lucas hace la pregunta con dos botones
+  function inactPreguntar(m){
+    var p = String(m.texto||'').replace(/^\[\[INACT\]\]/, '').split('|'), fid = p[0] || '', nom = p[1] || 'Un empleado', min = Math.max(INACT_MIN, parseInt(p[2], 10) || INACT_MIN);
+    var msg = fill(pick('inactQ',[
+      '⏱️ Control horario: {n} tiene el contador de fichaje en marcha, pero su ordenador lleva más de {m} minutos sin actividad. ¿Sigo contando su tiempo de trabajo?',
+      '⏱️ Aviso de actividad: parece que {n} lleva más de {m} minutos de inactividad con el fichaje en play. ¿Quieres que siga contando su tiempo?',
+      '⏱️ Manu, no detecto movimiento en el ordenador de {n} desde hace más de {m} minutos y su contador sigue corriendo. ¿Lo dejo contando o lo pauso?',
+      '⏱️ El puesto de {n} lleva más de {m} minutos parado y su tiempo de trabajo sigue sumando. ¿Continúo contando?',
+      '⏱️ Atención: {n} acumula más de {m} minutos sin actividad en su ordenador con el contador activo. ¿Mantengo su contador en marcha?',
+      '⏱️ Te consulto una cosa: el contador de {n} sigue en play, pero hace más de {m} minutos que no registra actividad. ¿Sigo sumándole tiempo de trabajo?'
+    ]),{ n:nom, m:min });
+    B.duckSay(msg, [{ t:'▶️ Sí, sigue contando', v:'inact:si:' + m.id + ':' + fid + ':' + nom }, { t:'⏸️ No, pausa su contador', v:'inact:no:' + m.id + ':' + fid + ':' + nom }]);
+  }
+  var inactPick0 = B.pick;
+  B.pick = function(v, done){
+    v = String(v||'');
+    if(v.indexOf('inact:') !== 0) return inactPick0(v, done);
+    var z = v.split(':'), si = z[1] === 'si', mid = z[2], fid = z[3], nom = z.slice(4).join(':') || 'el empleado';
+    try{ google.script.run.withFailureHandler(function(){}).apiChatLeido([mid]); }catch(e){}
+    if(si) return done({ say: fill(pick('inactSi',['👍 Entendido, sigo contando el tiempo de {n}.','👍 De acuerdo, el contador de {n} sigue en marcha.','👍 Perfecto, dejo corriendo el tiempo de {n}.']),{ n:nom }) });
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        if(!r || !r.ok) return done({ say:'❌ No he podido pausar el contador de ' + nom + '. Prueba desde la sección Fichar.' });
+        var s = Number(r.acumulado)||0, hh = ('0'+Math.floor(s/3600)).slice(-2), mm = ('0'+Math.floor((s%3600)/60)).slice(-2), ss = ('0'+(s%60)).slice(-2);
+        done({ say: fill(pick('inactNo',['⏸️ Hecho: he pausado el contador de {n} en {t}.','⏸️ Contador de {n} en pausa. Se queda en {t}.','⏸️ Listo, dejo de contar el tiempo de {n}. Marca {t}.']),{ n:nom, t:hh+':'+mm+':'+ss }) });
+      }).withFailureHandler(function(){ done({ say:'❌ No he podido pausar el contador de ' + nom + '. Prueba desde la sección Fichar.' }); }).apiFicharPausar(fid);
+    }catch(e){ done({ say:'❌ No he podido pausar el contador de ' + nom + '.' }); }
+  };
+
+  /* =====================================================================
      FILTRO ACTIVO: 2 minutos después de que Lucas filtre, si sigue el filtro, pregunta si lo limpia
      ===================================================================== */
   var filtroT = null;
@@ -2741,6 +2821,7 @@ var lastPicks = {};
           Object.keys(PEND).forEach(function(id){ if(!vivos[id]) delete PEND[id]; });   // aceptado (aquí o en otro ordenador)
           items.forEach(function(m){
             if(vistos[m.id]) return; vistos[m.id]=1;
+            if(/^\[\[INACT\]\]/.test(m.texto||'')){ inactPreguntar(m); return; }   // aviso de inactividad con el contador en play
             PEND[m.id]={ de:m.de, texto:m.texto, ult:Date.now(), n:0 };
             var intro=fill(pick('chatIn',['📩 Tienes un mensaje de {d}:','📩 {d} te ha escrito:','📩 Tengo un mensaje para ti de {d}:','📩 Mensaje nuevo de {d}:','📩 {d} te dice:','📩 Te escribe {d}:']),{d:m.de});
             var para = me.length>1 ? ' (para '+m.para+')' : '';
@@ -2753,6 +2834,7 @@ var lastPicks = {};
           var ac=(r && r.acuses)||[], idsA=[];
           ac.forEach(function(a){
             if(vistos['A'+a.id]) return; vistos['A'+a.id]=1; idsA.push(a.id);
+            if(/^\[\[INACT\]\]/.test(a.texto||'')) return;   // los avisos de inactividad no generan acuse
             var corto=String(a.texto||''); if(/^\[\[IMG\]\]/.test(corto)) corto='🖼️ imagen'; if(corto.length>60) corto=corto.slice(0,57)+'…';
             B.duckSay(fill(pick('chatRec',['✅ {p} ha recibido tu mensaje: «{t}».','✅ {p} ya ha leído tu mensaje: «{t}».','👀 {p} ha visto tu mensaje: «{t}».']),{p:a.para,t:corto}));
           });
