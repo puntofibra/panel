@@ -418,7 +418,8 @@ var lastPicks = {};
     else if(dow===1 && h<13) extra=['Lunes otra vez, ¡a por la semana!'];
     else if(dow===5 && h>=13) extra=['Viernes por la tarde, ya casi lo tienes.'];
     if(extra.length && Math.random()<0.5) txt+=' '+pick('greetx',extra);
-    if(first) txt += ' ' + pick('greet1',['Puedes pedirme, por ejemplo, «muéstrame los contratos de enero».','Prueba con algo como «contratos para cambiar este mes».','Por ejemplo: «cuántos contratos llevo este mes de Simyo».']);
+    if(first) txt += ' ' + pick('greet1',['Puedes pedirme, por ejemplo, «muéstrame los contratos de enero».','Prueba con algo como «contratos para cambiar este mes».','Por ejemplo: «cuántos contratos llevo este mes de Simyo».','Por ejemplo: «cómo vamos este mes».','Prueba con «qué compañía vende más».','Puedes pedirme «contratos pendientes de instalar».','Por ejemplo: «gráfica de contratos de este año».']);
+    if(first) txt += ' ' + pick('greetAy',['Y si escribes «ayuda», te saco varios accesos directos.','Escribe «ayuda» cuando quieras y te enseño los accesos directos.','Recuerda: con «ayuda» tienes a mano varios accesos directos.','Si no sabes por dónde empezar, escribe «ayuda» y te doy varios accesos directos.','Con la palabra «ayuda» te muestro una lista de accesos directos.']);
     return txt;
   };
   var NO_ENTIENDO=[ 'Mmm, esa no la he pillado. ¿Me lo dices de otra forma?', 'Perdona, no he entendido la pregunta. Prueba con algo como «contratos de enero».', 'Uy, eso todavía no lo sé hacer. ¿Lo reformulas?', 'No estoy seguro de qué me pides. Puedo buscar contratos por fechas, clientes, cuentas o compañías.', 'Esa se me escapa. Dímelo con otras palabras y lo intento.', 'Me he quedado pensando… y no lo entiendo. ¿Me das una pista?', 'Todavía estoy aprendiendo y esa no me la sé. Escribe «ayuda» y te digo lo que sé hacer.', 'No te he entendido bien. ¿Quieres que busque contratos, clientes o borradores?' ];
@@ -1546,7 +1547,15 @@ var lastPicks = {};
     { t:'📈 ¿Más que el mes pasado?',    v:'q:este mes llevo mas que el pasado' },
     { t:'🏆 Ranking de compañías',        v:'q:que compania vende mas' },
     { t:'🛠️ Pendientes de instalar',      v:'q:contratos pendientes de instalar' },
-    { t:'📊 Gráfica de este año',         v:'q:grafica contratos este año' }
+    { t:'📊 Gráfica de este año',         v:'q:grafica contratos este año' },
+    { t:'🔢 Contratos de este mes',       v:'q:cuantos contratos hay este mes' },
+    { t:'🟠 Simyo este mes',              v:'q:cuantos contratos llevo este mes de simyo' },
+    { t:'🛜 Contratos con fibra',         v:'q:contratos con fibra este mes' },
+    { t:'📅 Mejor día del mes',           v:'q:que dia se hicieron mas contratos este mes' },
+    { t:'📉 Gráfica de 6 meses',          v:'q:grafica de contratos de los ultimos 6 meses' },
+    { t:'🗒️ Borradores',                  v:'q:borradores' },
+    { t:'⏰ Mis recordatorios',           v:'q:que recordatorios tengo' },
+    { t:'🧹 Quitar filtros',              v:'q:quita los filtros' }
   ];
   // respuesta a «¿solo con fibra o todos?»
   B._fibAsk = null; B._fibChoice = null;
