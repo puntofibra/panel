@@ -83,6 +83,14 @@ var lastPicks = {};
     // el lunes / el viernes pasado (el más reciente)
     m = t.match(/\b(?:el|del|este)\s+(lunes|martes|miercoles|jueves|viernes|sabado|domingo)(\s+pasado)?\b/);
     if(m){ var wi=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'].indexOf(m[1]); var bk=(now.getDay()-wi+7)%7; if(m[2] && bk===0) bk=7; var dw=new Date(now); dw.setDate(dw.getDate()-bk); return dayRange(dw,'del '+DIAS[wi]+' '+dw.getDate()+' de '+MESES[dw.getMonth()]); }
+    // «desde hace N días / semanas / meses / años» = desde ese día hasta hoy (no solo ese día o ese mes)
+    m = t.match(/\b(?:desde|a partir de)\s+hace\s+(\w+)\s+(dias?|semanas?|mes(?:es)?|anos?)\b/) || t.match(/\bde\s+hace\s+(\w+)\s+(dias?|semanas?|mes(?:es)?|anos?)\s+(?:hasta|a)\s+(?:hoy|ahora|aqui)\b/);
+    if(m){ var nDh=toNum(m[1])||1, uDh=m[2], fDh;
+      if(/^d/.test(uDh)) fDh=d0(y,mo,now.getDate()-nDh);
+      else if(/^s/.test(uDh)) fDh=d0(y,mo,now.getDate()-7*nDh);
+      else { var mesesDh=/^a/.test(uDh)?12*nDh:nDh, baseDh=d0(y,mo-mesesDh,1); fDh=d0(baseDh.getFullYear(),baseDh.getMonth(),Math.min(now.getDate(),endOfMonth(baseDh.getFullYear(),baseDh.getMonth()).getDate())); }
+      var uTx=/^d/.test(uDh)?plural(nDh,'día','días'):(/^s/.test(uDh)?plural(nDh,'semana','semanas'):(/^a/.test(uDh)?plural(nDh,'año','años'):plural(nDh,'mes','meses')));
+      return { from:fDh, to:new Date(y,mo,now.getDate(),23,59,59,999), label:'desde hace '+nDh+' '+uTx+' (del '+fmtD(fDh)+' a hoy)' }; }
     // hace N días / hace N semanas
     m = t.match(/\bhace\s+(\w+)\s+dias?\b/);
     if(m){ var nd0=toNum(m[1])||1; var hd=new Date(now); hd.setDate(hd.getDate()-nd0); return dayRange(hd,'de hace '+nd0+' '+plural(nd0,'día','días')+' ('+fmtD(hd)+')'); }
@@ -587,7 +595,7 @@ var lastPicks = {};
         if(!hasOther && !ctx.contractWords){
           return { notUnderstood:true };
         }
-        if(!hasOther){ return { say: fill(pick('noname',['No encuentro ningún cliente que se llame «{n}».','No me sale nadie con el nombre «{n}». ¿Lo has escrito bien?','Ningún contrato a nombre de «{n}», lo siento.']),{n:titleCase(nameTokens.join(' '))}) }; }
+        if(!hasOther){ B._gratis=true; return { sinNombre:true, say: fill(pick('noname',['No encuentro ningún cliente que se llame «{n}».','No me sale nadie con el nombre «{n}». ¿Lo has escrito bien?','Ningún contrato a nombre de «{n}», lo siento.']),{n:titleCase(nameTokens.join(' '))}) }; }
         if(some.length && nameTokens.length>1){ base=some; nameUsed=nameTokens.join(' '); }
       }
     }
@@ -1116,19 +1124,24 @@ var lastPicks = {};
   B.renderChecks = renderChecks;
 
   B._recPend = null;
+  function recGen(){ return !!window.PF_SUB && REC_PERS.length===1; }   // subpanel sin empleados: recordatorios genéricos, sin preguntar para quién
   function recPreguntarPersonas(o, done){
     var resumen = '«'+o.texto+'», '+fechaBonita(o.when)+(o.defHora?' (no me dijiste hora, te pongo esa)':'')+(o.avisos && o.avisos.length ? ', con '+numU(o.avisos.length)+' '+plural(o.avisos.length,'aviso','avisos')+' a las '+o.avisos.map(function(mm){ var d=new Date(o.when.getTime()-mm*60000); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }).join(', ') : '')+'.';
-    done({ say: pick('recQ1',['Vale, apunto: ','Entendido: ','Perfecto, recordatorio: '])+resumen+' '+pick('recQ2',['¿Para quién es el recordatorio?','¿A quién se lo recuerdo?','¿Para quién es?']) });
-    renderChecks(REC_PERS.map(function(p){ return { t:p[0], v:p[0], on: o.pre && o.pre.indexOf(p[0])>=0 }; }), 'Siguiente ➜', function(pers){
+    var Q3=['¿Cuándo te lo recuerdo? Puedes marcar varias.','¿Con cuánta antelación aviso? Marca una o varias.','¿Cuándo quieres el aviso? Elige una o varias.'];
+    var gen=recGen(), genAv = gen && !(o.avisos && o.avisos.length);
+    done({ say: pick('recQ1',['Vale, apunto: ','Entendido: ','Perfecto, recordatorio: '])+resumen+(gen ? (genAv ? ' '+pick('recQ3',Q3) : '') : ' '+pick('recQ2',['¿Para quién es el recordatorio?','¿A quién se lo recuerdo?','¿Para quién es?'])) });
+    var sigue=function(pers){
       o.personas=pers;
       if(o.avisos && o.avisos.length){ recGuardar(o); return; }
       var ahora=Date.now(), sug=o.when.getTime()-ahora > 3*3600000 ? 60 : 0;
-      if(window.__lucasSay) window.__lucasSay(pick('recQ3',['¿Cuándo te lo recuerdo? Puedes marcar varias.','¿Con cuánta antelación aviso? Marca una o varias.','¿Cuándo quieres el aviso? Elige una o varias.']));
+      if(!gen && window.__lucasSay) window.__lucasSay(pick('recQ3',Q3));
       renderChecks(REC_AVISOS.map(function(a){ var at=o.when.getTime()-a[0]*60000; return { t:a[1], v:a[0], on:a[0]===sug, off: a[0]>0 && at<ahora-60000 }; }), 'Guardar ✅', function(av){
         o.avisos=av.map(Number).sort(function(a,b){ return b-a; });
         recGuardar(o);
       });
-    });
+    };
+    if(gen) return sigue([REC_PERS[0][0]]);
+    renderChecks(REC_PERS.map(function(p){ return { t:p[0], v:p[0], on: o.pre && o.pre.indexOf(p[0])>=0 }; }), 'Siguiente ➜', sigue);
   }
   function recGuardar(o){
     var dime=function(t){ if(window.__lucasSay) window.__lucasSay(t); };
@@ -1138,7 +1151,7 @@ var lastPicks = {};
         if(!res || !res.ok) return dime('Uy, no he podido guardar el recordatorio'+(res&&res.error?' ('+res.error+')':'')+'. Prueba otra vez.');
         REC_CACHE=null; REC_CACHE_T=0;
         var avTxt=o.avisos.map(function(m){ for(var i=0;i<REC_AVISOS.length;i++) if(REC_AVISOS[i][0]===m) return REC_AVISOS[i][1].toLowerCase(); return m===0 ? 'a la misma hora' : (m%60===0 ? (m/60)+' '+plural(m/60,'hora','horas') : m+' minutos')+' antes'; });
-        dime(fill(pick('recOK',['¡Apuntado! Se lo recordaré a {p} {a}.','Hecho. Aviso a {p} {a}.','Guardado: {p} recibirá el aviso {a}.']),{p:listaTxt(o.personas),a:listaTxt(avTxt)})+' '+pick('recOK2',['Si no pulsáis «Enterado», insisto cada media hora.','Y si nadie pulsa «Enterado», vuelvo a avisar cada media hora.']));
+        dime((recGen() ? fill(pick('recOKg',['¡Apuntado! Te avisaré {a}.','Hecho. Aviso {a}, en cualquier ordenador donde tengas el panel abierto.','Guardado: el aviso saltará {a}.']),{a:listaTxt(avTxt)}) : fill(pick('recOK',['¡Apuntado! Se lo recordaré a {p} {a}.','Hecho. Aviso a {p} {a}.','Guardado: {p} recibirá el aviso {a}.']),{p:listaTxt(o.personas),a:listaTxt(avTxt)}))+' '+pick('recOK2',['Si no pulsáis «Enterado», insisto cada media hora.','Y si nadie pulsa «Enterado», vuelvo a avisar cada media hora.']));
       }).withFailureHandler(function(e){ dime('No he podido guardar el recordatorio: '+(e && e.message ? e.message : 'error de conexión')+'.'); }).apiRecCrear(pl);
     }catch(e){ dime('No he podido guardar el recordatorio ahora mismo.'); }
   }
@@ -1185,10 +1198,10 @@ var lastPicks = {};
     recCargar(function(l){
       if(l==null) return done({ say:'No he podido leer los recordatorios ahora mismo.' });
       // con la semilla de Manu se ven los de todos; si no, solo los de las personas con semilla en este ordenador
-      var yo=misPersonas(), todos=yo.indexOf('Manu')>=0;
+      var yo=misPersonas(), todos=yo.indexOf('Manu')>=0 || recGen();
       var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000 && (todos || (r.personas||[]).some(function(p){ return yo.indexOf(p)>=0; })); }).sort(function(a,b){ return a.cuando-b.cuando; });
       if(!fut.length) return done({ say: pick('recL0',['No hay ningún recordatorio pendiente.','No tienes recordatorios apuntados.','Nada apuntado por ahora.']) });
-      var txt=fut.slice(0,8).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'» ('+listaTxt(r.personas)+')'; }).join('\n');
+      var txt=fut.slice(0,8).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'»'+(recGen() ? '' : ' ('+listaTxt(r.personas)+')'); }).join('\n');
       done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+'\nSi quieres borrar alguno, púlsalo:', buttons: fut.slice(0,8).map(function(r){ return { t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }; }) });
     }, true);
   }
@@ -1220,7 +1233,7 @@ var lastPicks = {};
       c.insertAdjacentHTML('beforeend',
         '<div style="font-size:54px;line-height:1;display:inline-block;animation:recBell 1.2s ease-in-out infinite;filter:drop-shadow(0 0 12px #17ff5f)">⏰</div>'+
         '<div style="margin-top:8px;font-size:12px;letter-spacing:4px;font-weight:900;color:#17ff5f">RECORDATORIO'+(test?' · PRUEBA':'')+'</div>'+
-        '<div style="margin-top:4px;font-size:13px;color:#9fdcb7">Para <b style="color:#fff">'+esc0(persona)+'</b></div>'+
+        (recGen() ? '' : '<div style="margin-top:4px;font-size:13px;color:#9fdcb7">Para <b style="color:#fff">'+esc0(persona)+'</b></div>')+
         '<div style="margin:16px 0 10px;font-size:22px;font-weight:900;line-height:1.25;color:#fff;text-shadow:0 0 14px rgba(23,255,95,.45)">'+esc0(r.texto)+'</div>'+
         '<div style="font-size:14px;color:#c9f7da">'+esc0(cap(fechaBonita(new Date(r.cuando))))+'</div>'+
         '<div style="display:inline-block;margin-top:10px;padding:5px 12px;border-radius:999px;border:1px solid #00d4ff;color:#00d4ff;font-weight:800;font-size:13px">'+esc0(cap(falta(ms)))+'</div>');
@@ -1238,7 +1251,7 @@ var lastPicks = {};
   function recEnterado(id, persona, test, cb){
     var key=id+'|'+persona; if(recEnPantalla[key]){ try{ recEnPantalla[key].remove(); }catch(e){} delete recEnPantalla[key]; }
     B._recAck[id+'|'+persona]=true;
-    var frase=pick('recEnt',['Perfecto, {p}, marcado como enterado.','Anotado: {p} está al tanto.','Genial, {p}. No insisto más con este aviso.']).replace('{p}',persona);
+    var frase=recGen() ? pick('recEntG',['Perfecto, marcado como enterado.','Anotado, queda como enterado.','Genial. No insisto más con este aviso.']) : pick('recEnt',['Perfecto, {p}, marcado como enterado.','Anotado: {p} está al tanto.','Genial, {p}. No insisto más con este aviso.']).replace('{p}',persona);
     if(test) return cb(frase+' (era una prueba)');
     (REC_CACHE||[]).forEach(function(r){ if(r.id===id){ r.ack=r.ack||{}; r.ack[persona]=Date.now(); } });
     nagSet(key, Date.now());
@@ -1248,6 +1261,8 @@ var lastPicks = {};
     var ms=r.cuando-Date.now();
     var msg = ms>-60000 ? fill(pick('recAv',['{p}, recordatorio: {t}, {f} ({x}).','Atención, {p}: {t}. Es {f}, {x}.','{p}, no te olvides: {t}, {f}.']),{p:persona,t:r.texto,f:fechaBonita(new Date(r.cuando)),x:falta(ms)})
                         : fill(pick('recAvP',['{p}, era {f}: {t}. Aún no lo has marcado como enterado.','{p}, recordatorio pendiente: {t} ({f}).']),{p:persona,t:r.texto,f:fechaBonita(new Date(r.cuando))});
+    if(recGen()) msg = ms>-60000 ? fill(pick('recAvG',['Recordatorio: {t}, {f} ({x}).','Atención: {t}. Es {f}, {x}.','No te olvides: {t}, {f}.']),{t:r.texto,f:fechaBonita(new Date(r.cuando)),x:falta(ms)})
+                                 : fill(pick('recAvPG',['Era {f}: {t}. Aún no está marcado como enterado.','Recordatorio pendiente: {t} ({f}).']),{t:r.texto,f:fechaBonita(new Date(r.cuando))});
     B.duckSay(msg, [{ t:'✅ Enterado', v:'rec:ok:'+r.id+':'+persona+(test?':test':'') }]);
     setTimeout(function(){ recCartel(r, persona, test); }, 3400);
     if(!test){ try{ saldoConsumir(repite ? 1 : COSTE); }catch(e){} }   // aviso nuevo 1,9 cént.; cada vez que lo vuelve a recordar 0,1 cént. (las pruebas no cobran)
@@ -1259,7 +1274,7 @@ var lastPicks = {};
       if(!l) return; var now=Date.now();
       l.forEach(function(r){
         if(now > r.cuando + 12*3600000) return;                               // 12 h después ya no insiste
-        (r.personas||[]).forEach(function(p){
+        (recGen() ? [yo[0]] : (r.personas||[])).forEach(function(p){
           if(yo.indexOf(p)<0) return;
           var avs=(r.avisos && r.avisos.length) ? r.avisos : [0];          // sin avisos guardados = a la misma hora
           var dues=avs.map(function(m){ return r.cuando-m*60000; }).filter(function(d){ return d<=now; });
@@ -2604,7 +2619,10 @@ var lastPicks = {};
       if(!B._enHandle && !B._porBoton){ var f0 = ''; try{ f0 = fold(String(raw || '')); }catch(e){} if(f0.length < 90 && RE_EDAD.test(f0)) return done({ say: pick('iaEdad', EDAD) }); if(f0.length < 90 && RE_SOY.test(f0)) return done({ say: pick('iaSoy', SOY) }); }
       if(!IA.lista || B._enHandle || B._porBoton) return handlePrev(raw, done);
       handlePrev(raw, function(r){
-        if(!r || !r.notUnderstood) return done(r);
+        // «muéstrame una web donde comprar…»: lo tomó por un nombre de cliente y no existe; si es una pregunta general, la contesta la IA
+        var general = false;
+        if(r && r.sinNombre){ var fq = ''; try{ fq = fold(String(raw || '')); }catch(e){} general = !/\b(contratos?|clientes?|llama|llaman|nombre|apellidos?|dni|nie|titular|fibras?|lineas?|borradores?)\b/.test(fq) && (/\b(donde|como|por que|porque|que|cual|cuales|cuando|quien|quienes|cuanto|cuanta|cuantos|cuantas|web|pagina|internet)\b/.test(fq) || fq.split(/\s+/).length >= 7); }
+        if(!r || !(r.notUnderstood || general)) return done(r);
         preguntar(raw, function(txt){
           if(!txt) return done(r);
           IA.hist.push({ role:'user', content:String(raw).slice(0, 600) }, { role:'assistant', content:txt.slice(0, 800) });
