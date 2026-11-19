@@ -503,7 +503,7 @@
   /* ---------- menú ---------- */
   function menu(){
     var m = D.createElement('div'); m.id = 'pfmMenu';
-    m.innerHTML = '<div class="mm"><button data-a="normal">🖥️ Cambiar a formato normal</button><button data-a="ref">⟳ Actualizar datos</button><button data-a="salir">⏻ Cerrar sesión</button></div>';
+    m.innerHTML = '<div class="mm"><button data-a="normal">🖥️ Cambiar a formato normal</button><button data-a="ref">⟳ Actualizar datos</button><button data-a="salir">🚪 Cerrar sesión</button></div>';
     D.body.appendChild(m);
     m.onclick = function(e){
       var a = e.target.closest ? e.target.closest('button') : null; m.remove(); if(!a) return;
