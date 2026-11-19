@@ -2596,9 +2596,20 @@ var lastPicks = {};
     var IA = { lista:false, pend:{}, n:0, hist:[] };
     window.addEventListener('message', function(e){
       var d = e && e.data; if(!d || typeof d !== 'object') return;
-      if(d.pf === 'iaEstadoR'){ IA.lista = d.estado === 'lista'; if(typeof d.sem === 'boolean'){ try{ if(d.sem) localStorage.setItem('pfSemilla_superlucas', '1'); else localStorage.removeItem('pfSemilla_superlucas'); }catch(x){} } }   // la semilla SuperLucas vive en la página exterior; aquí solo se refleja para la consola
+      if(d.pf === 'iaEstadoR'){ IA.lista = d.estado === 'lista'; iaMarcaVersion(); if(typeof d.sem === 'boolean'){ try{ if(d.sem) localStorage.setItem('pfSemilla_superlucas', '1'); else localStorage.removeItem('pfSemilla_superlucas'); }catch(x){} } }   // la semilla SuperLucas vive en la página exterior; aquí solo se refleja para la consola
       if(d.pf === 'iaResp' && IA.pend[d.id]) IA.pend[d.id](d);
     });
+    // «v526ia» en la etiqueta de versión: pista de que la inteligencia avanzada está activa en este navegador (solo cambia lo que se ve, no el texto real)
+    function iaMarcaVersion(){
+      try{
+        var pv = document.getElementById('panelVersion'); if(!pv) return;
+        if(!IA.lista){ if(pv.hasAttribute('data-ia')){ pv.removeAttribute('data-ia'); pv.style.fontSize = ''; } return; }
+        var nv = String(pv.textContent || '').replace(/^(\s*v\d+)/, '$1ia'); if(pv.getAttribute('data-ia') === nv) return;
+        if(!document.getElementById('pfIaVer')){ var st = document.createElement('style'); st.id = 'pfIaVer'; st.textContent = '#panelVersion[data-ia]::before{content:attr(data-ia);font-size:var(--pfIaFs,11px)}'; document.head.appendChild(st); }
+        if(!pv.hasAttribute('data-ia')) pv.style.setProperty('--pfIaFs', getComputedStyle(pv).fontSize);
+        pv.setAttribute('data-ia', nv); pv.style.fontSize = '0';
+      }catch(x){}
+    }
     function estado(){ try{ window.top.postMessage({ pf:'iaEstado' }, '*'); }catch(e){} }
     setTimeout(estado, 25000); setInterval(estado, 20000);
     function preguntar(texto, cb){
@@ -3090,6 +3101,65 @@ var lastPicks = {};
       return true;
     }
     var n=0, iv=setInterval(function(){ if(fijar() || ++n>120) clearInterval(iv); }, 1000);
+  })();
+
+  /* =====================================================================
+     AVISOS «PRO»: sustituyen a los alert/confirm del navegador, con el estilo
+     del panel (claro en ordenador, oscuro en el formato móvil).
+       pfAviso(texto)            -> cartel con Aceptar (también sustituye a alert)
+       pfConfirma(texto, opc)    -> Promise<true|false> con Aceptar / Cancelar
+     ===================================================================== */
+  (function(){
+    function css(){
+      if(document.getElementById('pfDlgCss')) return;
+      var st = document.createElement('style'); st.id = 'pfDlgCss';
+      st.textContent = '@keyframes pfDlgIn{0%{opacity:0;transform:translateY(14px) scale(.96)}100%{opacity:1;transform:none}}' +
+        '#pfDlg{position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-family:inherit}' +
+        '#pfDlg .c{width:min(420px,100%);box-sizing:border-box;border-radius:20px;padding:24px 22px 18px;text-align:center;background:#fff;color:#0f172a;border:1px solid #e2e8f0;box-shadow:0 24px 60px rgba(15,23,42,.28);animation:pfDlgIn .22s cubic-bezier(.2,1.2,.4,1)}' +
+        '#pfDlg .i{width:54px;height:54px;margin:0 auto 12px;border-radius:16px;display:grid;place-items:center;font-size:27px;background:linear-gradient(135deg,#dcfce7,#cffafe)}' +
+        '#pfDlg .t{font-size:16px;font-weight:800;line-height:1.4;white-space:pre-line;word-break:break-word}' +
+        '#pfDlg .b{display:flex;gap:10px;margin-top:20px}' +
+        '#pfDlg button{flex:1;border:0;border-radius:13px;padding:13px 10px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;transition:transform .1s}' +
+        '#pfDlg button:active{transform:scale(.97)}' +
+        '#pfDlg .ok{color:#04140a;background:linear-gradient(90deg,#22c55e,#06b6d4);box-shadow:0 8px 20px rgba(34,197,94,.35)}' +
+        '#pfDlg .ok.rojo{color:#fff;background:linear-gradient(90deg,#ef4444,#f97316);box-shadow:0 8px 20px rgba(239,68,68,.35)}' +
+        '#pfDlg .no{color:#334155;background:#f1f5f9;border:1px solid #e2e8f0}' +
+        'body.pfMovil #pfDlg{background:rgba(2,6,23,.62)}' +
+        'body.pfMovil #pfDlg .c{background:linear-gradient(160deg,#172033,#0b1220);color:#f1f5f9;border:1px solid rgba(148,163,184,.25);box-shadow:0 24px 60px rgba(0,0,0,.6)}' +
+        'body.pfMovil #pfDlg .i{background:linear-gradient(135deg,rgba(14,165,233,.25),rgba(99,102,241,.3))}' +
+        'body.pfMovil #pfDlg .ok{color:#fff;background:linear-gradient(135deg,#0ea5e9,#6366f1);box-shadow:0 8px 20px rgba(14,165,233,.4)}' +
+        'body.pfMovil #pfDlg .ok.rojo{background:linear-gradient(135deg,#ef4444,#f97316);box-shadow:0 8px 20px rgba(239,68,68,.4)}' +
+        'body.pfMovil #pfDlg .no{color:#e2e8f0;background:rgba(255,255,255,.08);border:1px solid rgba(148,163,184,.22)}';
+      (document.head || document.documentElement).appendChild(st);
+    }
+    var cola = Promise.resolve();
+    function abre(texto, o){
+      o = o || {};
+      var p = cola.then(function(){ return new Promise(function(res){
+        try{
+          css();
+          var ov = document.createElement('div'); ov.id = 'pfDlg'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+          var c = document.createElement('div'); c.className = 'c';
+          var i = document.createElement('div'); i.className = 'i'; i.textContent = o.icono || (o.confirma ? '❓' : 'ℹ️');
+          var t = document.createElement('div'); t.className = 't'; t.textContent = String(texto == null ? '' : texto);
+          var b = document.createElement('div'); b.className = 'b';
+          var fin = function(v){ document.removeEventListener('keydown', tecla, true); try{ ov.remove(); }catch(e){} res(v); };
+          var tecla = function(e){ if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); fin(false); } else if(e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); fin(true); } };
+          if(o.confirma){ var no = document.createElement('button'); no.type = 'button'; no.className = 'no'; no.textContent = o.no || 'Cancelar'; no.onclick = function(){ fin(false); }; b.appendChild(no); }
+          var ok = document.createElement('button'); ok.type = 'button'; ok.className = 'ok' + (o.rojo ? ' rojo' : ''); ok.textContent = o.ok || 'Aceptar'; ok.onclick = function(){ fin(true); }; b.appendChild(ok);
+          c.appendChild(i); c.appendChild(t); c.appendChild(b); ov.appendChild(c);
+          ov.addEventListener('click', function(e){ if(e.target === ov && o.confirma) fin(false); });
+          document.addEventListener('keydown', tecla, true);
+          document.body.appendChild(ov);
+          setTimeout(function(){ try{ ok.focus(); }catch(e){} }, 30);
+        }catch(e){ res(o.confirma ? false : true); }
+      }); });
+      cola = p.catch(function(){});
+      return p;
+    }
+    window.pfAviso = function(texto, o){ o = o || {}; o.confirma = false; return abre(texto, o); };
+    window.pfConfirma = function(texto, o){ o = o || {}; o.confirma = true; return abre(texto, o); };
+    try{ window.alert = function(m){ window.pfAviso(m, { icono:'⚠️' }); }; }catch(e){}
   })();
 
   /* En ordenador, la gráfica de 12 meses del Inicio deja sitio a la derecha para que Lucas no tape el mes en curso. */
