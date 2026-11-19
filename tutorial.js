@@ -127,8 +127,8 @@ var CSS = (function(){/*
 #pftut .m-nv{position:relative;border:1px solid #b9bcc1;border-radius:8px;padding:4px 6px 5px 4px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:8.5px;background:linear-gradient(180deg,#fff,#f6f6f8);white-space:nowrap;gap:3px;box-shadow:inset 0 -2px 0 #a3a6aa}
 #pftut .m-nv.on{border-color:#22c24f;background:linear-gradient(180deg,#f3f3f4,#e8e8ec);box-shadow:inset 0 -2px 0 #22c24f,0 0 6px rgba(22,190,90,.55)}
 #pftut .m-nv{isolation:isolate}#pftut .m-nv > span:first-child{display:flex;align-items:center;gap:4px}
-#pftut .m-ic{display:inline-block;width:17px;height:14.5px;flex:0 0 17px;background-repeat:no-repeat;background-size:102.9px auto;background-position:-2.84px -10.05px;mix-blend-mode:multiply;filter:brightness(1.12)}
-#pftut .m-ic.xl{width:34px;height:29px;flex:0 0 34px;background-size:205.8px auto;background-position:-5.68px -20.1px}
+#pftut .m-nvi{display:inline-block;width:17px;height:14.5px;flex:0 0 17px;background-repeat:no-repeat;background-size:102.9px auto;background-position:-2.84px -10.05px;mix-blend-mode:multiply;filter:brightness(1.12)}
+#pftut .m-nvi.xl{width:34px;height:29px;flex:0 0 34px;background-size:205.8px auto;background-position:-5.68px -20.1px}
 #pftut .m-seg{display:inline-flex;border:1px solid #d5dbe6;border-radius:8px;background:#f1f3f7;padding:2px;gap:2px;font-weight:800;font-size:8px;position:relative}
 #pftut .m-seg b{padding:3px 6px;border-radius:6px;font-weight:800;color:#64748b}#pftut .m-seg b.on{background:#fff;color:#0f172a;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 #pftut .m-kp{flex:1;background:#fff;border:1px solid #e3e8f0;border-radius:9px;padding:6px 7px;min-width:0}
@@ -232,7 +232,7 @@ function cur(x0, y0, x1, y1){ return '<div class="tt-cur" style="--x0:' + x0 + '
 function tap(x, y){ return '<div class="ptap" style="left:' + x + 'px;top:' + y + 'px"></div>'; }
 var ICO = 'https://puntofibra.github.io/panel/';
 var IC = { ini:'Botón de panel con gráfico ascendente.png', bor:'Botón de documento con lápiz glossy.png', con:'Barra de documento con insignia de verificación.png', tar:'Botón UI con icono de tarjetas de crédito.png', not:'Panel UI con nota amarilla y chincheta roja.png', age:'Barra de calendario brillante en gris y coral.png', tut:'Botón de libro abierto.png' };
-function ic(f, xl){ return '<i class="m-ic' + (xl ? ' xl' : '') + '" style="background-image:url(\'' + ICO + encodeURIComponent(f) + '\')"></i>'; }
+function ic(f, xl){ return '<i class="m-nvi' + (xl ? ' xl' : '') + '" style="background-image:url(\'' + ICO + encodeURIComponent(f) + '\')"></i>'; }
 function sb(act, b){
   b = b || {};
   var it = [['ini',IC.ini,'INICIO',''],['bor',IC.bor,'BORRADORES','<i class="m-pl r">0</i>'],['con',IC.con,'CONTRATOS','<i class="m-pl">128</i>'],['tar',IC.tar,'TARJETAS','<i class="m-pl">info</i>'],['not',IC.not,'NOTAS','<i class="m-pl r">5</i><i class="m-pl y">4</i><i class="m-pl g">3</i><i class="m-pl b">2</i>'],['age',IC.age,'AGENDA','<i class="m-pl">2</i>']];
