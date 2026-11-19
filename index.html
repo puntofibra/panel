@@ -320,7 +320,8 @@
   function iaPuede(){ return iaEsPc() || iaSemilla(); }
   async function iaArrancar(){
     if(IA.estado !== 'off') return;
-    if(!iaPuede() || !navigator.gpu){ IA.estado = 'no'; return; }
+    if(!iaPuede() || !navigator.gpu){ IA.estado = 'no'; IA.err = iaPuede() ? 'este navegador no tiene WebGPU activado' : ''; return; }
+    IA.err = '';
     IA.estado = 'cargando';
     try{
       const ad = await navigator.gpu.requestAdapter({ powerPreference:'high-performance' });
@@ -332,7 +333,7 @@
       catch(eW){ IA.engine = await IA.lib.CreateMLCEngine(modelo, { initProgressCallback: prog }); }
       IA.estado = 'lista';
       if(!iaPuede()){ iaApagar(); iaBorrarDescarga(); }   // quitaron la semilla mientras se descargaba
-    }catch(e){ IA.estado = 'no'; IA.engine = null; try{ console.warn('[Lucas avanzado] no disponible:', (e && e.message) || e); }catch(x){} }
+    }catch(e){ IA.estado = 'no'; IA.engine = null; IA.err = String((e && e.message) || e || '').slice(0, 220); try{ console.warn('[Lucas avanzado] no disponible:', (e && e.message) || e); }catch(x){} }
   }
   function iaApagar(){ const en = IA.engine; IA.engine = null; if(IA.estado === 'lista') IA.estado = 'off'; if(en){ try{ en.unload(); }catch(e){} } }
   function iaPreguntar(texto, hist){
@@ -353,7 +354,7 @@
     if(d.pf === 'iaSemilla') return iaSemillaSet(!!d.on);
     const resp = m => { try{ ev.source.postMessage(m, ev.origin); }catch(e){} };
     if(d.pf === 'iaEstado'){ if(IA.estado === 'off' && !$('app').classList.contains('hidden')) iaArrancar(); return resp({ pf:'iaEstadoR', estado: IA.estado, pct: IA.pct, sem: iaSemilla() }); }
-    iaPreguntar(d.texto, d.hist).then(t => resp({ pf:'iaResp', id:d.id, ok:!!t, texto:t }), () => resp({ pf:'iaResp', id:d.id, ok:false }));
+    iaPreguntar(d.texto, d.hist).then(t => resp({ pf:'iaResp', id:d.id, ok:!!t, texto:t }), e => { IA.err = 'al responder: ' + String((e && e.message) || e || '').slice(0, 200); resp({ pf:'iaResp', id:d.id, ok:false }); });
   });
 
   // escribir SUPERLUCAS en cualquier parte: cartel con el estado de la inteligencia avanzada
@@ -371,11 +372,11 @@
         : !iaPuede() ? 'En móviles y tabletas Lucas funciona en su modo de siempre. La inteligencia avanzada solo se instala en ordenadores.'
         : IA.estado === 'no' ? 'Este ' + disp + ' no es compatible con la inteligencia avanzada. Lucas sigue funcionando en su modo de siempre.'
         : 'La inteligencia avanzada todavía no está instalada en este ' + disp + '. Se instalará sola al entrar en el panel.';
-      el.innerHTML = '<div style="width:min(460px,calc(100vw - 40px));background:#0b1512;border:1px solid ' + col + ';border-radius:18px;padding:26px 28px;text-align:center;color:#e8fff1;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 32px ' + col + '55"><div style="font-size:44px;line-height:1">🤖</div><div style="margin-top:10px;font-size:13px;font-weight:800;letter-spacing:4px;color:#9fd8b8">SUPERLUCAS IA</div><div style="margin-top:6px;font-size:28px;font-weight:900;letter-spacing:2px;color:' + col + '">' + tit + '</div><div style="margin-top:12px;font-size:14px;line-height:1.5;color:#c8e6d6">' + txt + '</div><div style="margin-top:16px;font-size:11px;color:#6f8a7d">Pulsa en cualquier sitio para cerrar</div></div>';
+      el.innerHTML = '<div style="width:min(460px,calc(100vw - 40px));background:#0b1512;border:1px solid ' + col + ';border-radius:18px;padding:26px 28px;text-align:center;color:#e8fff1;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 32px ' + col + '55"><div style="font-size:44px;line-height:1">🤖</div><div style="margin-top:10px;font-size:13px;font-weight:800;letter-spacing:4px;color:#9fd8b8">SUPERLUCAS IA</div><div style="margin-top:6px;font-size:28px;font-weight:900;letter-spacing:2px;color:' + col + '">' + tit + '</div><div style="margin-top:12px;font-size:14px;line-height:1.5;color:#c8e6d6">' + txt + '</div>' + (IA.err ? '<div style="margin-top:12px;font-size:11px;line-height:1.4;color:#f0b4b4;word-break:break-word">Detalle técnico: ' + String(IA.err).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>' : '') + '<div style="margin-top:16px;font-size:11px;color:#6f8a7d">Pulsa en cualquier sitio para cerrar</div></div>';
     };
     pinta(); clearInterval(el._iv); clearTimeout(el._t);
     el._iv = setInterval(pinta, 700);
-    el._t = setTimeout(() => { clearInterval(el._iv); el.remove(); }, 9000);
+    el._t = setTimeout(() => { clearInterval(el._iv); el.remove(); }, IA.err ? 30000 : 9000);
   }
   (function(){
     let w = '';
