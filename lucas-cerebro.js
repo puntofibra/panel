@@ -1963,6 +1963,101 @@ var lastPicks = {};
   };
 
   /* =====================================================================
+     NOVEDADES DE OTROS ORDENADORES: si hay borradores o contratos nuevos que esta pantalla no tiene cargados,
+     - con más de 5 minutos sin usar el panel, se actualizan solos;
+     - si se está usando, sale un cartel que solo deja pulsar ACEPTAR para actualizar.
+     Nunca interrumpe una ventana de edición abierta: espera a que se guarde o se cierre.
+     ===================================================================== */
+  var novActT = Date.now();
+  ['mousemove','mousedown','keydown','wheel','touchstart','scroll'].forEach(function(ev){
+    try{ document.addEventListener(ev, function(){ novActT = Date.now(); }, { capture:true, passive:true }); }catch(e){}
+  });
+  var novPend = { borradores:0, contratos:0 }, novModo = { borradores:'', contratos:'' }, novCartel = null, novBusy = false;
+  function novEditando(){ try{ return !!document.querySelector('#contratoEditOverlay.show, .repOverlay.show, .docUploadOverlay.show, #overlay.show, #modal.show'); }catch(e){ return false; } }
+  function novRefrescar(tipo, cb){
+    var hecho = false, fin = function(){ if(hecho) return; hecho = true; cb(); };
+    setTimeout(fin, 20000);                                   // por si el servidor no contesta
+    try{
+      if(tipo==='borradores' && typeof loadBorradores==='function') return loadBorradores(function(){ localB().forEach(function(it){ (knownB = knownB || {})[firmaB(it)] = 1; }); fin(); });
+      if(tipo==='contratos' && typeof loadContratos==='function') return loadContratos(fin);
+    }catch(e){}
+    fin();
+  }
+  function novRefrescarTodo(tipos, cb){
+    var i = 0;
+    (function sig(){ if(i >= tipos.length) return cb(); var t = tipos[i++]; novPend[t] = 0; novModo[t] = ''; novRefrescar(t, sig); })();
+  }
+  function novCss(){
+    if(document.getElementById('pfNovCss')) return;
+    var st = document.createElement('style'); st.id = 'pfNovCss';
+    st.textContent =
+      "#pfNovOv{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,rgba(8,34,22,.90),rgba(2,6,5,.95));backdrop-filter:blur(5px);animation:pfNovIn .3s ease-out both}" +
+      "#pfNovOv .box{width:min(540px,88vw);padding:32px 34px 28px;border:1px solid #17ff5f;border-radius:18px;background:linear-gradient(180deg,#0d1512,#060a08);box-shadow:0 0 0 1px rgba(23,255,95,.15),0 0 60px rgba(23,255,95,.28),inset 0 0 40px rgba(23,255,95,.06);text-align:center;color:#d9ffe6;animation:pfNovPop .35s cubic-bezier(.2,.9,.25,1.2) both}" +
+      "#pfNovOv .ico{font-size:44px;line-height:1;margin-bottom:12px;filter:drop-shadow(0 0 12px rgba(23,255,95,.6))}" +
+      "#pfNovOv .tit{font:800 21px/1.25 'Orbitron','Consolas','Courier New',monospace;letter-spacing:2px;color:#17ff5f;text-shadow:0 0 14px rgba(23,255,95,.7)}" +
+      "#pfNovOv .txt{margin-top:14px;font:500 14px/1.55 system-ui,Segoe UI,Arial,sans-serif;color:#b9d6c5}" +
+      "#pfNovOv .txt b{color:#eafff1}" +
+      "#pfNovOv button{margin-top:22px;min-width:220px;padding:13px 26px;border-radius:12px;border:1px solid #17ff5f;background:linear-gradient(180deg,#19ff63,#0fbf47);color:#04130a;font:800 15px/1 'Orbitron','Consolas','Courier New',monospace;letter-spacing:3px;cursor:pointer;box-shadow:0 0 22px rgba(23,255,95,.5);transition:transform .15s ease,filter .15s ease}" +
+      "#pfNovOv button:hover{transform:scale(1.04);filter:brightness(1.1)}#pfNovOv button:active{transform:scale(.97)}" +
+      "#pfNovOv button[disabled]{cursor:default;filter:grayscale(.5) brightness(.8);transform:none}" +
+      "@keyframes pfNovIn{from{opacity:0}to{opacity:1}}@keyframes pfNovPop{from{opacity:0;transform:translateY(16px) scale(.94)}to{opacity:1;transform:none}}";
+    document.head.appendChild(st);
+  }
+  function novTitulo(){
+    var b = novPend.borradores, c = novPend.contratos;
+    if(b > 0 && c > 0) return 'HAY BORRADORES Y CONTRATOS NUEVOS';
+    if(c > 0) return c === 1 ? 'HAY UN CONTRATO NUEVO' : 'HAY ' + c + ' CONTRATOS NUEVOS';
+    return b === 1 ? 'HAY UN BORRADOR NUEVO' : 'HAY ' + b + ' BORRADORES NUEVOS';
+  }
+  function novMostrar(){
+    novCss();
+    var tipos = ['borradores','contratos'].filter(function(t){ return novPend[t] > 0; });
+    var que = (novPend.borradores > 0 && novPend.contratos > 0) ? 'borradores y contratos' : (novPend.contratos > 0 ? 'contratos' : 'borradores');
+    var uno = (novPend.borradores + novPend.contratos) === 1;
+    var ov = document.createElement('div'); ov.id = 'pfNovOv';
+    ov.innerHTML = '<div class="box" role="alertdialog" aria-modal="true"><div class="ico">' + (novPend.contratos > 0 ? '📑' : '📝') + '</div><div class="tit">' + novTitulo() + '</div>' +
+      '<div class="txt">' + (uno ? 'Se ha registrado desde otro ordenador y tu pantalla todavía no lo muestra.' : 'Se han registrado desde otro ordenador y tu pantalla todavía no los muestra.') + '<br>Pulsa <b>Aceptar</b> para actualizar tu panel y seguir trabajando con los ' + que + ' al día.</div>' +
+      '<button type="button">ACEPTAR</button></div>';
+    var btn = ov.querySelector('button');
+    // mientras el cartel está en pantalla no se puede hacer nada más: ni teclado ni clics por detrás
+    var tecla = function(e){ if(!novCartel || e.key === 'F5' || e.key === 'F12' || e.ctrlKey || e.metaKey) return; var ok = (e.key === 'Enter' || e.key === ' ') && e.target === btn; if(!ok){ e.stopPropagation(); e.preventDefault(); } };
+    document.addEventListener('keydown', tecla, true);
+    btn.onclick = function(){
+      if(btn.disabled) return;
+      btn.disabled = true; btn.textContent = 'ACTUALIZANDO…';
+      novBusy = true;
+      novRefrescarTodo(tipos, function(){
+        document.removeEventListener('keydown', tecla, true);
+        try{ ov.remove(); }catch(e){}
+        novCartel = null; novBusy = false;
+      });
+    };
+    document.body.appendChild(ov); novCartel = ov;
+    try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); btn.focus(); }catch(e){}
+  }
+  function novTick(){
+    try{
+      if(novBusy || novCartel) return;
+      var tipos = ['borradores','contratos'].filter(function(t){ return novPend[t] > 0; });
+      if(!tipos.length) return;
+      var app = document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+      if(novEditando()) return;                               // hay alguien a medias con un cliente: se espera
+      if(tipos.some(function(t){ return novModo[t] === 'cartel'; })) return novMostrar();
+      novBusy = true;
+      novRefrescarTodo(tipos, function(){ novBusy = false; });
+    }catch(e){ novBusy = false; }
+  }
+  setInterval(novTick, 2000);
+  // devuelve 'auto' (se actualiza solo, sin avisar) o 'cartel' (sale el cartel con ACEPTAR)
+  function pfNovedad(tipo, n){
+    novPend[tipo] = Math.max(1, (tipo === 'contratos' ? 0 : novPend[tipo]) + (n || 1));
+    if(!novModo[tipo]) novModo[tipo] = (Date.now() - novActT) < 5*60000 ? 'cartel' : 'auto';
+    var m = novModo[tipo];
+    setTimeout(novTick, 50);
+    return m;
+  }
+
+  /* =====================================================================
      BORRADORES NUEVOS: si en el servidor hay borradores que esta pantalla aún no muestra, avisa
      ===================================================================== */
   function firmaB(it){ return [String(it['14']||'').trim(), String(it['20']||'').trim().toUpperCase(), fold(it['21']), String(it['2']||'').trim().toUpperCase(), String(it['22']||'').replace(/\D/g,'')].join('|'); }
@@ -1971,7 +2066,6 @@ var lastPicks = {};
   function vigilaBorradores(){
     try{
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
-      if(semilla('borradores')) return;
       google.script.run.withSuccessHandler(function(res){
         if(!res || !res.ok || !res.items) return;
         var loc = localB();
@@ -1979,6 +2073,8 @@ var lastPicks = {};
         loc.forEach(function(it){ knownB[firmaB(it)] = 1; });       // lo que ya se ve en pantalla
         var nuevos = res.items.filter(function(it){ var k = firmaB(it); return !knownB[k] && !avisadosB[k]; });
         if(!nuevos.length) return;
+        var modoB = pfNovedad('borradores', nuevos.length);       // el panel se actualiza solo o pide ACEPTAR
+        if(modoB === 'auto' || semilla('borradores')){ nuevos.forEach(function(it){ avisadosB[firmaB(it)] = 1; }); return; }   // sin aviso de voz
         nuevos.forEach(function(it){ avisadosB[firmaB(it)] = 1; });
         var n = nuevos.length, it0 = nuevos[0];
         var quien = titleCase(String(it0['21']||'').trim()), comp = compName(it0['2']);
@@ -2019,7 +2115,6 @@ var lastPicks = {};
   var avisadoC = { dia:'', n:0 };
   function vigilaContratos(){
     try{
-      if(!semilla('contratos')) return;                         // semilla al revés: si no está instalada, no hace nada
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
       if(!contratos().length) return;
       var el = document.getElementById('countContratos'); if(!el) return;
@@ -2029,6 +2124,8 @@ var lastPicks = {};
       if(badge <= local || badge <= avisadoC.n) return;
       avisadoC.n = badge;
       var n = badge - local;
+      var modoC = pfNovedad('contratos', n);                    // el panel se actualiza solo o pide ACEPTAR
+      if(modoC === 'auto' || !semilla('contratos')) return;     // el aviso de voz, solo con la semilla «contratos» y si sale el cartel
       var msg = n===1
         ? pick('cnew1',['¡Contrato nuevo! Se acaba de finalizar uno que tu pantalla todavía no muestra. Pulsa el botón para actualizar.','Buenas noticias: ha entrado un contrato nuevo. ¿Actualizo la lista para que lo veas?','Novedad en contratos: hay uno nuevo de hoy que aún no ves. Dale al botón y te lo enseño.'])
         : fill(pick('cnewN',['¡Contratos nuevos! Se han finalizado {n} que tu pantalla todavía no muestra. Pulsa el botón para actualizar.','Buenas noticias: han entrado {n} contratos nuevos. ¿Actualizo la lista?','Novedad: {n} contratos nuevos de hoy sin ver. Dale al botón y los verás.']),{n:n});
@@ -2036,6 +2133,41 @@ var lastPicks = {};
     }catch(e){}
   }
   setInterval(vigilaContratos, 30000);
+
+  /* =====================================================================
+     MÁS DE 5 HORAS FICHADAS: Lucas avisa a Manu (solo en el ordenador con la semilla «chatManu»)
+     cuando el contador de FICHAR de un empleado pasa de 5 horas en el día. Un aviso por empleado y día.
+     ===================================================================== */
+  var FICH_MAX_H = 5;
+  function vigilaHorasFichadas(){
+    try{
+      if(window.PF_SUB || !semilla('chatManu')) return;
+      var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+      google.script.run.withSuccessHandler(function(res){
+        if(!res || !res.ok || !res.items) return;
+        var dia = hoyIsoL(), mem = {};
+        try{ mem = JSON.parse(localStorage.getItem('pfFich5h') || '{}') || {}; }catch(e){ mem = {}; }
+        if(mem.dia !== dia || !mem.ids) mem = { dia:dia, ids:[] };
+        var now = Date.now(), cambios = false;
+        res.items.forEach(function(it){
+          var seg = Number(it.acumulado)||0;
+          if(it.estado==='RUNNING' && it.startTs) seg += Math.floor((now - it.startTs)/1000);
+          if(seg < FICH_MAX_H*3600 || mem.ids.indexOf(String(it.id)) >= 0) return;
+          mem.ids.push(String(it.id)); cambios = true;
+          var h = Math.floor(seg/3600), m = Math.floor((seg%3600)/60), nom = titleCase(String(it.nombre||'').trim());
+          var t = h + ' horas' + (m ? ' y ' + m + (m===1 ? ' minuto' : ' minutos') : '');
+          B.duckSay(fill(pick('f5h',[
+            'Aviso de fichajes: {n} ya ha pasado de las 5 horas fichadas hoy. Lleva {t}{r}.',
+            'Ojo, Manu: {n} ha superado las 5 horas de fichaje de hoy. Su contador marca {t}{r}.',
+            '{n} se ha pasado de las 5 horas fichadas. Ahora mismo lleva {t}{r}.'
+          ]),{ n:nom, t:t, r: it.estado==='RUNNING' ? ', y el contador sigue en marcha' : '' }));
+        });
+        if(cambios){ try{ localStorage.setItem('pfFich5h', JSON.stringify(mem)); }catch(e){} }
+      }).withFailureHandler(function(){}).apiGetFichajes();
+    }catch(e){}
+  }
+  setInterval(vigilaHorasFichadas, 60000);
+  setTimeout(vigilaHorasFichadas, 25000);
 
   /* =====================================================================
      FILTRO ACTIVO: 2 minutos después de que Lucas filtre, si sigue el filtro, pregunta si lo limpia
