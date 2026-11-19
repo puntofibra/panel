@@ -305,6 +305,22 @@
     }
   });
 
+  // escribir EXIT con el panel abierto (fuera de una casilla de texto) cierra la sesión
+  (function(){
+    let w = '';
+    window.addEventListener('keydown', e => {
+      if(e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1){ if(e.key && e.key.length > 1 && e.key !== 'Shift') w = ''; return; }
+      const t = e.target;
+      if($('app').classList.contains('hidden') || (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable))){ w = ''; return; }
+      w = (w + e.key.toUpperCase()).slice(-4);
+      if(w === 'EXIT'){
+        w = ''; e.preventDefault();
+        if(!VISITA){ const tk = lsGet(LS_TOKEN); if(tk) api({ accion:'logout', token:tk }).catch(() => {}); }
+        window.postMessage({ pf:'logout' }, location.origin);
+      }
+    }, true);
+  })();
+
   // ---------- Login solo con contraseña (o código de Authenticator) ----------
   $('fLogin').addEventListener('submit', async ev => {
     ev.preventDefault();
