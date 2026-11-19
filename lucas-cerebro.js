@@ -3090,6 +3090,15 @@ var lastPicks = {};
     var n=0, iv=setInterval(function(){ if(fijar() || ++n>120) clearInterval(iv); }, 1000);
   })();
 
+  /* El silencio no se recuerda: cada vez que se carga la página, Lucas empieza con el altavoz encendido. */
+  (function(){
+    var visto=0, n=0, iv=setInterval(function(){
+      var t=document.getElementById('iaVozToggle'), ic=document.getElementById('iaVozIcon');
+      if(t && ic){ if(!visto) visto=Date.now(); if(/🔇/.test(ic.textContent)){ try{ t.click(); }catch(e){} clearInterval(iv); return; } if(Date.now()-visto>4000){ clearInterval(iv); return; } }
+      if(++n>240) clearInterval(iv);
+    }, 500);
+  })();
+
   /* =====================================================================
      AVISOS DE PAUSA (semilla «avisosPausa»): un contrato que lleva 90 días
      en ⏸️ (fecha guardada en ID 53 al ponerle ese estado) → toca baja o doble pausa.
