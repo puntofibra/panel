@@ -240,8 +240,9 @@
     hint(msg || '', !!msg);
     if(window.pfLimpiarPass) window.pfLimpiarPass(); else setTimeout(() => { $('password').value = ''; $('password').focus(); }, 60);
   }
-  function abrirApp(token){
-    lsSet(LS_TOKEN, token);
+  let VISITA = null;   // panel de otro (Fede, Wil…) abierto desde la consola con FEDE / WIL: solo en esta pestaña y hasta recargar
+  function abrirApp(token, visita){
+    if(!visita){ lsSet(LS_TOKEN, token); VISITA = null; }
     $('login').classList.add('hidden');
     document.body.classList.add('enApp');
     mostrarSplash();
@@ -268,6 +269,33 @@
         pintarSub();
       }
       try{ ev.source.postMessage({ pf:'subSemillaR', sub: SUB }, ev.origin); }catch(e){}
+    }
+    if((d.pf === 'verPanel' || d.pf === 'visitaVer') && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)){
+      const resp = o => { try{ ev.source.postMessage(o, ev.origin); }catch(e){} };
+      if(d.pf === 'visitaVer'){ resp({ pf:'visitaR', visita: !!VISITA, nombre: VISITA ? VISITA.nombre : '' }); return; }
+      const mio = lsGet(LS_TOKEN), nom = String(d.nombre || '').trim();
+      if(/^manu$/i.test(nom)){
+        if(!VISITA){ resp({ pf:'verPanelR', ok:false, ya:true }); return; }
+        const v = VISITA; VISITA = null;
+        resp({ pf:'verPanelR', ok:true, nombre:'Manu' });
+        api({ accion:'logout', token:v.token }).catch(() => {});
+        setTimeout(() => { if(mio) abrirApp(mio); else mostrarLogin(''); }, 1200);
+        return;
+      }
+      if(!mio || !nom){ resp({ pf:'verPanelR', ok:false, error:'No hay ninguna sesión del panel principal en este ordenador' }); return; }
+      api({ accion:'subEntrar', token:mio, sub:nom }).then(r => {
+        if(!r || !r.ok){ resp({ pf:'verPanelR', ok:false, error:(r && r.error) || 'No se ha podido entrar' }); return; }
+        const ant = VISITA; VISITA = { token:r.token, nombre:r.nombre };
+        resp({ pf:'verPanelR', ok:true, nombre:r.nombre });
+        if(ant) api({ accion:'logout', token:ant.token }).catch(() => {});
+        setTimeout(() => { if(VISITA && VISITA.token === r.token) abrirApp(r.token, true); }, 1200);
+      }).catch(e => resp({ pf:'verPanelR', ok:false, error:String((e && e.message) || e) }));
+      return;
+    }
+    if(d.pf === 'logout' && VISITA){   // «Salir» dentro del panel que estoy visitando: vuelvo al mío, no cierro mi sesión
+      const v = VISITA, mio = lsGet(LS_TOKEN); VISITA = null;
+      api({ accion:'logout', token:v.token }).catch(() => {});
+      if(mio){ abrirApp(mio); return; }
     }
     if(d.pf === 'logout'){
       lsSet(LS_TOKEN, '');
