@@ -126,7 +126,7 @@ var CSS = (function(){/*
 #pftut .m-logo b{font-size:14px;font-weight:900;color:#1d3a8a;font-style:italic}#pftut .m-logo i{font-size:14px;font-weight:900;color:#f97316}
 #pftut .m-nv{position:relative;border:1px solid #b9bcc1;border-radius:8px;padding:4px 6px 5px 4px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:8.5px;background:linear-gradient(180deg,#fff,#f6f6f8);white-space:nowrap;gap:3px;box-shadow:inset 0 -2px 0 #a3a6aa}
 #pftut .m-nv.on{border-color:#22c24f;background:linear-gradient(180deg,#f3f3f4,#e8e8ec);box-shadow:inset 0 -2px 0 #22c24f,0 0 6px rgba(22,190,90,.55)}
-#pftut .m-nv > span:first-child{display:flex;align-items:center;gap:4px}
+#pftut .m-nv{isolation:isolate}#pftut .m-nv > span:first-child{display:flex;align-items:center;gap:4px}
 #pftut .m-ic{display:inline-block;width:17px;height:14.5px;flex:0 0 17px;background-repeat:no-repeat;background-size:102.9px auto;background-position:-2.84px -10.05px;mix-blend-mode:multiply;filter:brightness(1.12)}
 #pftut .m-ic.xl{width:34px;height:29px;flex:0 0 34px;background-size:205.8px auto;background-position:-5.68px -20.1px}
 #pftut .m-seg{display:inline-flex;border:1px solid #d5dbe6;border-radius:8px;background:#f1f3f7;padding:2px;gap:2px;font-weight:800;font-size:8px;position:relative}
