@@ -2616,6 +2616,8 @@ var lastPicks = {};
     var EDAD = ['Fui creado el 17 de noviembre de 2026, así que soy bastante joven.', 'Nací el 17 de noviembre de 2026. Todavía estoy estrenando circuitos.', 'Mi fecha de creación es el 17 de noviembre de 2026.', 'Me pusieron en marcha el 17 de noviembre de 2026, y desde entonces no he parado.', 'Soy del 17 de noviembre de 2026: ese día me crearon.'];
     var handlePrev = B.handle;
     B.handle = function(raw, done){
+      // «superlucas» escrito en el chat (en el móvil no se puede teclear fuera de una casilla): enseña el cartel de estado
+      if(!B._enHandle && !B._porBoton && /^\s*super\s*lucas\s*[.!?]*\s*$/i.test(String(raw || ''))){ B._gratis = true; try{ window.top.postMessage({ pf:'iaCartel' }, '*'); }catch(x){} return done({ say: 'Te enseño en pantalla el estado de mi inteligencia avanzada.' }); }
       if(!B._enHandle && !B._porBoton){ var f0 = ''; try{ f0 = fold(String(raw || '')); }catch(e){} if(f0.length < 90 && RE_EDAD.test(f0)) return done({ say: pick('iaEdad', EDAD) }); if(f0.length < 90 && RE_SOY.test(f0)) return done({ say: pick('iaSoy', SOY) }); }
       if(!IA.lista || B._enHandle || B._porBoton) return handlePrev(raw, done);
       handlePrev(raw, function(r){
