@@ -2164,12 +2164,61 @@ var lastPicks = {};
      cuando el contador de FICHAR de un empleado pasa de 5 horas en el día. Un aviso por empleado y día.
      ===================================================================== */
   var FICH_MAX_H = 5;
+  // ---- PLAY / PAUSA: Lucas avisa a Manu cuando un empleado pone en marcha o pausa su contador ----
+  var fichEst = null, fichLocal = {};   // fichLocal: contadores que se han pulsado en ESTE ordenador (esos no se anuncian)
+  function fichDur(seg){
+    seg = Math.max(0, Number(seg)||0);
+    var h = Math.floor(seg/3600), m = Math.floor((seg%3600)/60);
+    if(!h && !m) return 'menos de un minuto';
+    var th = h ? h + (h===1 ? ' hora' : ' horas') : '', tm = m ? m + (m===1 ? ' minuto' : ' minutos') : '';
+    return th && tm ? th + ' y ' + tm : (th || tm);
+  }
+  function fichCambios(items){
+    var dia = hoyIsoL(), ahora = Date.now();
+    if(!fichEst || fichEst.dia !== dia){ fichEst = { dia:dia, e:{} }; items.forEach(function(it){ fichEst.e[String(it.id)] = it.estado; }); return; }   // primera vuelta o cambio de día: solo toma nota
+    items.forEach(function(it){
+      var id = String(it.id), antes = fichEst.e[id]; fichEst.e[id] = it.estado;
+      if(!antes || antes === it.estado) return;
+      if(ahora - (fichLocal[id]||0) < 90000) return;
+      var acu = Number(it.acumulado)||0, seg = acu;
+      if(it.estado==='RUNNING' && it.startTs) seg += Math.max(0, Math.floor((ahora - it.startTs)/1000));
+      var nom = titleCase(String(it.nombre||'').trim()); if(/^sebas/.test(fold(nom))) nom = 'Sebas';
+      var msg;
+      if(it.estado === 'RUNNING'){
+        msg = acu < 60
+          ? fill(pick('fichOn',[
+              '▶️ {n} acaba de iniciar su tiempo de trabajo.',
+              '▶️ {n} ha puesto en marcha su contador: empieza su jornada.',
+              '▶️ Fichaje iniciado: {n} ya está contando tiempo de trabajo.',
+              '▶️ Manu, {n} acaba de darle al play. Su tiempo ya corre.',
+              '▶️ {n} ha comenzado a fichar. Contador en marcha.'
+            ]),{ n:nom })
+          : fill(pick('fichRe',[
+              '▶️ {n} ha reanudado su tiempo de trabajo. Llevaba {t} hoy.',
+              '▶️ {n} retoma su contador, que marcaba {t}.',
+              '▶️ Contador de {n} otra vez en marcha. Acumulaba {t} hoy.',
+              '▶️ Manu, {n} ha vuelto a darle al play. Llevaba {t} de trabajo.',
+              '▶️ {n} vuelve a contar tiempo de trabajo. Su jornada iba por {t}.'
+            ]),{ n:nom, t:fichDur(acu) });
+      } else {
+        msg = fill(pick('fichOff',[
+          '⏸️ {n} ha pausado su tiempo de trabajo. Lleva {t} hoy.',
+          '⏸️ {n} acaba de poner su contador en pausa, con {t} de trabajo hoy.',
+          '⏸️ Fichaje en pausa: {n} ha detenido su contador en {t}.',
+          '⏸️ Manu, {n} ha parado su tiempo. Hoy suma {t}.',
+          '⏸️ {n} deja de contar por ahora. Su jornada va por {t}.'
+        ]),{ n:nom, t:fichDur(seg) });
+      }
+      B.duckSay(msg);
+    });
+  }
   function vigilaHorasFichadas(){
     try{
       if(window.PF_SUB || !semilla('chatManu')) return;
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
       google.script.run.withSuccessHandler(function(res){
         if(!res || !res.ok || !res.items) return;
+        try{ fichCambios(res.items); }catch(e){}
         var dia = hoyIsoL(), mem = {};
         try{ mem = JSON.parse(localStorage.getItem('pfFich5h') || '{}') || {}; }catch(e){ mem = {}; }
         if(mem.dia !== dia || !mem.ids) mem = { dia:dia, ids:[] };
@@ -2191,7 +2240,7 @@ var lastPicks = {};
       }).withFailureHandler(function(){}).apiGetFichajes();
     }catch(e){}
   }
-  setInterval(vigilaHorasFichadas, 60000);
+  setInterval(vigilaHorasFichadas, 20000);
   setTimeout(vigilaHorasFichadas, 25000);
 
   /* =====================================================================
@@ -2210,11 +2259,13 @@ var lastPicks = {};
       if(window.ficharIniciar.__inact) return;
       var i0 = window.ficharIniciar, p0 = window.ficharPausar;
       window.ficharIniciar = function(id){
+        fichLocal[String(id)] = Date.now();
         try{ if(!semilla('chatManu')){ var o = inactMarcas(); o[String(id)] = Date.now(); inactGuardar(o); } novActT = Date.now(); inactAvisado = {}; }catch(e){}
         return i0.apply(this, arguments);
       };
       window.ficharIniciar.__inact = true;
       window.ficharPausar = function(id){
+        fichLocal[String(id)] = Date.now();
         try{ var o = inactMarcas(); delete o[String(id)]; inactGuardar(o); }catch(e){}
         return p0.apply(this, arguments);
       };
@@ -2264,6 +2315,7 @@ var lastPicks = {};
     if(v.indexOf('inact:') !== 0) return inactPick0(v, done);
     var z = v.split(':'), si = z[1] === 'si', mid = z[2], fid = z[3], nom = z.slice(4).join(':') || 'el empleado';
     try{ google.script.run.withFailureHandler(function(){}).apiChatLeido([mid]); }catch(e){}
+    if(!si) fichLocal[String(fid)] = Date.now();   // la pausa la ordeno yo: no hace falta que Lucas me la anuncie
     if(si) return done({ say: fill(pick('inactSi',['👍 Entendido, sigo contando el tiempo de {n}.','👍 De acuerdo, el contador de {n} sigue en marcha.','👍 Perfecto, dejo corriendo el tiempo de {n}.']),{ n:nom }) });
     try{
       google.script.run.withSuccessHandler(function(r){
