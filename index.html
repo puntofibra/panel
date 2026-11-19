@@ -307,7 +307,7 @@
 
   // ---------- LUCAS AVANZADO: IA local (solo ordenador). Se descarga sola y en silencio; si falla, Lucas sigue como siempre ----------
   const IA = { estado:'off', pct:0, engine:null, lib:null, cola:Promise.resolve() };
-  const IA_SIS = 'Eres Lucas, el asistente de una tienda de telefonía y fibra. Respondes siempre en español de España, breve, claro y amable (dos o tres frases salvo que te pidan más). Puedes hablar de cualquier tema. No tienes acceso a los contratos ni a los datos de clientes: si te preguntan por datos concretos de contratos o clientes, di que eso hay que pedírtelo de otra forma (por ejemplo «contratos de este mes») y no inventes cifras. Si no sabes algo, dilo.';
+  const IA_SIS = 'Eres Lucas, una inteligencia artificial diseñada por el equipo de FuturMovil, y el asistente de una tienda de telefonía y fibra. Si te preguntan qué eres, quién te ha creado o qué modelo usas, di solo que eres una inteligencia artificial diseñada por el equipo de FuturMovil, sin dar ningún detalle técnico. Respondes siempre en español de España, breve, claro y amable (dos o tres frases salvo que te pidan más). Puedes hablar de cualquier tema. No tienes acceso a los contratos ni a los datos de clientes: si te preguntan por datos concretos de contratos o clientes, di que eso hay que pedírtelo de otra forma (por ejemplo «contratos de este mes») y no inventes cifras. Si no sabes algo, dilo.';
   function iaEsPc(){ return !ES_MOVIL && !((navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)); }
   async function iaArrancar(){
     if(IA.estado !== 'off') return;
