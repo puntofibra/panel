@@ -1613,6 +1613,53 @@ var lastPicks = {};
   B.ringBell = ringBell;
   var sayQ=[], sayBusy=false;
   B.duckSay = function(msg, buttons){ sayQ.push({ m:msg, b:buttons||null }); if(!sayBusy) nextSay(); };
+  // ===== Carga inicial del panel: mientras bajan los contratos el menú está bloqueado y Lucas lo explica =====
+  (function(){
+    var FR = [
+      '⏳ Estoy descargando todos los contratos. Mientras termino tienes las gráficas del inicio; el resto del menú se activa en unos segundos.',
+      '⏳ Sincronizando la base de contratos. De momento puedes consultar las gráficas; enseguida desbloqueo el panel completo.',
+      '⏳ El panel está cargando los contratos en segundo plano. Las gráficas ya están disponibles y el menú estará listo en un momento.',
+      '⏳ Dame unos segundos: estoy trayendo todos los contratos. Hasta entonces, el inicio con sus gráficas es todo tuyo.',
+      '⏳ Cargando contratos y borradores. Mientras tanto solo está activo el inicio; el resto se enciende en cuanto acabe.',
+      '⏳ Estoy poniendo al día el panel. Puedes ir revisando las gráficas: los demás apartados se abren en breve.',
+      '⏳ Descarga de contratos en curso. Por ahora solo verás las gráficas; en unos segundos tendrás todo el menú operativo.',
+      '⏳ Un instante: estoy leyendo todos los contratos del sistema. El inicio ya funciona; lo demás, en cuanto termine la carga.',
+      '⏳ Preparando el panel. Las gráficas ya son consultables y el resto de secciones quedará disponible en unos segundos.',
+      '⏳ Aún estoy recibiendo los contratos. El menú se queda en espera un momento; mientras, échale un vistazo a las gráficas.',
+      '⏳ Carga inicial en marcha. Tengo listo el inicio; los contratos y el resto del panel llegan en unos segundos.',
+      '⏳ Estoy actualizando los datos del panel. Solo necesito unos segundos: entretanto, las gráficas están a tu disposición.',
+      '⏳ Trayendo contratos del servidor. He dejado el menú en pausa para que nada se quede a medias; se reactiva enseguida.',
+      '⏳ Casi listo. Termino de cargar los contratos y te desbloqueo el menú; mientras, puedes consultar las gráficas del inicio.',
+      '⏳ El panel se está sincronizando. Verás los botones apagados unos segundos; las gráficas sí puedes mirarlas ya.',
+      '⏳ Recopilando todos los contratos. Es cuestión de segundos: por ahora el inicio es la única sección activa.',
+      '⏳ Estoy cargando la información completa. Las gráficas ya muestran datos y el resto del panel se habilita en un momento.',
+      '⏳ Sincronización en curso. Mantengo el menú bloqueado hasta tener todos los contratos; será solo un momento.',
+      '⏳ Descargando contratos. En cuanto la barra llegue al cien por cien tendrás todo el panel; hasta entonces, las gráficas.',
+      '⏳ Poniendo todo en orden. Los contratos tardan unos segundos en llegar; mientras, puedes ir viendo las gráficas del inicio.'
+    ];
+    var dicho = false;
+    function elige(){
+      var h = []; try{ h = JSON.parse(localStorage.getItem('pfCargaFrases') || '[]'); }catch(e){ h = []; }
+      if(!Array.isArray(h)) h = [];
+      var libres = []; for(var i=0;i<FR.length;i++) if(h.indexOf(i) < 0) libres.push(i);
+      if(!libres.length){ h = h.slice(-1); for(var j=0;j<FR.length;j++) if(h.indexOf(j) < 0) libres.push(j); }
+      var k = libres[Math.floor(Math.random()*libres.length)];
+      h.push(k); try{ localStorage.setItem('pfCargaFrases', JSON.stringify(h.slice(-FR.length))); }catch(e){}
+      return FR[k];
+    }
+    function cargando(){ return !!(document.body && document.body.classList.contains('pfCargando')); }
+    function avisa(){
+      if(dicho || !cargando()) return;
+      dicho = true;
+      setTimeout(function(){ if(!cargando()) return; try{ B.duckSay(elige()); }catch(e){} }, 700);
+    }
+    function arma(){
+      if(!document.body){ setTimeout(arma, 300); return; }
+      avisa();
+      try{ new MutationObserver(function(){ if(cargando()) avisa(); else dicho = false; }).observe(document.body, { attributes:true, attributeFilter:['class'] }); }catch(e){}
+    }
+    arma();
+  })();
   // botones en el chat del asistente (para los avisos que no vienen de una pregunta)
   var fichBtns = [];
   // ---------- botones del asistente: se ponen en GRIS cuando ya no se pueden usar ----------
