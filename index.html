@@ -312,7 +312,11 @@
   // semilla SUPERLUCAS: con ella la IA también se instala en móviles y tabletas (se planta desde la consola o desde el menú de semillas del acceso)
   const LS_SUPER = 'pfSuperLucas';
   function iaSemilla(){ try{ return localStorage.getItem(LS_SUPER) === '1'; }catch(e){ return false; } }
-  function iaSemillaSet(on){ try{ if(on) localStorage.setItem(LS_SUPER, '1'); else localStorage.removeItem(LS_SUPER); }catch(e){} if(on){ if(IA.estado === 'no') IA.estado = 'off'; if(!$('app').classList.contains('hidden')) iaArrancar(); } else if(!iaEsPc()){ iaApagar(); if(IA.estado === 'no') IA.estado = 'off'; } }
+  function iaSemillaSet(on){ try{ if(on) localStorage.setItem(LS_SUPER, '1'); else localStorage.removeItem(LS_SUPER); }catch(e){} if(on){ if(IA.estado === 'no') IA.estado = 'off'; if(!$('app').classList.contains('hidden')) iaArrancar(); } else if(!iaEsPc()){ iaApagar(); if(IA.estado === 'no') IA.estado = 'off'; iaBorrarDescarga(); } }
+  // al quitar la semilla en un móvil o tableta se borra el modelo descargado (más de 1 GB) para liberar el espacio; si se vuelve a plantar, se descarga de nuevo
+  async function iaBorrarDescarga(){
+    try{ await new Promise(r => setTimeout(r, 1500)); if(iaPuede() || !window.caches) return; const ks = await caches.keys(); for(const k of ks){ if(/^webllm/i.test(k)){ try{ await caches.delete(k); }catch(e){} } } }catch(e){}
+  }
   function iaPuede(){ return iaEsPc() || iaSemilla(); }
   async function iaArrancar(){
     if(IA.estado !== 'off') return;
@@ -327,6 +331,7 @@
       try{ IA.engine = await IA.lib.CreateWebWorkerMLCEngine(new Worker(new URL('lucas-ia-worker.js', location.href), { type:'module' }), modelo, { initProgressCallback: prog }); }
       catch(eW){ IA.engine = await IA.lib.CreateMLCEngine(modelo, { initProgressCallback: prog }); }
       IA.estado = 'lista';
+      if(!iaPuede()){ iaApagar(); iaBorrarDescarga(); }   // quitaron la semilla mientras se descargaba
     }catch(e){ IA.estado = 'no'; IA.engine = null; try{ console.warn('[Lucas avanzado] no disponible:', (e && e.message) || e); }catch(x){} }
   }
   function iaApagar(){ const en = IA.engine; IA.engine = null; if(IA.estado === 'lista') IA.estado = 'off'; if(en){ try{ en.unload(); }catch(e){} } }
