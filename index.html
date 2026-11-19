@@ -309,9 +309,14 @@
   const IA = { estado:'off', pct:0, engine:null, lib:null, cola:Promise.resolve() };
   const IA_SIS = 'Eres Lucas, una inteligencia artificial diseñada por el equipo de FuturMovil, y el asistente de una tienda de telefonía y fibra. Si te preguntan qué eres, quién te ha creado o qué modelo usas, di solo que eres una inteligencia artificial diseñada por el equipo de FuturMovil, sin dar ningún detalle técnico. Respondes siempre en español de España, breve, claro y amable (dos o tres frases salvo que te pidan más). Puedes hablar de cualquier tema. No tienes acceso a los contratos ni a los datos de clientes: si te preguntan por datos concretos de contratos o clientes, di que eso hay que pedírtelo de otra forma (por ejemplo «contratos de este mes») y no inventes cifras. Si no sabes algo, dilo.';
   function iaEsPc(){ return !ES_MOVIL && !((navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)); }
+  // semilla SUPERLUCAS: con ella la IA también se instala en móviles y tabletas (se planta desde la consola o desde el menú de semillas del acceso)
+  const LS_SUPER = 'pfSuperLucas';
+  function iaSemilla(){ try{ return localStorage.getItem(LS_SUPER) === '1'; }catch(e){ return false; } }
+  function iaSemillaSet(on){ try{ if(on) localStorage.setItem(LS_SUPER, '1'); else localStorage.removeItem(LS_SUPER); }catch(e){} if(on){ if(IA.estado === 'no') IA.estado = 'off'; if(!$('app').classList.contains('hidden')) iaArrancar(); } else if(!iaEsPc()){ iaApagar(); if(IA.estado === 'no') IA.estado = 'off'; } }
+  function iaPuede(){ return iaEsPc() || iaSemilla(); }
   async function iaArrancar(){
     if(IA.estado !== 'off') return;
-    if(!iaEsPc() || !navigator.gpu){ IA.estado = 'no'; return; }
+    if(!iaPuede() || !navigator.gpu){ IA.estado = 'no'; return; }
     IA.estado = 'cargando';
     try{
       const ad = await navigator.gpu.requestAdapter({ powerPreference:'high-performance' });
@@ -337,11 +342,12 @@
   }
   window.addEventListener('message', ev => {
     const d = ev.data || {};
-    if(d.pf !== 'iaAsk' && d.pf !== 'iaEstado' && d.pf !== 'iaCartel') return;
+    if(d.pf !== 'iaAsk' && d.pf !== 'iaEstado' && d.pf !== 'iaCartel' && d.pf !== 'iaSemilla') return;
     if(!/(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) return;
     if(d.pf === 'iaCartel') return iaCartel();
+    if(d.pf === 'iaSemilla') return iaSemillaSet(!!d.on);
     const resp = m => { try{ ev.source.postMessage(m, ev.origin); }catch(e){} };
-    if(d.pf === 'iaEstado'){ if(IA.estado === 'off' && !$('app').classList.contains('hidden')) iaArrancar(); return resp({ pf:'iaEstadoR', estado: IA.estado, pct: IA.pct }); }
+    if(d.pf === 'iaEstado'){ if(IA.estado === 'off' && !$('app').classList.contains('hidden')) iaArrancar(); return resp({ pf:'iaEstadoR', estado: IA.estado, pct: IA.pct, sem: iaSemilla() }); }
     iaPreguntar(d.texto, d.hist).then(t => resp({ pf:'iaResp', id:d.id, ok:!!t, texto:t }), () => resp({ pf:'iaResp', id:d.id, ok:false }));
   });
 
@@ -349,16 +355,17 @@
   function iaCartel(){
     let el = document.getElementById('iaCartel');
     if(!el){ el = document.createElement('div'); el.id = 'iaCartel'; el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:rgba(3,10,7,.55);backdrop-filter:blur(3px);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;cursor:pointer'; el.addEventListener('click', () => { clearInterval(el._iv); clearTimeout(el._t); el.remove(); }); document.body.appendChild(el); }
-    if(IA.estado === 'off' && iaEsPc() && !$('app').classList.contains('hidden')) iaArrancar();
+    if(IA.estado === 'off' && iaPuede() && !$('app').classList.contains('hidden')) iaArrancar();
+    const disp = iaEsPc() ? 'ordenador' : 'dispositivo';
     const pinta = () => {
       const on = IA.estado === 'lista', carg = IA.estado === 'cargando';
       const col = on ? '#2ee678' : (carg ? '#f5c542' : '#ff5c5c');
       const tit = on ? 'ACTIVADO' : (carg ? 'INSTALANDO… ' + IA.pct + '%' : 'DESACTIVADO');
-      const txt = on ? 'La inteligencia avanzada está instalada en este ordenador y lista para ayudarte con cualquier pregunta.'
+      const txt = on ? 'La inteligencia avanzada está instalada en este ' + disp + ' y lista para ayudarte con cualquier pregunta.'
         : carg ? 'Se está instalando en segundo plano. Puedes seguir trabajando con normalidad: se activará sola al terminar.'
-        : !iaEsPc() ? 'En móviles y tabletas Lucas funciona en su modo de siempre. La inteligencia avanzada solo se instala en ordenadores.'
-        : IA.estado === 'no' ? 'Este ordenador no es compatible con la inteligencia avanzada. Lucas sigue funcionando en su modo de siempre.'
-        : 'La inteligencia avanzada todavía no está instalada en este ordenador. Se instalará sola al entrar en el panel.';
+        : !iaPuede() ? 'En móviles y tabletas Lucas funciona en su modo de siempre. La inteligencia avanzada solo se instala en ordenadores.'
+        : IA.estado === 'no' ? 'Este ' + disp + ' no es compatible con la inteligencia avanzada. Lucas sigue funcionando en su modo de siempre.'
+        : 'La inteligencia avanzada todavía no está instalada en este ' + disp + '. Se instalará sola al entrar en el panel.';
       el.innerHTML = '<div style="width:min(460px,calc(100vw - 40px));background:#0b1512;border:1px solid ' + col + ';border-radius:18px;padding:26px 28px;text-align:center;color:#e8fff1;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 32px ' + col + '55"><div style="font-size:44px;line-height:1">🤖</div><div style="margin-top:10px;font-size:13px;font-weight:800;letter-spacing:4px;color:#9fd8b8">SUPERLUCAS IA</div><div style="margin-top:6px;font-size:28px;font-weight:900;letter-spacing:2px;color:' + col + '">' + tit + '</div><div style="margin-top:12px;font-size:14px;line-height:1.5;color:#c8e6d6">' + txt + '</div><div style="margin-top:16px;font-size:11px;color:#6f8a7d">Pulsa en cualquier sitio para cerrar</div></div>';
     };
     pinta(); clearInterval(el._iv); clearTimeout(el._t);
@@ -455,6 +462,7 @@
       const plantar = async () => {
         const q = $('semNombre').value.trim().toLowerCase();
         if(q.length < 2){ msg('⚠️ Escribe el nombre de la semilla para continuar.'); return; }
+        if(q === 'superlucas'){ iaSemillaSet(true); $('semNombre').value = ''; msg('✅ Semilla «SuperLucas» plantada. Al entrar en el panel, este dispositivo descargará la inteligencia avanzada (más de 1 GB: mejor con wifi).', true); return; }
         $('semOk').disabled = true; msg('🔎 Verificando la semilla…', true);
         try{
           const r = await api({ accion:'subInfo', sub:q });
@@ -489,6 +497,7 @@
     };
     async function probar(){
       const q = buf; buf = ''; if(q.length < 2) return;
+      if(/superlucas$/.test(q)){ iaSemillaSet(true); return; }
       try{ const r = await api({ accion:'subInfo', sub:q }); if(r && r.ok){ try{ localStorage.setItem(LS_SUB, JSON.stringify({ id:q, nombre:r.nombre })); }catch(e){} } }catch(e){}
     }
   })();
