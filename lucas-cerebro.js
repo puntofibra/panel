@@ -2140,6 +2140,7 @@ var lastPicks = {};
     v = String(v||'');
     if(v==='clearF:si' || v==='clearF:no') return B._clearF(v==='clearF:si', done);
     if(v==='dp:ver') return B._dpVer(done);
+    if(v==='fb:ver') return B._fbVer(done);
     if(v.indexOf('pinf:')===0) return pinFiltro(v.slice(5), done);
     if(v.indexOf('q:')===0) return B.handle(v.slice(2), done);
     if(v.indexOf('rec:ok:')===0){ var pz=v.split(':'); return recEnterado(pz[2], pz[3], pz[4]==='test', function(t){ done({ say:t }); }); }
@@ -2639,6 +2640,65 @@ var lastPicks = {};
   setInterval(vigilaDobleP, 60000);
   setTimeout(vigilaDobleP, 25000);
   B.testDobleP = function(){ vigilaDobleP(true); };
+
+  // ---- avisos de fibra: solo en el panel principal y solo para Manu (nunca en los subpaneles) ----
+  // Simyo: PAUSAR a los 3 meses menos 3 días de la instalación y DAR DE BAJA a los 6 meses menos 3 días.
+  // O2: DAR DE BAJA a los 3 meses y 1 día de la instalación.
+  // Deja de avisar cuando el contrato tiene ya su estado puesto (⏸️ para la pausa, ❌ para la baja).
+  var FB_KEY='pfFibraAvisoUlt', FB_MAX=30;   // no avisa de lo que tocaba hace más de 30 días
+  function fbMas(ms, meses, dias){ var d=new Date(ms), y=d.getFullYear(), m=d.getMonth()+meses, ult=new Date(y, m+1, 0).getDate(); return new Date(y, m, Math.min(d.getDate(), ult)+dias).getTime(); }
+  function fbPendientes(){
+    var h=new Date(), hoy0=new Date(h.getFullYear(),h.getMonth(),h.getDate()).getTime(), out=[];
+    contratos().forEach(function(it){
+      var st=String(it['32']||'').trim().toUpperCase(); if(st==='BORRADOR' || st==='ARCHIVADO') return;
+      if(!tieneFibra(it) || instCeros(it)) return;
+      var f=tsOK(it['15']); if(!f) return;
+      var e=String(it['44']||''), c=String(it['2']||'').toUpperCase().trim(), nP=(e.match(/⏸/g)||[]).length;
+      if(/❌/.test(e)) return;
+      var add=function(tipo, vence){ if(vence<=hoy0 && hoy0-vence<=FB_MAX*86400000) out.push({ it:it, tipo:tipo, vence:vence, inst:f }); };
+      if(/SIMYO/.test(c)){
+        var baja=fbMas(f,6,-3);
+        if(baja<=hoy0){ if(nP<2) add('baja', baja); }      // en doble pausa ya avisa el aviso de doble pausa
+        else if(nP===0) add('pausa', fbMas(f,3,-3));
+      } else if(/^O2\b/.test(c)){ add('baja', fbMas(f,3,1)); }
+    });
+    out.sort(function(a,b){ return a.vence-b.vence; });
+    return out;
+  }
+  function fbClave(x){ return String(x.it.__uid||x.it.__row)+x.tipo; }
+  function vigilaFibra(force){
+    if(window.PF_SUB) return;
+    try{
+      if(misPersonas().indexOf('Manu')<0) return;
+      var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+      if(!contratos().length) return;                       // aún no se han cargado los contratos: lo mira en la siguiente vuelta
+      var l=fbPendientes(); if(!l.length) return;
+      var firma=fmtD(new Date())+'|'+l.map(fbClave).sort().join(',');   // una vez al día, y otra si cambia la lista
+      var ult=''; try{ ult=localStorage.getItem(FB_KEY)||''; }catch(e){}
+      if(!force && ult===firma) return;
+      try{ localStorage.setItem(FB_KEY, firma); }catch(e){}
+      B._fbLast=l;
+      var nP=l.filter(function(x){ return x.tipo==='pausa'; }).length, nB=l.length-nP, partes=[];
+      if(nP) partes.push(nP+' para pausar'); if(nB) partes.push(nB+' para dar de baja');
+      var msg='Aviso de fibra: '+(l.length===1 ? 'tienes 1 contrato ' : 'tienes '+l.length+' contratos, ')+(l.length===1 ? (nP ? 'para pausar' : 'para dar de baja') : partes.join(' y '))+'.';
+      msg+='\n'+l.slice(0,6).map(function(x){ var it=x.it; return '• '+(x.tipo==='pausa' ? '⏸️ Pausar' : '❌ Dar de baja')+': '+(titleCase(String(it['21']||'').trim())||'sin nombre')+' ('+compName(it['2'])+'), instalada el '+fmtD(new Date(x.inst))+'.'; }).join('\n');
+      if(l.length>6) msg+='\n…y '+(l.length-6)+' más.';
+      msg+='\nCuando lo hagas, ponle su estado al contrato y dejo de avisarte.';
+      B.duckSay(msg, [{ t:'👀 Ver contratos', v:'fb:ver' }]);
+    }catch(e){}
+  }
+  setInterval(vigilaFibra, 60000);
+  setTimeout(vigilaFibra, 40000);
+  B.testFibra = function(){ vigilaFibra(true); };
+  B._fbVer = function(done){
+    ensureContratos(function(){
+      var pend={}; fbPendientes().forEach(function(x){ pend[fbClave(x)]=x; });
+      var l=(B._fbLast||[]).filter(function(x){ return pend[fbClave(x)]; }).map(function(x){ return x.it; });
+      if(!l.length) return done({ say: pick('fbV0',['Ya no queda ninguno pendiente. ¡Bien hecho!','Parece que ya los has dejado todos al día.']) });
+      render(l, null, true);
+      done({ say: fill(pick('fbV',['Aquí los tienes: {n} {c} de fibra pendientes.','Te enseño los {n} {c} de fibra que toca pausar o dar de baja.']),{n:numU(l.length),c:plural(l.length,'contrato','contratos')}) });
+    });
+  };
   B._dpVer = function(done){
     ensureContratos(function(){
       var rows={}; (B._dpLast||[]).forEach(function(x){ rows[x.row]=1; });
