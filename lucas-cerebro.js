@@ -1202,11 +1202,16 @@ var lastPicks = {};
       var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000 && (todos || (r.personas||[]).some(function(p){ return yo.indexOf(p)>=0; })); }).sort(function(a,b){ return a.cuando-b.cuando; });
       if(!fut.length) return done({ say: pick('recL0',['No hay ningún recordatorio pendiente.','No tienes recordatorios apuntados.','Nada apuntado por ahora.']) });
       var txt=fut.slice(0,8).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'»'+(recGen() ? '' : ' ('+listaTxt(r.personas)+')'); }).join('\n');
-      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+'\nSi quieres borrar alguno, púlsalo:', buttons: fut.slice(0,8).map(function(r){ return { t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }; }) });
+      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+'\nPulsa la papelera para borrar uno, o el ojo para verlo entero:', buttons: (function(){ var bs=[]; fut.slice(0,8).forEach(function(r){ REC_VER[r.id]=r; bs.push({ t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }); bs.push({ t:'👁️', v:'rec:ver:'+r.id, junto:true, tip:'Ver el mensaje completo' }); }); return bs; })() });
     }, true);
   }
+  var REC_VER={};   // recordatorios que se han listado (para el botón del ojo)
+  function recVer(id, done){
+    var r=REC_VER[id]; if(!r) return done({ say:'Ese recordatorio ya no existe.' });
+    done({ say: cap(fechaBonita(new Date(r.cuando)))+(recGen() ? '' : ' · para '+listaTxt(r.personas))+':\n«'+r.texto+'»' });
+  }
   function recBorrar(id, done){
-    try{ google.script.run.withSuccessHandler(function(res){ REC_CACHE=null; done({ say: res&&res.ok ? pick('recDel',['Borrado.','Recordatorio eliminado.','Hecho, ya no lo recordaré.']) : 'No he podido borrarlo.' }); }).withFailureHandler(function(){ done({ say:'No he podido borrarlo.' }); }).apiRecBorrar(id); }catch(e){ done({ say:'No he podido borrarlo.' }); }
+    try{ google.script.run.withSuccessHandler(function(res){ REC_CACHE=null; if(res&&res.ok) delete REC_VER[id]; done({ say: res&&res.ok ? pick('recDel',['Borrado.','Recordatorio eliminado.','Hecho, ya no lo recordaré.']) : 'No he podido borrarlo.' }); }).withFailureHandler(function(){ done({ say:'No he podido borrarlo.' }); }).apiRecBorrar(id); }catch(e){ done({ say:'No he podido borrarlo.' }); }
   }
 
   // ---- avisos: solo para las personas con su semilla en ESTE ordenador ----
@@ -1692,7 +1697,7 @@ var lastPicks = {};
   var fichBtns = [];
   // ---------- botones del asistente: se ponen en GRIS cuando ya no se pueden usar ----------
   var GRUPOS = [];
-  function btnTipo(v){ v=String(v||''); if(v.indexOf('q:')===0) return 'q'; if(v.indexOf('pinf:')===0) return 'pinf'; if(v.indexOf('rec:ok:')===0) return 'recok'; if(v==='fichOK') return 'fich'; return 'temp'; }
+  function btnTipo(v){ v=String(v||''); if(v.indexOf('q:')===0) return 'q'; if(v.indexOf('pinf:')===0) return 'pinf'; if(v.indexOf('rec:ok:')===0) return 'recok'; if(v.indexOf('rec:ver:')===0) return 'recver'; if(v==='fichOK') return 'fich'; return 'temp'; }
   function apagarBtn(b, elegido){
     if(b._apagado) return; b._apagado=true; b.disabled=true;
     b.style.background='#e9ebef'; b.style.color='#9aa1ab'; b.style.borderColor='#d5d9df'; b.style.boxShadow='none';
@@ -1707,6 +1712,7 @@ var lastPicks = {};
     if(v.indexOf('pinf:')===0) return !!(B._pinUser && Date.now()-B._pinUser.at < 30*60000);
     if(v.indexOf('rec:ok:')===0){ var pz=v.split(':'); return !B._recAck[pz[2]+'|'+pz[3]]; }
     if(v==='fichOK') return !!(B.fichPending && B.fichPending());
+    if(v.indexOf('rec:ver:')===0) return !!REC_VER[v.slice(8)];
     if(v.indexOf('fib:')===0) return !!B._fibAsk;
     if(v==='baja2P:si' || v==='baja2P:no') return !!B._bajaAsk;
     if(v==='baja2P:ver' || v==='baja2P:quitar') return !!B._bajaLast;
@@ -1721,8 +1727,8 @@ var lastPicks = {};
     // un grupo nuevo deja sin efecto los botones temporales anteriores
     caducarTemporales();
     var bx = document.createElement('div'); bx.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;max-width:90%;';
-    var g = { el:bx, bts:[] };
-    list.forEach(function(o){
+    var g = { el:bx, bts:[] }, par = null;
+    list.forEach(function(o, oi){
       var b = document.createElement('button'); b.type = 'button'; b.textContent = o.t; b._v = o.v;
       b.style.cssText = 'border:1px solid #17ff5f;background:#0f1512;color:#d9ffe6;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 0 12px rgba(23,255,95,.35);transition:transform .15s, background .2s, color .2s;';
       b.onmouseenter = function(){ if(!b._apagado) b.style.transform = 'scale(1.06)'; }; b.onmouseleave = function(){ b.style.transform = ''; };
@@ -1730,11 +1736,15 @@ var lastPicks = {};
         if(b._apagado || b.disabled) return;
         if(!btnValido(o.v)){ apagarBtn(b); return; }
         var t = btnTipo(o.v);
-        if(t!=='q' && t!=='pinf') g.bts.forEach(function(x){ apagarBtn(x, x===b); });   // los de ayuda y PIN se pueden volver a usar
-        if(opc && opc.eco){ try{ if(typeof addMsg==='function') addMsg(String(o.t).replace(/^\S+\s/,''), 'user'); }catch(e){} }
+        if(t!=='q' && t!=='pinf' && t!=='recver') g.bts.forEach(function(x){ apagarBtn(x, x===b); });   // los de ayuda, PIN y «ver» se pueden volver a usar
+        if(opc && opc.eco && t!=='recver'){ try{ if(typeof addMsg==='function') addMsg(String(o.t).replace(/^\S+\s/,''), 'user'); }catch(e){} }
         B.pick(o.v, function(rr){ if(rr && rr.say && window.__lucasSay) window.__lucasSay(rr.say); if(rr && rr.buttons) B.renderButtons(rr.buttons); });
       };
-      bx.appendChild(b); g.bts.push(b);
+      if(o.tip) b.title = o.tip;
+      if(o.junto && par){ b.style.padding = '9px 13px'; par.appendChild(b); par = null; }   // cápsula pegada a la anterior (misma línea)
+      else if(list[oi+1] && list[oi+1].junto){ par = document.createElement('div'); par.style.cssText = 'display:flex;flex-wrap:nowrap;align-items:center;gap:6px;max-width:100%;'; par.appendChild(b); bx.appendChild(par); }
+      else { par = null; bx.appendChild(b); }
+      g.bts.push(b);
       if(String(o.v).indexOf('fichOK')===0) fichBtns.push(b);
     });
     GRUPOS.push(g); if(GRUPOS.length>60) GRUPOS.shift();
@@ -2013,6 +2023,7 @@ var lastPicks = {};
     if(v.indexOf('q:')===0) return B.handle(v.slice(2), done);
     if(v.indexOf('rec:ok:')===0){ var pz=v.split(':'); return recEnterado(pz[2], pz[3], pz[4]==='test', function(t){ done({ say:t }); }); }
     if(v.indexOf('rec:del:')===0) return recBorrar(v.slice(8), done);
+    if(v.indexOf('rec:ver:')===0) return recVer(v.slice(8), done);
     if(v.indexOf('fib2:')===0) return B._fibSwitch(v.slice(5)==='fibra' ? 'fibra' : 'todos', done);
     if(v.indexOf('fib:')===0) return B._fibAnswer(v.slice(4)==='fibra' ? 'fibra' : 'todos', done);
     if(v==='baja2P:ver') return B._bajaToggle(false, done);
