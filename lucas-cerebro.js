@@ -1206,7 +1206,9 @@ var lastPicks = {};
       var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000 && (todos || (r.personas||[]).some(function(p){ return yo.indexOf(p)>=0; })); }).sort(function(a,b){ return a.cuando-b.cuando; });
       if(!fut.length) return done({ say: pick('recL0',['No hay ningún recordatorio pendiente.','No tienes recordatorios apuntados.','Nada apuntado por ahora.']) });
       var txt=fut.slice(0,60).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'»'+(recGen() ? '' : ' ('+listaTxt(r.personas)+')'); }).join('\n');
-      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+(fut.length>60 ? '\n(te enseño los 60 primeros)' : '')+'\nPulsa la papelera para borrar uno, o el ojo para verlo entero:', buttons: (function(){ var bs=[]; fut.slice(0,60).forEach(function(r){ REC_VER[r.id]=r; bs.push({ t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }); bs.push({ t:'👁️', v:'rec:ver:'+r.id, junto:true, tip:'Ver el mensaje completo' }); }); return bs; })() });
+      var bs=[]; fut.slice(0,60).forEach(function(r){ REC_VER[r.id]=r; bs.push({ t:'🗑️ '+r.texto, v:'rec:del:'+r.id, largo:true, tip:r.texto }); bs.push({ t:'👁️', v:'rec:ver:'+r.id, junto:true, tip:'Ver el mensaje completo' }); });
+      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+(fut.length>60 ? '\n(te enseño los 60 primeros)' : '')+'\nPulsa la papelera para borrar uno, o el ojo para verlo entero:' });
+      setTimeout(function(){ try{ B.renderButtons(bs); }catch(e){} }, 40);   // los pinta Lucas (no el panel): cada recordatorio con su ojo al lado
     }, true);
   }
   var REC_VER={};   // recordatorios que se han listado (para el botón del ojo)
@@ -1796,7 +1798,7 @@ var lastPicks = {};
   var fichBtns = [];
   // ---------- botones del asistente: se ponen en GRIS cuando ya no se pueden usar ----------
   var GRUPOS = [];
-  function btnTipo(v){ v=String(v||''); if(v.indexOf('q:')===0) return 'q'; if(v.indexOf('pinf:')===0) return 'pinf'; if(v.indexOf('rec:ok:')===0) return 'recok'; if(v.indexOf('rec:ver:')===0) return 'recver'; if(v==='fichOK') return 'fich'; return 'temp'; }
+  function btnTipo(v){ v=String(v||''); if(v.indexOf('q:')===0) return 'q'; if(v.indexOf('pinf:')===0) return 'pinf'; if(v.indexOf('rec:ok:')===0) return 'recok'; if(v.indexOf('rec:ver:')===0) return 'recver'; if(v.indexOf('rec:del:')===0) return 'recdel'; if(v==='fichOK') return 'fich'; return 'temp'; }
   function apagarBtn(b, elegido){
     if(b._apagado) return; b._apagado=true; b.disabled=true;
     b.style.background='#e9ebef'; b.style.color='#9aa1ab'; b.style.borderColor='#d5d9df'; b.style.boxShadow='none';
@@ -1819,7 +1821,7 @@ var lastPicks = {};
     return true;
   }
   // al escribir un mensaje nuevo, las preguntas anteriores ya no valen (salvo ayuda, PIN, «Enterado» y fichaje)
-  function caducarTemporales(){ GRUPOS.forEach(function(g){ g.bts.forEach(function(b){ if(btnTipo(b._v)==='temp') apagarBtn(b); }); }); }
+  function caducarTemporales(){ GRUPOS.forEach(function(g){ g.bts.forEach(function(b){ var bt=btnTipo(b._v); if(bt==='temp' || bt==='recdel') apagarBtn(b); }); }); }
   B._caducarBotones = caducarTemporales;
   B.renderButtons = function(list, opc){
     var box = document.getElementById('iaChatMsgs'); if(!box || !list || !list.length) return;
@@ -1835,13 +1837,14 @@ var lastPicks = {};
         if(b._apagado || b.disabled) return;
         if(!btnValido(o.v)){ apagarBtn(b); return; }
         var t = btnTipo(o.v);
-        if(t!=='q' && t!=='pinf' && t!=='recver') g.bts.forEach(function(x){ apagarBtn(x, x===b); });   // los de ayuda, PIN y «ver» se pueden volver a usar
+        if(t==='recdel') apagarBtn(b, true);   // al borrar un recordatorio solo se apaga el suyo: los demás siguen activos
+        else if(t!=='q' && t!=='pinf' && t!=='recver') g.bts.forEach(function(x){ apagarBtn(x, x===b); });   // los de ayuda, PIN y «ver» se pueden volver a usar
         if(opc && opc.eco && t!=='recver'){ try{ if(typeof addMsg==='function') addMsg(String(o.t).replace(/^\S+\s/,''), 'user'); }catch(e){} }
         B.pick(o.v, function(rr){ if(rr && rr.say && window.__lucasSay) window.__lucasSay(rr.say); if(rr && rr.buttons) B.renderButtons(rr.buttons); });
       };
       if(o.tip) b.title = o.tip;
-      if(o.junto && par){ b.style.padding = '9px 13px'; par.appendChild(b); par = null; }   // cápsula pegada a la anterior (misma línea)
-      else if(list[oi+1] && list[oi+1].junto){ par = document.createElement('div'); par.style.cssText = 'display:flex;flex-wrap:nowrap;align-items:center;gap:6px;max-width:100%;'; par.appendChild(b); bx.appendChild(par); }
+      if(o.junto && par){ b.style.padding = '9px 13px'; b.style.flex = '0 0 auto'; par.appendChild(b); par = null; }   // cápsula pegada a la anterior (misma línea)
+      else if(list[oi+1] && list[oi+1].junto){ par = document.createElement('div'); par.style.cssText = 'display:flex;flex-wrap:nowrap;align-items:center;gap:6px;width:100%;'; if(o.largo){ b.style.flex = '1 1 0'; b.style.minWidth = '0'; b.style.textAlign = 'left'; b.style.whiteSpace = 'nowrap'; b.style.overflow = 'hidden'; b.style.textOverflow = 'ellipsis'; bx.style.width = '90%'; } par.appendChild(b); bx.appendChild(par); }
       else { par = null; bx.appendChild(b); }
       g.bts.push(b);
       if(String(o.v).indexOf('fichOK')===0) fichBtns.push(b);
