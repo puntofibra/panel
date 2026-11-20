@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#07111f">
+<title>Tu bonificación de fibra</title>
+<meta property="og:title" content="Tu bonificación de fibra">
+<meta property="og:description" content="Consulta cuántos días bonificados le quedan a tu contrato de fibra.">
+<meta property="og:type" content="website">
+<style>
+  :root{ --bg:#07111f; --card:rgba(255,255,255,.07); --line:rgba(255,255,255,.14); --txt:#f1f5f9; --mut:#9fb0c7; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --c:var(--ok); }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; min-height:100%; }
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--txt);
+    background:var(--bg); display:flex; align-items:center; justify-content:center;
+    padding:max(18px,env(safe-area-inset-top)) 16px max(22px,env(safe-area-inset-bottom)); overflow-x:hidden;
+  }
+  .luz{ position:fixed; border-radius:50%; filter:blur(70px); opacity:.55; pointer-events:none; z-index:0; animation:flotar 14s ease-in-out infinite alternate; }
+  .luz.a{ width:340px; height:340px; background:#0ea5e9; top:-110px; left:-90px; }
+  .luz.b{ width:380px; height:380px; background:var(--c); bottom:-150px; right:-120px; animation-delay:-6s; transition:background .8s; }
+  @keyframes flotar{ from{ transform:translate(0,0) scale(1); } to{ transform:translate(30px,40px) scale(1.15); } }
+  main{
+    position:relative; z-index:1; width:100%; max-width:440px; background:var(--card); border:1px solid var(--line);
+    border-radius:28px; padding:26px 22px 22px; backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    box-shadow:0 30px 80px rgba(0,0,0,.45); animation:entrar .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes entrar{ from{ opacity:0; transform:translateY(22px) scale(.97); } to{ opacity:1; transform:none; } }
+  .eti{ font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--mut); font-weight:700; }
+  h1{ margin:8px 0 6px; font-size:26px; line-height:1.15; font-weight:800; letter-spacing:-.01em; }
+  .dir{ margin:0; color:var(--mut); font-size:15px; line-height:1.45; }
+  .dir b{ color:var(--txt); font-weight:600; }
+  .aro{ position:relative; width:230px; height:230px; margin:26px auto 18px; }
+  .aro svg{ width:100%; height:100%; transform:rotate(-90deg); filter:drop-shadow(0 0 18px color-mix(in srgb,var(--c) 55%,transparent)); }
+  .aro circle{ fill:none; stroke-width:14; }
+  .aro .fondo{ stroke:rgba(255,255,255,.10); }
+  .aro .prog{ stroke:var(--c); stroke-linecap:round; stroke-dasharray:603.2; stroke-dashoffset:603.2; transition:stroke-dashoffset 1.6s cubic-bezier(.2,.8,.2,1), stroke .6s; }
+  .aro .cen{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+  .num{ font-size:78px; font-weight:800; line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .unid{ margin-top:6px; font-size:13px; color:var(--mut); font-weight:600; max-width:150px; line-height:1.3; }
+  .frase{ text-align:center; font-size:17px; font-weight:700; margin:0 0 16px; line-height:1.35; }
+  .frase span{ color:var(--c); }
+  .chips{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 16px; }
+  .chip{ background:rgba(255,255,255,.06); border:1px solid var(--line); border-radius:16px; padding:11px 12px; }
+  .chip small{ display:block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--mut); font-weight:700; }
+  .chip b{ display:block; margin-top:4px; font-size:16px; font-variant-numeric:tabular-nums; }
+  .aviso{ border:1px solid var(--line); border-left:4px solid var(--warn); background:rgba(245,158,11,.08); border-radius:16px; padding:14px 14px 14px 15px; font-size:13.5px; line-height:1.55; color:#dbe5f2; }
+  .aviso h2{ margin:0 0 6px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:#fcd34d; }
+  .aviso p{ margin:0 0 8px; } .aviso p:last-child{ margin:0; }
+  .pie{ margin:16px 0 0; text-align:center; font-size:11.5px; color:var(--mut); }
+  .estado{ text-align:center; padding:8px 0 4px; }
+  .ico{ width:92px; height:92px; margin:22px auto 16px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:42px; background:rgba(255,255,255,.07); border:1px solid var(--line); box-shadow:0 0 40px color-mix(in srgb,var(--c) 40%,transparent); }
+  .ico.gira span{ display:inline-block; animation:reloj 2.6s ease-in-out infinite; }
+  @keyframes reloj{ 0%,40%{ transform:rotate(0); } 50%,90%{ transform:rotate(180deg); } 100%{ transform:rotate(360deg); } }
+  .estado h2{ margin:0 0 8px; font-size:20px; font-weight:800; }
+  .estado p{ margin:0 auto 16px; max-width:340px; color:#cbd7e6; font-size:15px; line-height:1.55; }
+  .carga{ display:flex; flex-direction:column; align-items:center; gap:14px; padding:46px 0; color:var(--mut); font-size:14px; }
+  .rueda{ width:44px; height:44px; border-radius:50%; border:4px solid rgba(255,255,255,.14); border-top-color:var(--ok); animation:gira 1s linear infinite; }
+  @keyframes gira{ to{ transform:rotate(360deg); } }
+  button.re{ font:inherit; font-weight:700; font-size:14px; color:#06210f; background:var(--ok); border:0; border-radius:14px; padding:12px 20px; cursor:pointer; }
+  .aparece{ animation:entrar .6s cubic-bezier(.2,.8,.2,1) both; }
+  @media (max-width:360px){ .aro{ width:200px; height:200px; } .num{ font-size:66px; } h1{ font-size:23px; } }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="luz a"></div><div class="luz b"></div>
+<main id="app"><div class="carga"><div class="rueda"></div>Consultando tu bonificación…</div></main>
+
+<script>
+(function(){
+  'use strict';
+  var EXEC = 'https://script.google.com/macros/s/AKfycbzecmwGqhsXIxDzgHx27iwrtgrFfHMizRH4iKYWX_EiGaUxLM066soojtD70Bi9b9jZ/exec';
+  var app = document.getElementById('app');
+  var k = '';
+  try{ k = (new URLSearchParams(location.search).get('k') || '').trim(); }catch(e){}
+
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function color(c){ document.documentElement.style.setProperty('--c', 'var(--' + c + ')'); }
+  function cabecera(d){
+    return '<div class="eti">Bonificación de fibra</div>' +
+      '<h1>Hola' + (d.nombre ? ', ' + esc(d.nombre) : '') + ' 👋</h1>' +
+      (d.direccion ? '<p class="dir">Tu contrato de fibra de la dirección <b>' + esc(d.direccion) + '</b></p>' : '<p class="dir">Tu contrato de fibra</p>');
+  }
+  function aviso(){
+    return '<div class="aviso"><h2>Importante</h2>' +
+      '<p>La bonificación cubre <b>90 días</b> desde la fecha de instalación. Pasado ese plazo, si no se ha realizado el <b>cambio de titular</b>, los días que excedan no estarán bonificados.</p>' +
+      '<p>Nuestro equipo suele estar pendiente de la fecha para avisarte con tiempo, pero estar atentos al cambio es <b>responsabilidad de las dos partes</b>: tuya y nuestra.</p></div>';
+  }
+  function chips(d){
+    return '<div class="chips"><div class="chip"><small>Instalación</small><b>' + esc(d.instalacion) + '</b></div>' +
+      '<div class="chip"><small>Fin de la bonificación</small><b>' + esc(d.fin) + '</b></div></div>';
+  }
+  function contar(el, hasta){
+    var t0 = null, dur = 1500;
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches){ el.textContent = hasta; return; }
+    function paso(t){ if (t0 === null) t0 = t; var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.textContent = Math.round(hasta * e); if (p < 1) requestAnimationFrame(paso); }
+    requestAnimationFrame(paso);
+  }
+
+  function pintar(d){
+    if (!d || !d.ok){
+      color('bad');
+      app.innerHTML = '<div class="estado aparece"><div class="eti">Bonificación de fibra</div><div class="ico">🔗</div><h2>Enlace no válido</h2>' +
+        '<p>No hemos encontrado ningún contrato asociado a este enlace. Pídenos que te lo enviemos de nuevo.</p></div>';
+      return;
+    }
+    if (d.estado === 'pendiente'){
+      color('warn');
+      app.innerHTML = '<div class="aparece">' + cabecera(d) +
+        '<div class="estado"><div class="ico gira"><span>⏳</span></div><h2>Tu instalación aún no está registrada</h2>' +
+        '<p>La información de cuántos días bonificados te quedan se mostrará aquí <b>entre 1 y 48 horas después de la instalación</b>. Vuelve a abrir este mismo enlace entonces.</p></div>' +
+        aviso() + '<p class="pie">Este enlace es personal y se actualiza solo cada día.</p></div>';
+      return;
+    }
+    var total = d.total || 90, q = Math.max(0, Math.min(total, Number(d.quedan) || 0)), venc = d.estado === 'vencido';
+    color(venc || q <= 10 ? 'bad' : (q <= 30 ? 'warn' : 'ok'));
+    var frase = venc
+      ? 'Tu periodo bonificado <span>terminó' + (d.excedidos > 0 ? ' hace ' + d.excedidos + (d.excedidos === 1 ? ' día' : ' días') : ' hoy') + '</span>'
+      : 'Te ' + (q === 1 ? 'queda' : 'quedan') + ' aún <span>' + q + (q === 1 ? ' día bonificado' : ' días bonificados') + '</span>';
+    app.innerHTML = '<div class="aparece">' + cabecera(d) +
+      '<div class="aro"><svg viewBox="0 0 220 220"><circle class="fondo" cx="110" cy="110" r="96"/><circle class="prog" id="prog" cx="110" cy="110" r="96"/></svg>' +
+      '<div class="cen"><div class="num" id="num">0</div><div class="unid">' + (q === 1 ? 'día bonificado' : 'días bonificados') + ' de ' + total + '</div></div></div>' +
+      '<p class="frase">' + frase + '</p>' + chips(d) +
+      (venc ? '<div class="aviso" style="border-left-color:var(--bad);background:rgba(239,68,68,.09);margin-bottom:10px"><h2 style="color:#fca5a5">Plazo superado</h2><p>Los días posteriores al fin de la bonificación ya no están bonificados. Ponte en contacto con nosotros cuanto antes para gestionar el cambio de titular.</p></div>' : '') +
+      aviso() + '<p class="pie">Este enlace es personal y se actualiza solo cada día.</p></div>';
+    var L = 603.2;
+    setTimeout(function(){ var p = document.getElementById('prog'); if (p) p.style.strokeDashoffset = String(L * (1 - q / total)); }, 120);
+    contar(document.getElementById('num'), q);
+  }
+
+  function fallo(){
+    color('warn');
+    app.innerHTML = '<div class="estado aparece"><div class="eti">Bonificación de fibra</div><div class="ico">📡</div><h2>No hemos podido consultarlo</h2>' +
+      '<p>Parece un problema de conexión. Inténtalo de nuevo en unos segundos.</p><button class="re" id="re">Reintentar</button></div>';
+    document.getElementById('re').onclick = function(){ app.innerHTML = '<div class="carga"><div class="rueda"></div>Consultando tu bonificación…</div>'; consultar(); };
+  }
+  function consultar(){
+    if (!/^[0-9a-fA-F-]{20,40}$/.test(k)) return pintar(null);
+    var cb = 'pfBon' + Date.now(), hecho = false, s = document.createElement('script');
+    var fin = function(){ hecho = true; try{ delete window[cb]; }catch(e){ window[cb] = undefined; } if (s.parentNode) s.parentNode.removeChild(s); };
+    window[cb] = function(d){ if (hecho) return; fin(); pintar(d); };
+    s.onerror = function(){ if (hecho) return; fin(); fallo(); };
+    s.src = EXEC + '?bon=' + encodeURIComponent(k) + '&cb=' + cb;
+    document.head.appendChild(s);
+    setTimeout(function(){ if (hecho) return; fin(); fallo(); }, 20000);
+  }
+  consultar();
+})();
+</script>
+</body>
+</html>
