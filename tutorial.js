@@ -1,4 +1,5 @@
-/* ===== TUTORIAL PUNTOFIBRA · edicion 3 · 20-11-2026 · panel v527 =====
+/* ===== TUTORIAL PUNTOFIBRA · edicion 4 · 20-11-2026 · panel v533 =====
+   Edicion 4: en Contratos, dos paginas nuevas del QR de bonificacion (enviarlo y lo que ve el cliente).
    Edicion 3: en Borradores, cambiar la prioridad arrastrando la fila por el asa.
    Edicion 2: menu lateral nuevo (placas con icono a color), capitulo 2 «Inicio: tus graficas» (los demas capitulos se corren uno).
    Libro con paginas 3D, indice clicable, maquetas PC y movil.
@@ -9,7 +10,7 @@
 (function(){
 'use strict';
 if (window.PFTutorial) return;
-var EDICION = 3, FECHA = '20-11-2026';
+var EDICION = 4, FECHA = '20-11-2026';
 var PW = 720, PH = 880;
 var D = document;
 var CSS = (function(){/*
@@ -317,6 +318,20 @@ function mFiltros(){
   var m = '<div class="m-card">' + '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">' + H(1, 'm-i', '🔍 <span class="tt-type" style="--c:9">Ana López</span>', 'div', 'flex:1;min-height:24px') + '</div>' + H(2, '', ic, 'div', 'margin-bottom:2px') + '<div style="margin-bottom:6px"><span class="m-btn">♾️1</span> <span class="m-btn">♾️20</span> <span class="m-btn">VIP</span> <span class="m-btn">🛜✅</span> <span class="m-btn">🛜❌</span></div>' + H(3, '', '<span class="cp sy">SIMYO</span> <span class="cp mm">MÁSMÓVIL</span> <span class="cp pp">PEPEPHONE</span> <span class="cp jz">JAZZTEL</span>', 'div', 'margin-bottom:6px') + '<div style="display:flex;gap:8px;align-items:flex-end">' + H(4, 'm-r', fld('DESDE', '01-10-2026') + fld('HASTA', '19-11-2026'), 'div', 'flex:1;margin:0') + H(5, 'm-btn g m-blink', '🧹 LIMPIAR FILTROS', 'span') + '</div></div>' + '<div class="m-card">' + tbl({ n: 2 }) + '</div>';
   return shot(app(m, 'con'), 372);
 }
+function mQr(){
+  var fila = 'display:flex;align-items:center;gap:7px;border:1px solid #e2e8f0;background:#f8fafc;border-radius:9px;padding:6px 8px;margin-bottom:5px';
+  var txt = function(t, d){ return '<b style="display:block;font-size:9px">' + t + '</b><small style="display:block;font-size:7px;color:#64748b">' + d + '</small>'; };
+  var m = '<div class="m-card" style="max-width:290px;margin:8px auto 0;box-shadow:0 10px 30px rgba(15,23,42,.18)">' +
+    '<b style="font-size:11px">¿Qué quieres hacer?</b><div style="font-size:7.5px;color:#64748b;margin:1px 0 7px">Contrato de simyo</div>' +
+    '<div style="' + fila + '"><span style="font-size:14px">📝</span><span style="flex:1">' + txt('Crear borrador', 'Copia este contrato como un borrador nuevo') + '</span></div>' +
+    '<div style="' + fila + '"><span style="font-size:14px">📲</span>' + H(1, '', txt('Enviar QR de bonificación', 'El cliente verá cuántos días bonificados le quedan'), 'span', 'flex:1;display:block') +
+    H(2, '', 'Enviado 2 veces', 'span', 'font-size:7px;font-weight:800;padding:3px 7px;border-radius:99px;background:#dcfce7;color:#166534;border:1px solid #86efac;white-space:nowrap') + '</div>' +
+    '<div style="border-top:1px dashed #e2e8f0;margin:8px 0 7px"></div>' +
+    '<b style="font-size:9.5px">¿A qué número se lo envío?</b><div style="height:5px"></div>' +
+    H(3, '', '<span style="font-size:13px">📞</span><span style="flex:1">' + txt('Al teléfono del contrato', '600 123 456') + '</span>', 'div', fila) +
+    '<div style="' + fila + ';margin-bottom:0"><span style="font-size:13px">✏️</span><span style="flex:1">' + txt('A un número nuevo', 'Escribir otro teléfono') + '</span></div></div>';
+  return shot(app(m, 'con', { bor: 1 }), 300);
+}
 function mBorradores(){
   var acts = [H(2, '', '✏️', 'span') + '&nbsp;&nbsp;&nbsp;&nbsp;' + H(3, '', '✅', 'span') + '&nbsp;&nbsp;&nbsp;&nbsp;' + H(4, '', '🗑️', 'span'), '✏️ ✅ 🗑️', '✏️ ✅ 🗑️'];
   var m = '<div class="m-card"><div class="m-h">🗒️ BORRADORES <span class="m-btn">🔄 Actualizar</span> ' + H(1, 'm-btn p', '➕ Nuevo', 'span') + '</div>' + tbl({ n: 3, acts: acts }) + '<div class="m-pg"><span>Mostrando 1–3 de 3</span><span>◀  PÁGINA 1  ▶</span></div></div>';
@@ -420,7 +435,9 @@ function addAll(){
   ]; });
   chapter('pc', '📒', 'Contratos', function(n, c){ return [
     pg(n, c, 'La tabla de contratos', 'Aquí están todos tus contratos. Cada fila es un cliente y la compañía se reconoce por su color.', shot2(mContratos()), ['<b>➕ NUEVO CONTRATO</b> abre el formulario para dar de alta uno nuevo.', 'Pulsa la cabecera <b>Solicitud</b> para ordenar por fecha; la flecha indica el sentido.', 'La celda de <b>compañía</b> lleva el color de su operadora: se ve de un vistazo.', 'El <b>estado</b> se cambia pulsando su icono.', 'Abajo, la <b>paginación</b>: muestra hasta 500 contratos por página.'], '<span data-voz="Al final de cada fila tienes tres botones: ver la ficha, editar y eliminar.">Al final de cada fila tienes tres botones: 👀 ver la ficha · ✏️ editar · 🗑️ eliminar.</span>'),
-    pg(n, c, 'Buscar y filtrar', 'Encuentra cualquier contrato en segundos combinando el buscador y los filtros.', shot2(mFiltros()), ['<b>Buscador:</b> escribe un nombre, documento o teléfono y la tabla se filtra mientras tecleas.', '<b>Iconos:</b> pulsa uno o varios para ver solo los contratos con esa marca.', '<b>Compañías:</b> elige qué operadoras quieres ver.', '<b>Fechas:</b> indica DESDE y HASTA para ver solo un periodo.', '<b>LIMPIAR FILTROS</b> parpadea en verde cuando hay filtros activos: púlsalo y vuelves a verlo todo.', '<b>OMITIR</b> invierte el filtro: te enseña justo lo contrario de lo que has filtrado.'], '<span data-voz="Los botones de ciclo uno y de ciclo veinte filtran por ciclo, y el botón vip te muestra tus clientes vip.">♾️1 y ♾️20 filtran por ciclo 1 o ciclo 20, y VIP te muestra tus clientes VIP.</span>')
+    pg(n, c, 'Buscar y filtrar', 'Encuentra cualquier contrato en segundos combinando el buscador y los filtros.', shot2(mFiltros()), ['<b>Buscador:</b> escribe un nombre, documento o teléfono y la tabla se filtra mientras tecleas.', '<b>Iconos:</b> pulsa uno o varios para ver solo los contratos con esa marca.', '<b>Compañías:</b> elige qué operadoras quieres ver.', '<b>Fechas:</b> indica DESDE y HASTA para ver solo un periodo.', '<b>LIMPIAR FILTROS</b> parpadea en verde cuando hay filtros activos: púlsalo y vuelves a verlo todo.', '<b>OMITIR</b> invierte el filtro: te enseña justo lo contrario de lo que has filtrado.'], '<span data-voz="Los botones de ciclo uno y de ciclo veinte filtran por ciclo, y el botón vip te muestra tus clientes vip.">♾️1 y ♾️20 filtran por ciclo 1 o ciclo 20, y VIP te muestra tus clientes VIP.</span>'),
+    pg(n, c, 'QR de bonificación', 'Envía a tu cliente un enlace con su código QR para que consulte los días de fibra bonificados que le quedan.', shot2(mQr()), ['Pulsa con el <b>botón derecho</b> sobre la compañía de un contrato y elige <b>Enviar QR de bonificación</b>.', 'A su derecha verás cuántas veces lo has enviado ya: <b>Sin enviar</b>, <b>Enviado 1 vez</b>, <b>Enviado 2 veces</b>…', 'Elige si lo mandas <b>al teléfono del contrato</b> o a <b>un número nuevo</b>.', 'Se abre <b>WhatsApp Web</b> con el mensaje y el enlace ya escritos: solo tienes que pulsar enviar.', 'Desde la misma ventana también puedes <b>copiar el enlace</b>, <b>copiar el QR</b> o ver la página del cliente.'], 'El mismo menú del botón derecho te deja <b>crear un borrador</b> copiando ese contrato.'),
+    pg(n, c, 'Lo que ve tu cliente', 'Con el enlace o el QR, tu cliente consulta cuando quiera cómo va su bonificación. La página se actualiza sola cada día.', cards([['⏳','Sin fecha de instalación','Le avisa de que verá sus días entre 1 y 48 horas después de la instalación.'],['🟢','Dentro de los 90 días','Un contador con los días bonificados que le quedan: baja uno cada día.'],['🔴','Pasados los 90 días','Los días de retraso y el importe no bonificable acumulado: 1 € por día.'],['🔒','Enlace obsoleto','Cuando el contrato se pausa, se da de baja o queda en duda, el enlace deja de mostrar datos.']]), ['Los 90 días cuentan desde la <b>fecha de instalación</b> del contrato: en cuanto la pongas, el enlace empieza a descontar.', 'La página recuerda al cliente que estar atentos al <b>cambio de titular</b> es responsabilidad de las dos partes.', 'Cada contrato tiene <b>su propio enlace</b>: si el cliente tiene otra fibra, envíale el de ese contrato.'], 'No hace falta reenviar nada: el mismo enlace sirve siempre y se actualiza solo.')
   ]; });
   chapter('pc', '➕', 'Nuevo contrato y edición', function(n, c){ return [
     pg(n, c, 'Dar de alta un contrato', 'Pulsa ➕ NUEVO CONTRATO y rellena la ficha. Los datos se guardan primero como borrador.', shot2(mNuevo()), ['Elige la <b>compañía</b> y marca <b>PAGA EL SI</b> si el cliente paga el recibo.', 'Selecciona el tipo de <b>documento</b> (DNI, NIE o pasaporte) y escribe su número.', 'Rellena el <b>teléfono, la dirección y la cuenta</b>, además del nombre.', 'Indica la fecha de nacimiento y las <b>líneas, líneas extra y fibra</b> con los desplegables.', 'Pulsa <b>💾 GUARDAR BORRADOR</b>. Con <b>🧽 LIMPIAR</b> vacías todos los campos para empezar de cero.'], 'Los campos Avisos y Notas son libres: úsalos para recordar cualquier detalle del cliente.'),
