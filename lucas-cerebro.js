@@ -1165,7 +1165,11 @@ var lastPicks = {};
     var o={ texto: recTexto(raw, cut, pr.spans.filter(function(sp){ return sp[0]>=cut; })), when: pr.when, defHora: pr.defHora, pre: pre, avisos: pr.avisos||null };
     // nota enviada desde la agenda (botón derecho): el texto y la fecha vienen ya hechos, no se interpretan
     var ag=B._agRec; B._agRec=null;
-    if(ag && Date.now()-ag.at<20000) o={ texto: ag.texto, when: ag.when, defHora: ag.defHora, pre: window.PF_SUB ? pre : [], avisos: null };
+    if(ag && Date.now()-ag.at<20000){
+      o={ texto: ag.texto, when: ag.when, defHora: false, pre: window.PF_SUB ? pre : [], avisos: null };
+      // día futuro sin hora en la nota: el día ya está puesto, solo falta preguntar la hora
+      if(ag.dia && !ag.when){ B._recPend={ o:o, at:Date.now(), n:0, dia:ag.dia }; return done({ say: fill(pick('recAgHora',['Vale, «{t}», {d}. ¿A qué hora te lo recuerdo?','Apuntado «{t}» para {d}. ¿A qué hora quieres el aviso?','«{t}», {d}. Dime la hora y lo dejo listo.']),{t:o.texto, d:agDiaTxt(ag.dia)}) }); }
+    }
     if(!o.when){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: fill(pick('recCuando',['Vale, «{t}». ¿Para cuándo te lo recuerdo? Dime el día, la hora o las dos cosas.','Apuntado «{t}». ¿Qué día y a qué hora?','¿Y para cuándo es «{t}»? Por ejemplo: «mañana a las 10» o «el lunes».']),{t:o.texto}) }); }
     if(o.when.getTime()<Date.now()){ B._recPend={ o:o, at:Date.now(), n:0 }; return done({ say: 'Esa hora ya ha pasado. ¿Para cuándo lo pongo?' }); }
     recPreguntarPersonas(o, done);
@@ -1185,6 +1189,11 @@ var lastPicks = {};
     var rp=B._recPend; if(!rp || Date.now()-rp.at > 10*60000){ B._recPend=null; return false; }
     var t=plano(raw).trim();
     if(/^(nada|da igual|olvidalo|dejalo|cancela|cancelar|no|ninguno)\b/.test(t)){ B._recPend=null; done({ say: pick('recCanc',['Vale, lo dejo.','Cancelado, no apunto nada.']) }); return true; }
+    if(rp.dia){
+      var hm=agHora(raw);
+      if(!hm){ rp.n++; if(rp.n>=3){ B._recPend=null; return false; } done({ say: pick('recAgNo',['No he pillado la hora. Dime algo como «a las 10» o «17:30».','Esa hora no la entiendo. Prueba con «a las 9» o «16:45».']) }); return true; }
+      B._recPend=null; rp.o.when=new Date(rp.dia.getFullYear(), rp.dia.getMonth(), rp.dia.getDate(), hm[0], hm[1]); rp.o.defHora=false; recPreguntarPersonas(rp.o, done); return true;
+    }
     var pr=recParse(raw, new Date());
     if(!pr.when || pr.when.getTime()<Date.now()){ rp.n++; if(rp.n>=2){ B._recPend=null; return false; } done({ say: pick('recNo',['No he pillado la fecha. Dime algo como «el 23 a las 10» o «mañana por la tarde».','Esa no la entiendo. Prueba con «el lunes a las 9» o «en 2 horas».']) }); return true; }
     B._recPend=null; rp.o.when=pr.when; rp.o.defHora=pr.defHora; recPreguntarPersonas(rp.o, done); return true;
@@ -1221,6 +1230,16 @@ var lastPicks = {};
   }
 
   // ---- agenda: botón derecho sobre una nota -> «Enviar a Lucas» para que la recuerde ----
+  function agDiaTxt(d){ try{ return 'el '+d.toLocaleDateString('es-ES',{ weekday:'long', day:'numeric', month:'long' })+(d.getFullYear()!==new Date().getFullYear() ? ' de '+d.getFullYear() : ''); }catch(e){ return 'ese día'; } }
+  // «a las 10», «17:30», «9 y media», «5 de la tarde» -> [h, m]
+  function agHora(raw){
+    var t=plano(raw), m=t.match(/(\d{1,2})\s*(?:[:.h]\s*(\d{2}))?/); if(!m) return null;
+    var h=+m[1], mi=m[2] ? +m[2] : 0;
+    if(!m[2]){ if(/y media/.test(t)) mi=30; else if(/y cuarto/.test(t)) mi=15; else if(/menos cuarto/.test(t)){ h-=1; mi=45; } }
+    if(/\b(tarde|noche|pm)\b/.test(t) && h<12) h+=12;
+    if(h<0 || h>23 || mi>59) return null;
+    return [h, mi];
+  }
   function agDatos(el){
     try{
       var chip=el.closest('.agEvChip'), item=chip ? null : el.closest('.agEventItem'), id='', ev=null;
@@ -1233,9 +1252,10 @@ var lastPicks = {};
       else if(chip){ texto=chip.getAttribute('title')||chip.textContent||''; var dia=chip.closest('[data-agenda-date]'); fecha=dia ? dia.getAttribute('data-agenda-date') : ''; var mh=String(chip.textContent).match(/^\s*(\d{1,2}:\d{2})\s*·/); hora=mh ? mh[1] : ''; }
       else { var b=item.querySelector('.agEvTxt b'); texto=b ? b.textContent : ''; var mh2=texto.match(/^\s*(\d{1,2}:\d{2})\s*—\s*/); if(mh2){ hora=mh2[1]; texto=texto.slice(mh2[0].length); } }
       texto=texto.replace(/\s+/g,' ').trim(); if(!texto) return null;
-      var when=null, defHora=false, mf=fecha.match(/^(\d{4})-(\d{2})-(\d{2})/), mhh=hora.match(/^(\d{1,2}):(\d{2})/);
-      if(mf){ if(mhh) when=new Date(+mf[1],+mf[2]-1,+mf[3],+mhh[1],+mhh[2]); else { when=new Date(+mf[1],+mf[2]-1,+mf[3],10,0); defHora=true; } }
-      return { texto:texto, when:when, defHora:defHora };
+      // hoy o un día pasado: Lucas pregunta día y hora. Día futuro: se queda ese día y, si la nota no tiene hora, pregunta la hora
+      var when=null, dia=null, mf=fecha.match(/^(\d{4})-(\d{2})-(\d{2})/), mhh=hora.match(/^(\d{1,2}):(\d{2})/), hoy=new Date(); hoy.setHours(23,59,59,999);
+      if(mf){ var d0=new Date(+mf[1],+mf[2]-1,+mf[3]); if(d0.getTime()>hoy.getTime()){ dia=d0; if(mhh) when=new Date(+mf[1],+mf[2]-1,+mf[3],+mhh[1],+mhh[2]); } }
+      return { texto:texto, when:when, dia:dia };
     }catch(e){ return null; }
   }
   function agCerrar(){ var m=document.getElementById('agLucasMenu'); if(m){ try{ m.remove(); }catch(e){} } }
@@ -1245,7 +1265,7 @@ var lastPicks = {};
       if(fab && panel && getComputedStyle(panel).display==='none') fab.click();
       setTimeout(function(){
         var inp=document.getElementById('iaChatInput'), snd=document.getElementById('iaChatSend'); if(!inp || !snd) return;
-        B._agRec={ texto:d.texto, when:d.when, defHora:d.defHora, at:Date.now() };
+        B._agRec={ texto:d.texto, when:d.when, dia:d.dia, at:Date.now() };
         inp.value='Recuérdame: '+d.texto; snd.click();
       }, 350);
     }catch(e){}
@@ -1255,10 +1275,9 @@ var lastPicks = {};
     if(!document.getElementById('agLucasCss')){ var st=document.createElement('style'); st.id='agLucasCss'; st.textContent='@keyframes agLIn{0%{opacity:0;transform:scale(.7) translateY(8px)}100%{opacity:1;transform:none}}@keyframes agLGlow{0%,100%{box-shadow:0 0 18px rgba(23,255,95,.5),0 0 46px rgba(0,212,255,.22),0 14px 34px rgba(0,0,0,.45)}50%{box-shadow:0 0 30px rgba(23,255,95,.85),0 0 70px rgba(0,212,255,.4),0 14px 34px rgba(0,0,0,.45)}}@keyframes agLShine{0%{left:-60%}55%,100%{left:130%}}@keyframes agLBot{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-3px) rotate(6deg)}}#agLucasMenu .agLSi{position:relative;overflow:hidden;flex:1;border:none;border-radius:12px;padding:11px 12px;font-size:13px;font-weight:900;letter-spacing:.4px;cursor:pointer;color:#03110a;background:linear-gradient(90deg,#17ff5f,#00d4ff);box-shadow:0 0 18px rgba(23,255,95,.55);transition:transform .15s}#agLucasMenu .agLSi:hover{transform:scale(1.05)}#agLucasMenu .agLSi:after{content:"";position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg);animation:agLShine 2.2s ease-in-out infinite}#agLucasMenu .agLNo{border:1px solid #2c5a40;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:800;cursor:pointer;color:#9fdcb7;background:transparent;transition:background .2s,color .2s}#agLucasMenu .agLNo:hover{background:#12241a;color:#fff}'; document.head.appendChild(st); }
     var m=document.createElement('div'); m.id='agLucasMenu';
     m.style.cssText='position:fixed;z-index:2147482000;width:290px;max-width:calc(100vw - 16px);border-radius:18px;padding:16px 16px 14px;background:linear-gradient(160deg,#07140d,#03080a);border:2px solid #17ff5f;color:#e6fff0;font-family:inherit;animation:agLIn .28s cubic-bezier(.2,1.5,.4,1),agLGlow 2s ease-in-out infinite;transform-origin:top left;';
-    var past=d.when && d.when.getTime()<Date.now();
     m.innerHTML='<div style="display:flex;align-items:center;gap:10px"><div style="font-size:30px;line-height:1;animation:agLBot 1.6s ease-in-out infinite;filter:drop-shadow(0 0 8px #17ff5f)">🤖</div><div><div style="font-size:11px;letter-spacing:3px;font-weight:900;color:#17ff5f">ENVIAR A LUCAS</div><div style="font-size:15px;font-weight:900;color:#fff;margin-top:2px">¿Te lo recuerdo yo?</div></div></div>'+
       '<div style="margin:12px 0 4px;padding:9px 11px;border-radius:11px;background:rgba(23,255,95,.08);border:1px solid rgba(23,255,95,.28);font-size:13px;font-weight:700;line-height:1.3;color:#fff;max-height:92px;overflow:auto;word-break:break-word">«'+esc0(d.texto)+'»</div>'+
-      '<div style="font-size:12px;color:#9fdcb7;margin-bottom:12px">'+(d.when && !past ? '⏰ '+esc0(cap(fechaBonita(d.when)))+(d.defHora ? ' <span style="opacity:.7">(sin hora en la nota)</span>' : '') : '⏰ Lucas te preguntará para cuándo')+'</div>'+
+      '<div style="font-size:12px;color:#9fdcb7;margin-bottom:12px">'+(d.when ? '⏰ '+esc0(cap(fechaBonita(d.when))) : (d.dia ? '📅 '+esc0(cap(agDiaTxt(d.dia)))+' · Lucas te preguntará la hora' : '⏰ Lucas te preguntará el día y la hora'))+'</div>'+
       '<div style="display:flex;gap:8px"><button type="button" class="agLSi">✅ SÍ, RECUÉRDAMELO</button><button type="button" class="agLNo">Ahora no</button></div>';
     document.body.appendChild(m);
     var w=m.offsetWidth, h=m.offsetHeight, L=Math.min(Math.max(8,x+6), window.innerWidth-w-8), T=y+6; if(T+h>window.innerHeight-8) T=Math.max(8,y-h-6);
