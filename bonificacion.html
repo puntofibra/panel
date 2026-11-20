@@ -10,7 +10,7 @@
 <meta property="og:description" content="Consulta cuántos días bonificados le quedan a tu contrato de fibra.">
 <meta property="og:type" content="website">
 <style>
-  :root{ --bg:#07111f; --card:rgba(255,255,255,.07); --line:rgba(255,255,255,.14); --txt:#f1f5f9; --mut:#9fb0c7; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --c:var(--ok); }
+  :root{ --info:#38bdf8; --bg:#07111f; --card:rgba(255,255,255,.07); --line:rgba(255,255,255,.14); --txt:#f1f5f9; --mut:#9fb0c7; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --c:var(--ok); }
   *{ box-sizing:border-box; }
   html,body{ margin:0; min-height:100%; }
   body{
@@ -61,6 +61,15 @@
   @keyframes gira{ to{ transform:rotate(360deg); } }
   button.re{ font:inherit; font-weight:700; font-size:14px; color:#06210f; background:var(--ok); border:0; border-radius:14px; padding:12px 20px; cursor:pointer; }
   .aparece{ animation:entrar .6s cubic-bezier(.2,.8,.2,1) both; }
+  .ico.onda{ position:relative; }
+  .ico.onda:before,.ico.onda:after{ content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid var(--c); opacity:0; animation:onda 2.6s ease-out infinite; }
+  .ico.onda:after{ animation-delay:1.3s; }
+  @keyframes onda{ 0%{ transform:scale(1); opacity:.7; } 100%{ transform:scale(1.9); opacity:0; } }
+  .cont{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+  .cont a{ flex:1 1 150px; text-align:center; text-decoration:none; font-weight:800; font-size:14px; border-radius:14px; padding:12px 14px; transition:transform .12s, box-shadow .2s; }
+  .cont a:active{ transform:scale(.97); }
+  .cont .tel{ color:#06210f; background:linear-gradient(180deg,#4ade80,#22c55e); box-shadow:0 0 22px rgba(34,197,94,.45); }
+  .cont .wa{ color:#eafff1; background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.55); }
   @media (max-width:360px){ .aro{ width:200px; height:200px; } .num{ font-size:66px; } h1{ font-size:23px; } }
   @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
 </style>
@@ -78,6 +87,7 @@
   try{ k = (new URLSearchParams(location.search).get('k') || '').trim(); }catch(e){}
 
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function telBonito(t){ return String(t).replace(/(\d{3})(?=\d)/g, '$1 ').trim(); }
   function color(c){ document.documentElement.style.setProperty('--c', 'var(--' + c + ')'); }
   function cabecera(d){
     return '<div class="eti">Bonificación de fibra</div>' +
@@ -107,6 +117,13 @@
         '<p>No hemos encontrado ningún contrato asociado a este enlace. Pídenos que te lo enviemos de nuevo.</p></div>';
       return;
     }
+    if (d.estado === 'obsoleto'){
+      color('info');
+      app.innerHTML = '<div class="estado aparece"><div class="eti">Bonificación de fibra</div><div class="ico onda">🔒</div><h2>Este enlace ya no está activo</h2>' +
+        '<p>' + (d.nombre ? 'Hola, ' + esc(d.nombre) + '. ' : '') + 'La consulta de bonificación de este contrato ha finalizado y este código ha quedado obsoleto.</p>' +
+        '<p>Si tienes otra fibra posterior a esta, <b>pídenos tu nuevo código QR o enlace</b> y podrás consultar ahí los días que te quedan.</p></div>';
+      return;
+    }
     if (d.estado === 'pendiente'){
       color('warn');
       app.innerHTML = '<div class="aparece">' + cabecera(d) +
@@ -118,14 +135,17 @@
     var total = d.total || 90, q = Math.max(0, Math.min(total, Number(d.quedan) || 0)), venc = d.estado === 'vencido';
     color(venc || q <= 10 ? 'bad' : (q <= 30 ? 'warn' : 'ok'));
     var frase = venc
-      ? 'Tu periodo bonificado <span>terminó' + (d.excedidos > 0 ? ' hace ' + d.excedidos + (d.excedidos === 1 ? ' día' : ' días') : ' hoy') + '</span>'
+      ? 'Este contrato <span>ya no está bonificado</span>'
       : 'Te ' + (q === 1 ? 'queda' : 'quedan') + ' aún <span>' + q + (q === 1 ? ' día bonificado' : ' días bonificados') + '</span>';
     app.innerHTML = '<div class="aparece">' + cabecera(d) +
       '<div class="aro"><svg viewBox="0 0 220 220"><circle class="fondo" cx="110" cy="110" r="96"/><circle class="prog" id="prog" cx="110" cy="110" r="96"/></svg>' +
       '<div class="cen"><div class="num" id="num">0</div><div class="unid">' + (q === 1 ? 'día bonificado' : 'días bonificados') + ' de ' + total + '</div></div></div>' +
       '<p class="frase">' + frase + '</p>' + chips(d) +
-      (venc ? '<div class="aviso" style="border-left-color:var(--bad);background:rgba(239,68,68,.09);margin-bottom:10px"><h2 style="color:#fca5a5">Plazo superado</h2><p>Los días posteriores al fin de la bonificación ya no están bonificados. Ponte en contacto con nosotros cuanto antes para gestionar el cambio de titular.</p></div>' : '') +
-      aviso() + '<p class="pie">Este enlace es personal y se actualiza solo cada día.</p></div>';
+      (venc ? '<div class="aviso" style="border-left-color:var(--bad);background:rgba(239,68,68,.09)"><h2 style="color:#fca5a5">Plazo superado</h2>' +
+        '<p>Los 90 días bonificados terminaron' + (d.excedidos > 0 ? ' hace <b>' + d.excedidos + (d.excedidos === 1 ? ' día' : ' días') + '</b>' : ' <b>hoy</b>') + ': los días posteriores ya no están bonificados.</p>' +
+        '<p>Si no te estamos tramitando ya el nuevo contrato, <b>ponte en contacto con nosotros' + (d.tel ? ' en el ' + esc(telBonito(d.tel)) : '') + '</b> cuanto antes.</p>' +
+        (d.tel ? '<div class="cont"><a class="tel" href="tel:+34' + esc(d.tel) + '">📞 Llamar</a><a class="wa" href="https://wa.me/34' + esc(d.tel) + '" target="_blank" rel="noopener">💬 WhatsApp</a></div>' : '') + '</div>'
+        : aviso()) + '<p class="pie">Este enlace es personal y se actualiza solo cada día.</p></div>';
     var L = 603.2;
     setTimeout(function(){ var p = document.getElementById('prog'); if (p) p.style.strokeDashoffset = String(L * (1 - q / total)); }, 120);
     contar(document.getElementById('num'), q);
