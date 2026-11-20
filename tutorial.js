@@ -1,4 +1,5 @@
-/* ===== TUTORIAL PUNTOFIBRA · edicion 2 · 19-11-2026 · panel v526 =====
+/* ===== TUTORIAL PUNTOFIBRA · edicion 3 · 20-11-2026 · panel v527 =====
+   Edicion 3: en Borradores, cambiar la prioridad arrastrando la fila por el asa.
    Edicion 2: menu lateral nuevo (placas con icono a color), capitulo 2 «Inicio: tus graficas» (los demas capitulos se corren uno).
    Libro con paginas 3D, indice clicable, maquetas PC y movil.
    Capitulos PC: 1 Conoce el panel · 2 Entrar · 3 Contratos · 4 Nuevo contrato y edicion · 5 Estados e iconos
@@ -8,7 +9,7 @@
 (function(){
 'use strict';
 if (window.PFTutorial) return;
-var EDICION = 2, FECHA = '19-11-2026';
+var EDICION = 3, FECHA = '20-11-2026';
 var PW = 720, PH = 880;
 var D = document;
 var CSS = (function(){/*
@@ -429,7 +430,7 @@ function addAll(){
     pg(n, c, 'Estados e iconos', 'Cada contrato lleva dos marcas: el <b>Estado</b> y la <b>Info</b>. Sirven para saber de un vistazo cómo va cada cliente.', shot2(mEstados()), ['Pulsa el icono de la fila y elige uno de la lista.', '<span data-voz="El icono de pausa marca una línea en pausa, y la equis roja marca una baja."><b>⏸️</b> marca una línea en pausa y <b>❌</b> una baja.</span>', '<span data-voz="La marca de la calavera significa que el cliente tiene scoring en esa compañía, es decir, que no lo aceptan como cliente. Pinta la fila entera de rojo claro.">La marca <b>💀</b> significa que el cliente tiene <b>scoring</b> en esa compañía (no lo aceptan como cliente) y pinta la fila entera de rojo claro.</span>', '<span data-voz="La marca del bicho significa que el cliente tiene deudas en esa compañía. Si las paga, puede que lo vuelvan a aceptar como cliente.">La marca <b>🪳</b> significa que el cliente tiene <b>deudas</b> en esa compañía; si las paga, puede que lo acepten de nuevo como cliente.</span>', 'Después puedes filtrar la tabla por cualquier icono (capítulo anterior).'], 'Usad las marcas con un criterio común en todo el equipo, para que todos lean la tabla igual.')
   ]; });
   chapter('pc', '🗒️', 'Borradores', function(n, c){ return [
-    pg(n, c, 'Borradores', 'Un borrador es un contrato a medias: guardado, pero todavía sin tramitar.', shot2(mBorradores()), ['<b>➕ Nuevo</b> abre el formulario de alta.', '<span data-voz="El botón de editar te deja completar los datos que falten."><b>✏️</b> te deja completar los datos que falten.</span>', 'Cuando está listo, <b>✅ Tramitar</b> lo convierte en contrato: pasa a la lista de Contratos con la fecha de solicitud de hoy.', '<span data-voz="El botón de eliminar borra el borrador."><b>🗑️</b> elimina el borrador.</span>', 'El círculo rojo del menú cuenta cuántos tienes pendientes.'], '<b>🔄 Actualizar</b> trae los borradores más recientes, por si tu equipo ha añadido alguno.')
+    pg(n, c, 'Borradores', 'Un borrador es un contrato a medias: guardado, pero todavía sin tramitar.', shot2(mBorradores()), ['<b>➕ Nuevo</b> abre el formulario de alta.', '<span data-voz="El botón de editar te deja completar los datos que falten."><b>✏️</b> te deja completar los datos que falten.</span>', 'Cuando está listo, <b>✅ Tramitar</b> lo convierte en contrato: pasa a la lista de Contratos con la fecha de solicitud de hoy.', '<span data-voz="El botón de eliminar borra el borrador."><b>🗑️</b> elimina el borrador.</span>', '<span data-voz="Para cambiar la prioridad, arrastra una fila por el asa de puntitos de su izquierda y suéltala donde quieras: así decides qué borradores se tramitan primero."><b>Cambiar la prioridad:</b> arrastra una fila por el asa <b>⠿</b> de su izquierda y suéltala donde quieras. Así decides qué borradores se tramitan primero.</span>', 'El círculo rojo del menú cuenta cuántos tienes pendientes.'], '<b>🔄 Actualizar</b> trae los borradores más recientes, por si tu equipo ha añadido alguno.')
   ]; });
   chapter('pc', '💳', 'Tarjetas', function(n, c){ return [
     pg(n, c, 'Datos de tarjetas y cuentas', 'Guarda tus tarjetas y cuentas bancarias en un único sitio, protegidas con PIN.', shot2(mTarjetas()), ['<b>➕ Nueva tarjeta</b>: nombre, banco, número, fecha de caducidad y CVV.', '<b>➕ Nueva cuenta</b>: nombre, titular e IBAN.', 'Elige el <b>color</b> de cada tarjeta para reconocerla rápido.', '<b>🔑 Cambiar PIN</b>: te pide el PIN actual y después el nuevo, dos veces.'], 'Mantén el PIN en secreto: es lo que protege los datos de tus tarjetas. Cada tarjeta tiene también su botón 🗑️ Eliminar.')
