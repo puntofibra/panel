@@ -65,6 +65,10 @@
   .ico.onda:before,.ico.onda:after{ content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid var(--c); opacity:0; animation:onda 2.6s ease-out infinite; }
   .ico.onda:after{ animation-delay:1.3s; }
   @keyframes onda{ 0%{ transform:scale(1); opacity:.7; } 100%{ transform:scale(1.9); opacity:0; } }
+  .coste{ margin:0 0 16px; text-align:center; border:1px solid rgba(239,68,68,.45); background:linear-gradient(180deg,rgba(239,68,68,.16),rgba(239,68,68,.06)); border-radius:18px; padding:14px 12px 12px; box-shadow:0 0 30px rgba(239,68,68,.18); }
+  .coste small{ display:block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#fecaca; font-weight:700; }
+  .coste b{ display:block; margin:4px 0 2px; font-size:44px; line-height:1.05; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums; color:#fff; text-shadow:0 0 22px rgba(239,68,68,.65); }
+  .coste i{ display:block; font-style:normal; font-size:12.5px; color:#fca5a5; }
   .cont{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
   .cont a{ flex:1 1 150px; text-align:center; text-decoration:none; font-weight:800; font-size:14px; border-radius:14px; padding:12px 14px; transition:transform .12s, box-shadow .2s; }
   .cont a:active{ transform:scale(.97); }
@@ -133,22 +137,28 @@
       return;
     }
     var total = d.total || 90, q = Math.max(0, Math.min(total, Number(d.quedan) || 0)), venc = d.estado === 'vencido';
+    var exc = Math.max(0, Number(d.excedidos) || 0), eur = exc * (Number(d.euroDia) || 1);
     color(venc || q <= 10 ? 'bad' : (q <= 30 ? 'warn' : 'ok'));
     var frase = venc
       ? 'Este contrato <span>ya no está bonificado</span>'
       : 'Te ' + (q === 1 ? 'queda' : 'quedan') + ' aún <span>' + q + (q === 1 ? ' día bonificado' : ' días bonificados') + '</span>';
     app.innerHTML = '<div class="aparece">' + cabecera(d) +
       '<div class="aro"><svg viewBox="0 0 220 220"><circle class="fondo" cx="110" cy="110" r="96"/><circle class="prog" id="prog" cx="110" cy="110" r="96"/></svg>' +
-      '<div class="cen"><div class="num" id="num">0</div><div class="unid">' + (q === 1 ? 'día bonificado' : 'días bonificados') + ' de ' + total + '</div></div></div>' +
-      '<p class="frase">' + frase + '</p>' + chips(d) +
+      '<div class="cen"><div class="num" id="num">0</div><div class="unid">' + (venc ? (exc === 1 ? 'día' : 'días') + ' fuera del plazo bonificado' : (q === 1 ? 'día bonificado' : 'días bonificados') + ' de ' + total) + '</div></div></div>' +
+      '<p class="frase">' + frase + '</p>' +
+      (venc ? '<div class="coste"><small>Importe no bonificable acumulado</small><b><span id="eur">0</span> €</b><i>1 € por cada día fuera de plazo · se actualiza cada día</i></div>' : '') + chips(d) +
       (venc ? '<div class="aviso" style="border-left-color:var(--bad);background:rgba(239,68,68,.09)"><h2 style="color:#fca5a5">Plazo superado</h2>' +
-        '<p>Los 90 días bonificados terminaron' + (d.excedidos > 0 ? ' hace <b>' + d.excedidos + (d.excedidos === 1 ? ' día' : ' días') + '</b>' : ' <b>hoy</b>') + ': los días posteriores ya no están bonificados.</p>' +
+        (exc > 0
+          ? '<p>Los 90 días bonificados terminaron el <b>' + esc(d.fin) + '</b>. Desde entonces, cada día que pasa cuenta como <b>1 € no bonificable</b>.</p>' +
+            '<p>Como las facturas llegan a mes vencido, ese importe se descontará de tu próxima bonificación: a día de hoy son <b>' + eur + ' €</b> por <b>' + exc + (exc === 1 ? ' día' : ' días') + '</b> de retraso, y aumenta 1 € por cada día adicional.</p>'
+          : '<p>Los 90 días bonificados terminan <b>hoy</b>. A partir de mañana, cada día que pase contará como <b>1 € no bonificable</b>, que se descontará de tu próxima bonificación.</p>') +
         '<p>Si no te estamos tramitando ya el nuevo contrato, <b>ponte en contacto con nosotros' + (d.tel ? ' en el ' + esc(telBonito(d.tel)) : '') + '</b> cuanto antes.</p>' +
         (d.tel ? '<div class="cont"><a class="tel" href="tel:+34' + esc(d.tel) + '">📞 Llamar</a><a class="wa" href="https://wa.me/34' + esc(d.tel) + '" target="_blank" rel="noopener">💬 WhatsApp</a></div>' : '') + '</div>'
         : aviso()) + '<p class="pie">Este enlace es personal y se actualiza solo cada día.</p></div>';
     var L = 603.2;
-    setTimeout(function(){ var p = document.getElementById('prog'); if (p) p.style.strokeDashoffset = String(L * (1 - q / total)); }, 120);
-    contar(document.getElementById('num'), q);
+    setTimeout(function(){ var p = document.getElementById('prog'); if (p) p.style.strokeDashoffset = String(venc ? 0 : L * (1 - q / total)); }, 120);
+    contar(document.getElementById('num'), venc ? exc : q);
+    if (venc) contar(document.getElementById('eur'), eur);
   }
 
   function fallo(){
