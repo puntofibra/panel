@@ -1369,9 +1369,9 @@ var lastPicks = {};
       var cerrar=function(){ ov.style.transition='opacity .25s'; ov.style.opacity='0'; setTimeout(function(){ try{ ov.remove(); }catch(e){} delete recEnPantalla[key]; },260); };
       ok.onclick=function(){ cerrar(); recEnterado(r.id, persona, test, function(t){ if(window.__lucasSay) window.__lucasSay(t); }); };
       x.onclick=cerrar;
-      // avisos de «quiere renovar su fibra»: además de Enterado, se pueden dejar para mañana
+      // además de Enterado, cualquier recordatorio se puede dejar para mañana (así no insiste cada media hora)
       var man=null;
-      if(!test && String(r.texto||'').indexOf('🔄')===0){
+      if(!test){
         man=document.createElement('button'); man.type='button'; man.textContent='⏰ RECUÉRDAMELO MAÑANA';
         man.style.cssText='display:block;width:100%;margin-top:10px;border:1px solid #00d4ff;border-radius:14px;padding:12px;font-size:14px;font-weight:900;letter-spacing:.6px;cursor:pointer;color:#00d4ff;background:rgba(0,212,255,.08);';
         man.onclick=function(){ cerrar(); recPosponer(r); };
