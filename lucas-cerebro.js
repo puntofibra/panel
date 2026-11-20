@@ -1369,8 +1369,28 @@ var lastPicks = {};
       var cerrar=function(){ ov.style.transition='opacity .25s'; ov.style.opacity='0'; setTimeout(function(){ try{ ov.remove(); }catch(e){} delete recEnPantalla[key]; },260); };
       ok.onclick=function(){ cerrar(); recEnterado(r.id, persona, test, function(t){ if(window.__lucasSay) window.__lucasSay(t); }); };
       x.onclick=cerrar;
-      c.appendChild(ok); c.appendChild(luego); c.appendChild(x); ov.appendChild(c); document.body.appendChild(ov);
+      // avisos de «quiere renovar su fibra»: además de Enterado, se pueden dejar para mañana
+      var man=null;
+      if(!test && String(r.texto||'').indexOf('🔄')===0){
+        man=document.createElement('button'); man.type='button'; man.textContent='⏰ RECUÉRDAMELO MAÑANA';
+        man.style.cssText='display:block;width:100%;margin-top:10px;border:1px solid #00d4ff;border-radius:14px;padding:12px;font-size:14px;font-weight:900;letter-spacing:.6px;cursor:pointer;color:#00d4ff;background:rgba(0,212,255,.08);';
+        man.onclick=function(){ cerrar(); recPosponer(r); };
+      }
+      c.appendChild(ok); if(man) c.appendChild(man); c.appendChild(luego); c.appendChild(x); ov.appendChild(c); document.body.appendChild(ov);
     }catch(e){ console.warn('[Lucas] cartel', e); }
+  }
+  // deja un recordatorio para mañana a las 10:00 (hoy ya no insiste)
+  function recPosponer(r){
+    var d=new Date(), cu=new Date(d.getFullYear(), d.getMonth(), d.getDate()+1, 10, 0).getTime();
+    var di=function(t){ if(window.__lucasSay) window.__lucasSay(t); };
+    var mal=function(){ di('No he podido dejarlo para mañana. Te lo volveré a recordar en un rato.'); };
+    try{
+      google.script.run.withSuccessHandler(function(res){
+        if(!res || !res.ok) return mal();
+        r.cuando=cu; REC_CACHE=null; REC_CACHE_T=0;
+        di('Vale, hoy no insisto más. Te lo recuerdo mañana a las 10:00.');
+      }).withFailureHandler(mal).apiRecPosponer(r.id, cu);
+    }catch(e){ mal(); }
   }
   function esc0(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
   function recEnterado(id, persona, test, cb){
