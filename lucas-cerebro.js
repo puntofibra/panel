@@ -2806,7 +2806,8 @@ var lastPicks = {};
         try{
           if(((LSNAP && FIA) || B._finst) && Array.isArray(FILTERED)){
             if(LSNAP && FIA){ var set={}; LSNAP.forEach(function(k){ set[k]=1; }); FILTERED = FILTERED.filter(function(it){ return set[it.__row]; }); }
-            if(B._finst){ var quiereVerde = B._finst===2; FILTERED = FILTERED.filter(function(it){ var t=String(it['15']||'').trim(); if(!t) return false; return instVerde(it)===quiereVerde; }); }
+            if(B._finst===3){ FILTERED = FILTERED.filter(function(it){ return !instEsFecha(it['15']); }); }
+            else if(B._finst){ var quiereVerde = B._finst===2; FILTERED = FILTERED.filter(function(it){ var t=String(it['15']||'').trim(); if(!t) return false; return instVerde(it)===quiereVerde; }); }
             var maxP=Math.max(1, Math.ceil(FILTERED.length/500)); if(typeof PAGE==='number' && PAGE>maxP) PAGE=maxP;
             rp();
           }
@@ -3461,18 +3462,20 @@ var lastPicks = {};
 
   /* =====================================================================
      BOTÓN «Fecha inst.» (entre 🛜❌ y OMITIR): 1ª pulsación → fechas de
-     instalación en negro; 2ª → en verde (🆗 o 00-00-0000); LIMPIAR FILTROS → todas.
+     instalación en negro; 2ª → en verde (🆗 o 00-00-0000); 3ª → instalación vacía
+     o rellenada con algo que no es una fecha; LIMPIAR FILTROS → todas.
      ===================================================================== */
   B._finst = 0;
   function instVerde(it){ return String(it['45']||'').trim()==='🆗' || String(it['54']||'').trim()==='1' || /^0{1,2}[\/\-]0{1,2}[\/\-]0{2,4}$/.test(String(it['15']||'').trim()); }
+  function instEsFecha(t){ t=String(t||'').trim(); return /^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}$/.test(t) || /^\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}$/.test(t); }
   function pintarFinst(){
     var b=document.getElementById('btnFechaInst'); if(!b) return;
     var on=B._finst;
     b.classList.toggle('active', !!on);
-    b.style.borderColor = on===1 ? '#111' : (on===2 ? '#16a34a' : (b.getAttribute('data-bc')||''));
-    b.style.boxShadow = on ? (on===1 ? '0 0 0 2px rgba(0,0,0,.18)' : '0 0 0 2px rgba(22,163,74,.25)') : '';
-    b.style.background = on===1 ? '#f1f1f1' : (on===2 ? '#e9f9ef' : (b.getAttribute('data-bg')||''));
-    b.title = on===1 ? 'Mostrando fechas de instalación en negro (pulsa para ver las verdes)' : (on===2 ? 'Mostrando fechas de instalación en verde (pulsa para ver las negras)' : 'Filtrar por fecha de instalación: negro / verde');
+    b.style.borderColor = on===1 ? '#111' : (on===2 ? '#16a34a' : (on===3 ? '#d97706' : (b.getAttribute('data-bc')||'')));
+    b.style.boxShadow = on ? (on===1 ? '0 0 0 2px rgba(0,0,0,.18)' : (on===2 ? '0 0 0 2px rgba(22,163,74,.25)' : '0 0 0 2px rgba(217,119,6,.28)')) : '';
+    b.style.background = on===1 ? '#f1f1f1' : (on===2 ? '#e9f9ef' : (on===3 ? '#fff4e0' : (b.getAttribute('data-bg')||'')));
+    b.title = on===1 ? 'Mostrando fechas de instalación en negro (pulsa para ver las verdes)' : (on===2 ? 'Mostrando fechas de instalación en verde (pulsa para ver las que no tienen fecha)' : (on===3 ? 'Mostrando contratos sin fecha de instalación: vacía o con una anotación (pulsa para ver las negras)' : 'Filtrar por fecha de instalación: negro / verde / sin fecha'));
   }
   (function(){
     function montar(){
@@ -3485,7 +3488,7 @@ var lastPicks = {};
       try{ var cs=getComputedStyle(ref); ['borderTopWidth','borderTopStyle','borderTopColor','borderRadius','paddingTop','paddingBottom','height','minHeight','backgroundColor','boxShadow','fontSize','fontFamily','cursor','verticalAlign'].forEach(function(k){ b.style[k]=cs[k]; }); b.style.borderWidth=cs.borderTopWidth; b.style.borderStyle=cs.borderTopStyle||'solid'; b.style.borderColor=cs.borderTopColor; b.style.paddingLeft='12px'; b.style.paddingRight='12px'; if(!parseFloat(cs.borderTopWidth)){ b.style.border='1px solid #e5e7eb'; b.style.borderRadius='10px'; b.style.background='#fff'; } }catch(e){}
       b.setAttribute('data-bc', b.style.borderColor||''); b.setAttribute('data-bg', b.style.backgroundColor||'');
       b.addEventListener('click', function(){
-        B._finst = B._finst===1 ? 2 : 1;
+        B._finst = B._finst===1 ? 2 : (B._finst===2 ? 3 : 1);
         pintarFinst();
         try{ PAGE=1; }catch(e){}
         try{ applyFilters(); }catch(e){}
