@@ -1149,7 +1149,7 @@ var lastPicks = {};
     try{
       google.script.run.withSuccessHandler(function(res){
         if(!res || !res.ok) return dime('Uy, no he podido guardar el recordatorio'+(res&&res.error?' ('+res.error+')':'')+'. Prueba otra vez.');
-        REC_CACHE=null; REC_CACHE_T=0;
+        REC_CACHE=null; REC_CACHE_T=0; try{ agMarcar(); }catch(e){}
         var avTxt=o.avisos.map(function(m){ for(var i=0;i<REC_AVISOS.length;i++) if(REC_AVISOS[i][0]===m) return REC_AVISOS[i][1].toLowerCase(); return m===0 ? 'a la misma hora' : (m%60===0 ? (m/60)+' '+plural(m/60,'hora','horas') : m+' minutos')+' antes'; });
         dime((recGen() ? fill(pick('recOKg',['¡Apuntado! Te avisaré {a}.','Hecho. Aviso {a}, en cualquier ordenador donde tengas el panel abierto.','Guardado: el aviso saltará {a}.']),{a:listaTxt(avTxt)}) : fill(pick('recOK',['¡Apuntado! Se lo recordaré a {p} {a}.','Hecho. Aviso a {p} {a}.','Guardado: {p} recibirá el aviso {a}.']),{p:listaTxt(o.personas),a:listaTxt(avTxt)}))+' '+pick('recOK2',['Si no pulsáis «Enterado», insisto cada media hora.','Y si nadie pulsa «Enterado», vuelvo a avisar cada media hora.']));
       }).withFailureHandler(function(e){ dime('No he podido guardar el recordatorio: '+(e && e.message ? e.message : 'error de conexión')+'.'); }).apiRecCrear(pl);
@@ -1214,7 +1214,7 @@ var lastPicks = {};
     done({ say: cap(fechaBonita(new Date(r.cuando)))+(recGen() ? '' : ' · para '+listaTxt(r.personas))+':\n«'+r.texto+'»' });
   }
   function recBorrar(id, done){
-    try{ google.script.run.withSuccessHandler(function(res){ REC_CACHE=null; if(res&&res.ok) delete REC_VER[id]; done({ say: res&&res.ok ? pick('recDel',['Borrado.','Recordatorio eliminado.','Hecho, ya no lo recordaré.']) : 'No he podido borrarlo.' }); }).withFailureHandler(function(){ done({ say:'No he podido borrarlo.' }); }).apiRecBorrar(id); }catch(e){ done({ say:'No he podido borrarlo.' }); }
+    try{ google.script.run.withSuccessHandler(function(res){ REC_CACHE=null; if(res&&res.ok) delete REC_VER[id]; try{ agMarcar(); }catch(e){} done({ say: res&&res.ok ? pick('recDel',['Borrado.','Recordatorio eliminado.','Hecho, ya no lo recordaré.']) : 'No he podido borrarlo.' }); }).withFailureHandler(function(){ done({ say:'No he podido borrarlo.' }); }).apiRecBorrar(id); }catch(e){ done({ say:'No he podido borrarlo.' }); }
   }
 
   // ---- agenda: botón derecho sobre una nota -> «Enviar a Lucas» para que la recuerde ----
@@ -1276,6 +1276,41 @@ var lastPicks = {};
     document.addEventListener('keydown', function(e){ if(e.key==='Escape') agCerrar(); }, true);
     window.addEventListener('blur', agCerrar);
   }catch(e){}
+
+  // ---- agenda: las notas que ya están en recordatorios llevan el robot a la derecha ----
+  var agObs=null, agT=null;
+  function agNorm(x){ return String(x||'').replace(/\s+/g,' ').trim().toLowerCase(); }
+  function agRobot(inline){
+    var r=document.createElement('span'); r.className='agLucasBot'; r.textContent='🤖'; r.title='Lucas ya tiene esta nota en recordatorios';
+    r.style.cssText=inline ? 'display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:6px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.12);font-size:12px;line-height:1;vertical-align:middle;'
+                           : 'position:absolute;right:2px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);font-size:11px;line-height:1;pointer-events:none;';
+    return r;
+  }
+  function agPintar(l){
+    try{
+      var now=Date.now(), set={};
+      (l||[]).forEach(function(r){ if(r && r.cuando>now-3600000) set[agNorm(r.texto)]=1; });
+      if(agObs) agObs.disconnect();
+      Array.prototype.forEach.call(document.querySelectorAll('.agEvChip'), function(ch){
+        var old=ch.querySelector('.agLucasBot'), si=!!set[agNorm(ch.getAttribute('title'))];
+        if(si && !old){ ch.style.position='relative'; ch.style.paddingRight='21px'; ch.appendChild(agRobot(false)); }
+        else if(!si && old){ old.remove(); ch.style.paddingRight=''; }
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.agEventItem .agEvTxt b'), function(b){
+        var old=b.querySelector('.agLucasBot'), t=String(b.firstChild && b.firstChild.nodeType===3 ? b.firstChild.nodeValue : b.textContent).replace(/^\s*\d{1,2}:\d{2}\s*—\s*/,''), si=!!set[agNorm(t)];
+        if(si && !old) b.appendChild(agRobot(true)); else if(!si && old) old.remove();
+      });
+    }catch(e){}
+    agVigilar();
+  }
+  function agMarcar(){ clearTimeout(agT); agT=setTimeout(function(){ if(!document.querySelector('.agEvChip, .agEventItem')) return; recCargar(agPintar); }, 250); }
+  function agVigilar(){
+    try{
+      if(!agObs) agObs=new MutationObserver(agMarcar);
+      ['agendaGrid','agendaDayEventsList'].forEach(function(id){ var el=document.getElementById(id); if(el) agObs.observe(el, { childList:true }); });
+    }catch(e){}
+  }
+  (function(){ var n=0, t=setInterval(function(){ if(document.getElementById('agendaGrid')){ clearInterval(t); agVigilar(); agMarcar(); } else if(++n>300) clearInterval(t); }, 1000); })();
 
   // ---- avisos: solo para las personas con su semilla en ESTE ordenador ----
   B.modoSub = function(nombre){   // subpanel: Lucas no conoce a Manu ni a sus empleados
