@@ -2141,6 +2141,7 @@ var lastPicks = {};
     if(v==='clearF:si' || v==='clearF:no') return B._clearF(v==='clearF:si', done);
     if(v==='dp:ver') return B._dpVer(done);
     if(v==='fb:ver') return B._fbVer(done);
+    if(v==='bv:ver') return B._bvVer(done);
     if(v.indexOf('pinf:')===0) return pinFiltro(v.slice(5), done);
     if(v.indexOf('q:')===0) return B.handle(v.slice(2), done);
     if(v.indexOf('rec:ok:')===0){ var pz=v.split(':'); return recEnterado(pz[2], pz[3], pz[4]==='test', function(t){ done({ say:t }); }); }
@@ -2690,6 +2691,40 @@ var lastPicks = {};
   setInterval(vigilaFibra, 60000);
   setTimeout(vigilaFibra, 40000);
   B.testFibra = function(){ vigilaFibra(true); };
+
+  // ---- borradores viejos: más de 31 días sin pasar a contrato (solo panel principal, solo para Manu) ----
+  var BV_KEY='pfBorrViejosUlt', BV_DIAS=31;
+  function bvLista(){
+    var h=new Date(), hoy0=new Date(h.getFullYear(),h.getMonth(),h.getDate()).getTime(), out=[], l=[];
+    try{ l=(typeof BORRADORES!=='undefined' && BORRADORES) ? BORRADORES : []; }catch(e){ l=[]; }
+    l.forEach(function(it){ var f=tsOK(it['14']); if(!f) return; var d=Math.floor((hoy0-f)/86400000); if(d>BV_DIAS) out.push({ it:it, f:f, dias:d }); });
+    out.sort(function(a,b){ return a.f-b.f; });
+    return out;
+  }
+  function vigilaBorrViejos(force){
+    if(window.PF_SUB) return;
+    try{
+      if(misPersonas().indexOf('Manu')<0) return;
+      var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
+      var l=bvLista(); if(!l.length) return;
+      var firma=fmtD(new Date())+'|'+l.map(function(x){ return String(x.it.__uid||x.it.__row); }).sort().join(',');   // una vez al día, y otra si cambia la lista
+      var ult=''; try{ ult=localStorage.getItem(BV_KEY)||''; }catch(e){}
+      if(!force && ult===firma) return;
+      try{ localStorage.setItem(BV_KEY, firma); }catch(e){}
+      var msg=(l.length===1 ? 'Borrador viejo: tienes 1 borrador que lleva' : 'Borradores viejos: tienes '+l.length+' borradores que llevan')+' más de '+BV_DIAS+' días sin pasar a contrato.';
+      msg+='\n'+l.slice(0,6).map(function(x){ var it=x.it; return '• '+(titleCase(String(it['21']||'').trim())||'sin nombre')+(it['2'] ? ' ('+compName(it['2'])+')' : '')+', del '+fmtD(new Date(x.f))+': '+x.dias+' días.'; }).join('\n');
+      if(l.length>6) msg+='\n…y '+(l.length-6)+' más.';
+      B.duckSay(msg, [{ t:'👀 Ver borradores', v:'bv:ver' }]);
+    }catch(e){}
+  }
+  setInterval(vigilaBorrViejos, 60000);
+  setTimeout(vigilaBorrViejos, 55000);
+  B.testBorrViejos = function(){ vigilaBorrViejos(true); };
+  B._bvVer = function(done){
+    try{ if(typeof goView==='function') goView('borradores'); }catch(e){}
+    var n=bvLista().length;
+    done({ say: n ? fill('Te abro Borradores. {n} {c} más de '+BV_DIAS+' días.', {n:numU(n), c:n===1?'lleva':'llevan'}) : 'Te abro Borradores. Ya no queda ninguno con más de '+BV_DIAS+' días.' });
+  };
   B._fbVer = function(done){
     ensureContratos(function(){
       var pend={}; fbPendientes().forEach(function(x){ pend[fbClave(x)]=x; });
