@@ -203,7 +203,7 @@
           : '<p>Los 90 días bonificados terminan <b>hoy</b>. A partir de mañana, cada día que pase contará como <b>1 € no bonificable</b>, que se descontará de tu próxima bonificación.</p>') +
         '<p>Si no te estamos tramitando ya el nuevo contrato, <b>ponte en contacto con nosotros' + (d.tel ? ' en el ' + esc(telBonito(d.tel)) : '') + '</b> cuanto antes.</p>' +
         (d.tel ? '<div class="cont"><a class="tel" href="tel:+34' + esc(d.tel) + '">📞 Llamar</a><a class="wa" href="https://wa.me/34' + esc(d.tel) + '" target="_blank" rel="noopener">💬 WhatsApp</a></div>' : '') + '</div>'
-        : aviso()) + renovar() + '<p class="pie">Este enlace es personal y se actualiza solo cada día.</p></div>';
+        : aviso()) + (venc || q <= 7 ? renovar() : '') + '<p class="pie">Este enlace es personal y se actualiza solo cada día.</p></div>';
     renovarListo();
     var L = 603.2;
     setTimeout(function(){ var p = document.getElementById('prog'); if (p) p.style.strokeDashoffset = String(venc ? 0 : L * (1 - q / total)); }, 120);
