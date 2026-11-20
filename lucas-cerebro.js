@@ -2807,7 +2807,7 @@ var lastPicks = {};
           if(((LSNAP && FIA) || B._finst) && Array.isArray(FILTERED)){
             if(LSNAP && FIA){ var set={}; LSNAP.forEach(function(k){ set[k]=1; }); FILTERED = FILTERED.filter(function(it){ return set[it.__row]; }); }
             if(B._finst===3){ FILTERED = FILTERED.filter(function(it){ return !instEsFecha(it['15']); }); }
-            else if(B._finst){ var quiereVerde = B._finst===2; FILTERED = FILTERED.filter(function(it){ var t=String(it['15']||'').trim(); if(!t) return false; return instVerde(it)===quiereVerde; }); }
+            else if(B._finst){ var quiereVerde = B._finst===2; FILTERED = FILTERED.filter(function(it){ if(!instEsFecha(it['15'])) return false; return instVerde(it)===quiereVerde; }); }
             var maxP=Math.max(1, Math.ceil(FILTERED.length/500)); if(typeof PAGE==='number' && PAGE>maxP) PAGE=maxP;
             rp();
           }
@@ -3462,7 +3462,7 @@ var lastPicks = {};
 
   /* =====================================================================
      BOTÓN «Fecha inst.» (entre 🛜❌ y OMITIR): 1ª pulsación → fechas de
-     instalación en negro; 2ª → en verde (🆗 o 00-00-0000); 3ª → instalación vacía
+     instalación en negro (solo fechas); 2ª → fechas en verde (🆗 o 00-00-0000); 3ª → instalación vacía
      o rellenada con algo que no es una fecha; LIMPIAR FILTROS → todas.
      ===================================================================== */
   B._finst = 0;
@@ -3475,7 +3475,7 @@ var lastPicks = {};
     b.style.borderColor = on===1 ? '#111' : (on===2 ? '#16a34a' : (on===3 ? '#d97706' : (b.getAttribute('data-bc')||'')));
     b.style.boxShadow = on ? (on===1 ? '0 0 0 2px rgba(0,0,0,.18)' : (on===2 ? '0 0 0 2px rgba(22,163,74,.25)' : '0 0 0 2px rgba(217,119,6,.28)')) : '';
     b.style.background = on===1 ? '#f1f1f1' : (on===2 ? '#e9f9ef' : (on===3 ? '#fff4e0' : (b.getAttribute('data-bg')||'')));
-    b.title = on===1 ? 'Mostrando fechas de instalación en negro (pulsa para ver las verdes)' : (on===2 ? 'Mostrando fechas de instalación en verde (pulsa para ver las que no tienen fecha)' : (on===3 ? 'Mostrando contratos sin fecha de instalación: vacía o con una anotación (pulsa para ver las negras)' : 'Filtrar por fecha de instalación: negro / verde / sin fecha'));
+    b.title = on===1 ? 'Mostrando fechas de instalación en negro (pulsa para ver las verdes)' : (on===2 ? 'Mostrando fechas de instalación en verde (pulsa para ver las que no tienen fecha)' : (on===3 ? 'Mostrando contratos sin fecha de instalación: vacía o con un texto que no es una fecha (pulsa para ver las negras)' : 'Filtrar por fecha de instalación: negro / verde / sin fecha'));
   }
   (function(){
     function montar(){
