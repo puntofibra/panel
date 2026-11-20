@@ -325,12 +325,12 @@ function mQr(){
     '<b style="font-size:11px">¿Qué quieres hacer?</b><div style="font-size:7.5px;color:#64748b;margin:1px 0 7px">Contrato de simyo</div>' +
     '<div style="' + fila + '"><span style="font-size:14px">📝</span><span style="flex:1">' + txt('Crear borrador', 'Copia este contrato como un borrador nuevo') + '</span></div>' +
     '<div style="' + fila + '"><span style="font-size:14px">📲</span>' + H(1, '', txt('Enviar QR de bonificación', 'El cliente verá cuántos días bonificados le quedan'), 'span', 'flex:1;display:block') +
-    H(2, '', 'Enviado 2 veces', 'span', 'font-size:7px;font-weight:800;padding:3px 7px;border-radius:99px;background:#dcfce7;color:#166534;border:1px solid #86efac;white-space:nowrap') + '</div>' +
+    H(2, '', 'Enviado 2 veces', 'span', 'font-size:6.5px;font-weight:800;padding:3px 13px 3px 6px;border-radius:99px;background:#dcfce7;color:#166534;border:1px solid #86efac;white-space:nowrap') + '</div>' +
     '<div style="border-top:1px dashed #e2e8f0;margin:8px 0 7px"></div>' +
     '<b style="font-size:9.5px">¿A qué número se lo envío?</b><div style="height:5px"></div>' +
     H(3, '', '<span style="font-size:13px">📞</span><span style="flex:1">' + txt('Al teléfono del contrato', '600 123 456') + '</span>', 'div', fila) +
     '<div style="' + fila + ';margin-bottom:0"><span style="font-size:13px">✏️</span><span style="flex:1">' + txt('A un número nuevo', 'Escribir otro teléfono') + '</span></div></div>';
-  return shot(app(m, 'con', { bor: 1 }), 300);
+  return shot(app(m, 'con'), 300);
 }
 function mBorradores(){
   var acts = [H(2, '', '✏️', 'span') + '&nbsp;&nbsp;&nbsp;&nbsp;' + H(3, '', '✅', 'span') + '&nbsp;&nbsp;&nbsp;&nbsp;' + H(4, '', '🗑️', 'span'), '✏️ ✅ 🗑️', '✏️ ✅ 🗑️'];
