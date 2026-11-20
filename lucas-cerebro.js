@@ -2767,7 +2767,8 @@ var lastPicks = {};
     }, true);
   })();
   var pickBase = B.pick;
-  B.pick = function(v, done){ B._porBoton = true; try{ return pickBase(v, done); } finally{ B._porBoton = false; } };
+  // los accesos directos de ayuda (q:…) son una consulta normal: se cobran igual que si se escribieran; el resto de botones (respuestas a una pregunta de Lucas) no
+  B.pick = function(v, done){ if(String(v||'').indexOf('q:')===0) return pickBase(v, done); B._porBoton = true; try{ return pickBase(v, done); } finally{ B._porBoton = false; } };
 
   /* =====================================================================
      BOTÓN «LIMPIAR IA» al lado de LIMPIAR: parpadea en verde si hay filtros
