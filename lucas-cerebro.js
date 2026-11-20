@@ -1198,14 +1198,15 @@ var lastPicks = {};
   }
   function esListaRec(t){ if(/\brecordatorios?\b/.test(t) && !/\b(pon|ponme|crea|creame|haz|hazme|nuevo|añade|anade|mete)\b/.test(t)) return true; return /\b(mis recordatorios|que recordatorios|recordatorios (pendientes|que hay|que tengo|tengo|guardados|apuntados)|lista de recordatorios|ver (los )?recordatorios|(ensename|muestrame|dime|sacame|dame) (los |mis )?recordatorios|(borra|borrar|quita|quitar|elimina|eliminar) (un |el |algun )?recordatorio)\b|^recordatorios$/.test(t); }
   function recListar(done){
+    var done0=done; done=function(r){ B._gratis=true; done0(r); };   // ver los recordatorios es gratis: solo se cobra al crear uno
     recCargar(function(l){
       if(l==null) return done({ say:'No he podido leer los recordatorios ahora mismo.' });
       // con la semilla de Manu se ven los de todos; si no, solo los de las personas con semilla en este ordenador
       var yo=misPersonas(), todos=yo.indexOf('Manu')>=0 || recGen();
       var now=Date.now(), fut=l.filter(function(r){ return r.cuando>now-3600000 && (todos || (r.personas||[]).some(function(p){ return yo.indexOf(p)>=0; })); }).sort(function(a,b){ return a.cuando-b.cuando; });
       if(!fut.length) return done({ say: pick('recL0',['No hay ningún recordatorio pendiente.','No tienes recordatorios apuntados.','Nada apuntado por ahora.']) });
-      var txt=fut.slice(0,8).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'»'+(recGen() ? '' : ' ('+listaTxt(r.personas)+')'); }).join('\n');
-      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+'\nPulsa la papelera para borrar uno, o el ojo para verlo entero:', buttons: (function(){ var bs=[]; fut.slice(0,8).forEach(function(r){ REC_VER[r.id]=r; bs.push({ t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }); bs.push({ t:'👁️', v:'rec:ver:'+r.id, junto:true, tip:'Ver el mensaje completo' }); }); return bs; })() });
+      var txt=fut.slice(0,60).map(function(r){ return '• '+fechaBonita(new Date(r.cuando))+': «'+r.texto+'»'+(recGen() ? '' : ' ('+listaTxt(r.personas)+')'); }).join('\n');
+      done({ say: 'Tienes '+numU(fut.length)+' '+plural(fut.length,'recordatorio','recordatorios')+':\n'+txt+(fut.length>60 ? '\n(te enseño los 60 primeros)' : '')+'\nPulsa la papelera para borrar uno, o el ojo para verlo entero:', buttons: (function(){ var bs=[]; fut.slice(0,60).forEach(function(r){ REC_VER[r.id]=r; bs.push({ t:'🗑️ '+(r.texto.length>28?r.texto.slice(0,27)+'…':r.texto), v:'rec:del:'+r.id }); bs.push({ t:'👁️', v:'rec:ver:'+r.id, junto:true, tip:'Ver el mensaje completo' }); }); return bs; })() });
     }, true);
   }
   var REC_VER={};   // recordatorios que se han listado (para el botón del ojo)
