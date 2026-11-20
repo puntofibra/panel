@@ -1,4 +1,5 @@
-/* ===== TUTORIAL PUNTOFIBRA · edicion 5 · 20-11-2026 · panel v536 =====
+/* ===== TUTORIAL PUNTOFIBRA · edicion 6 · 20-11-2026 · panel v537 =====
+   Edicion 6: en Agenda, el robot que marca las notas que ya estan en recordatorios.
    Edicion 5: en Agenda, boton derecho sobre una nota para enviarsela a Lucas como recordatorio.
    Edicion 4: en Contratos, dos paginas nuevas del QR de bonificacion (enviarlo y lo que ve el cliente).
    Edicion 3: en Borradores, cambiar la prioridad arrastrando la fila por el asa.
@@ -11,7 +12,7 @@
 (function(){
 'use strict';
 if (window.PFTutorial) return;
-var EDICION = 5, FECHA = '20-11-2026';
+var EDICION = 6, FECHA = '20-11-2026';
 var PW = 720, PH = 880;
 var D = document;
 var CSS = (function(){/*
@@ -457,7 +458,7 @@ function addAll(){
     pg(n, c, 'Notas con etiquetas', 'Un tablón para lo que no quieres olvidar, ordenado por colores.', shot2(mNotas()), ['<b>➕ Nueva nota</b> crea una nota y le asignas una etiqueta.', 'Las etiquetas son <b>URGENTE</b>, <b>NOTAS</b>, <b>INFORMACION</b> y <b>COMISIONES</b>, cada una con su color.', 'Los círculos del menú cuentan cuántas notas tiene cada etiqueta.', '<b>🏷️ Editar etiqueta</b> te deja cambiarle el nombre.'], null)
   ]; });
   chapter('pc', '🗓️', 'Agenda', function(n, c){ return [
-    pg(n, c, 'La agenda', 'Un calendario para tus citas y recordatorios.', shot2(mAgenda()), ['Cambia de mes con <b>‹ Anterior</b> y <b>Siguiente ›</b>, y vuelve al día actual con <b>Hoy</b>.', 'Alterna entre la vista <b>Mes</b> y la vista <b>Día</b>.', '<b>➕ Nuevo evento</b> abre el formulario.', 'Ponle <b>título</b>, hora (opcional), <b>color</b> y descripción, y pulsa <b>💾 Guardar</b>.', 'El número del botón AGENDA te dice cuántos eventos tienes hoy.', '<span data-voz="Pulsa con el botón derecho sobre una nota y elige sí, recuérdamelo: se abre Lucas con el texto ya puesto y te pregunta lo que necesita para avisarte.">Pulsa con el <b>botón derecho</b> sobre una nota y elige <b>✅ Sí, recuérdamelo</b>: se abre Lucas con el texto ya puesto y te pregunta lo que necesita para avisarte.</span>'], '<span data-voz="Pulsa un evento para editarlo: puedes cambiarle la fecha o borrarlo con el botón eliminar.">Pulsa un evento para editarlo: puedes cambiarle la fecha con 📅 o borrarlo con 🗑️ Eliminar.</span>')
+    pg(n, c, 'La agenda', 'Un calendario para tus citas y recordatorios.', shot2(mAgenda()), ['Cambia de mes con <b>‹ Anterior</b> y <b>Siguiente ›</b>, y vuelve al día actual con <b>Hoy</b>.', 'Alterna entre la vista <b>Mes</b> y la vista <b>Día</b>.', '<b>➕ Nuevo evento</b> abre el formulario.', 'Ponle <b>título</b>, hora (opcional), <b>color</b> y descripción, y pulsa <b>💾 Guardar</b>.', 'El número del botón AGENDA te dice cuántos eventos tienes hoy.', '<span data-voz="Pulsa con el botón derecho sobre una nota y elige sí, recuérdamelo: se abre Lucas con el texto ya puesto y te pregunta lo que necesita para avisarte. Cuando una nota ya está en recordatorios, lleva un robot a la derecha.">Pulsa con el <b>botón derecho</b> sobre una nota y elige <b>✅ Sí, recuérdamelo</b>: se abre Lucas con el texto ya puesto y te pregunta lo que necesita para avisarte. Cuando una nota ya está en recordatorios, verás un <b>🤖</b> a su derecha.</span>'], '<span data-voz="Pulsa un evento para editarlo: puedes cambiarle la fecha o borrarlo con el botón eliminar.">Pulsa un evento para editarlo: puedes cambiarle la fecha con 📅 o borrarlo con 🗑️ Eliminar.</span>')
   ]; });
   chapter('pc', '💬', 'Chat en vivo', function(n, c){ return [
     pg(n, c, 'Chat en vivo', 'Habla con tu equipo sin salir del panel.', shot2(mChat()), ['Pulsa la barra verde <b>Chat en vivo</b> y se abre en grande; vuelve a pulsarla para cerrarlo.', 'Escribe tu <b>nombre</b> para que los demás sepan quién eres.', 'Escribe tu mensaje y pulsa <b>enviar</b>: les llega al momento.', 'También puedes enviar <b>imágenes</b> que tengas copiadas en memoria: por ejemplo, haz una captura de pantalla, pégala en el chat y envíala.'], 'Las imágenes se pueden enviar tanto por el Chat en vivo como por el chat de Lucas.')
