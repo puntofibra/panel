@@ -1135,7 +1135,7 @@ var lastPicks = {};
       if(o.avisos && o.avisos.length){ recGuardar(o); return; }
       var ahora=Date.now(), sug=o.when.getTime()-ahora > 3*3600000 ? 60 : 0;
       if(!gen && window.__lucasSay) window.__lucasSay(pick('recQ3',Q3));
-      renderChecks(REC_AVISOS.map(function(a){ var at=o.when.getTime()-a[0]*60000; return { t:a[1], v:a[0], on:a[0]===sug, off: a[0]>0 && at<ahora-60000 }; }), 'Guardar ✅', function(av){
+      renderChecks(REC_AVISOS.map(function(a){ var at=o.when.getTime()-a[0]*60000; return { t:a[1], v:a[0], on:false, off: a[0]>0 && at<ahora-60000 }; /* ninguna marcada por defecto: hay que elegir al menos una */ }), 'Guardar ✅', function(av){
         o.avisos=av.map(Number).sort(function(a,b){ return b-a; });
         recGuardar(o);
       });
