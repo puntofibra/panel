@@ -194,6 +194,7 @@
   const LS_TOKEN = 'pf_sesion';
   // ---------- Subpanel (Fede, Wil…): la semilla se instala desde la consola del panel ----------
   const LS_SUB = 'pf_sub';
+  const LS_MANU = 'pf_equipo';
   function subLeer(){ try{ const o = JSON.parse(localStorage.getItem(LS_SUB) || 'null'); return o && o.id ? o : null; }catch(e){ return null; } }
   let SUB = subLeer();
   function pintarSub(){
@@ -261,6 +262,7 @@
     if(d.pf === 'recargar' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) location.reload();   // hay versión nueva de Lucas
     if(d.pf === 'nfc' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) llavePedidaPorPanel(ev, d);
     if(d.pf === 'consola' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)){ window.__pfConAbierta = !!d.abierta; try{ window.dispatchEvent(new Event('pfConsola')); }catch(x){} }
+    if(d.pf === 'equipo' && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)) lsSet(LS_MANU, d.on ? '1' : '');
     if(d.pf === 'nfcCerrar' && llOrigen) { llOrigen = null; cerrarLlave(); }
     if((d.pf === 'subSemilla' || d.pf === 'subSemillaVer') && /(\.googleusercontent\.com|^https:\/\/script\.google\.com)$/.test(ev.origin)){
       if(d.pf === 'subSemilla'){
@@ -411,7 +413,7 @@
     if(password === '000000'){ $('password').value = ''; hint(''); abrirSemillaMenu(); return; }   // menú para plantar la semilla de un panel
     const b = $('entrar'); b.disabled = true; hint('Comprobando…');
     try{
-      const r = SUB ? await api({ accion:'subLogin', sub:SUB.id, password }) : await api({ accion:'login', password });
+      const r = SUB ? await api({ accion:'subLogin', sub:SUB.id, password }) : await api({ accion:'login', password, eq: lsGet(LS_MANU) === '1' });
       if(!r || !r.ok){
         hint((r && r.error) || 'Contraseña incorrecta', true); $('password').select();
         return;
