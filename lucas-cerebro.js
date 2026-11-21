@@ -1949,6 +1949,9 @@ var lastPicks = {};
   };
   var SUB_SIN_SEM = /^(chat(Manu|Jorge|Maicol|Sebas)|fichajeSeb|doblePausa|rec(Manu|Sebastian|Jorge|Maicol)|avisosFichaje|consolaSinPin)$/;
   function semilla(k){ if(window.PF_SUB){ if(k==='__sub') return true; if(SUB_SIN_SEM.test(k)) return false; } try{ return localStorage.getItem('pfSemilla_'+k)==='1'; }catch(e){ return false; } }   // marcas de la consola (SEMILLA), solo en este ordenador
+  // La portada (el login) necesita saber si este es el ordenador de Manu.
+  function equipoAvisa(){ try{ if(window.PF_SUB) return; var on=false; try{ on=localStorage.getItem('pfSemilla_recManu')==='1'; }catch(e){} window.top.postMessage({ pf:'equipo', on:on }, '*'); }catch(e){} }
+  setTimeout(equipoAvisa, 2500); setInterval(equipoAvisa, 60000);
   B.semilla = semilla;
   var lastSlot='';
   setInterval(function(){
