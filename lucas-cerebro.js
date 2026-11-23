@@ -427,6 +427,8 @@ var lastPicks = {};
     else if(dow===5 && h>=13) extra=['Viernes por la tarde, ya casi lo tienes.'];
     if(extra.length && Math.random()<0.5) txt+=' '+pick('greetx',extra);
     if(first) txt += ' ' + pick('greet1',['Puedes pedirme, por ejemplo, «muéstrame los contratos de enero».','Prueba con algo como «contratos para cambiar este mes».','Por ejemplo: «cuántos contratos llevo este mes de Simyo».','Por ejemplo: «cómo vamos este mes».','Prueba con «qué compañía vende más».','Puedes pedirme «contratos pendientes de instalar».','Por ejemplo: «gráfica de contratos de este año».']);
+    // de vez en cuando, un consejo de lo que sé hacer (deshacer sale más a menudo)
+    if(first && Math.random() < 0.6) txt += ' 💡 ' + pick('greetTip',['¿Te has equivocado al cambiar un contrato? Dime «deshaz lo último» y te enseño los últimos cambios para volver atrás.','Si cambias algo por error, escribe «deshacer»: eliges el cambio, confirmas y lo dejo como estaba.','Puedo deshacer cambios: dime «me he equivocado» y te enseño los últimos para que elijas cuál.','Con la tabla filtrada, dime «uno por documento» y te quito los clientes repetidos.','«Ponles la chincheta a estos» marca de golpe todos los contratos que tengas en pantalla. Y si te equivocas, «deshacer».','También pongo y quito marcas a muchos contratos a la vez: «quita el bicho a todos», «ponles la 📌 a estos».']);
     if(first) txt += ' ' + pick('greetAy',['Y si escribes «ayuda», te saco varios accesos directos.','Escribe «ayuda» cuando quieras y te enseño los accesos directos.','Recuerda: con «ayuda» tienes a mano varios accesos directos.','Si no sabes por dónde empezar, escribe «ayuda» y te doy varios accesos directos.','Con la palabra «ayuda» te muestro una lista de accesos directos.']);
     return txt;
   };
@@ -1833,6 +1835,7 @@ var lastPicks = {};
 
   // accesos rápidos de «ayuda» (añadir aquí más botones: t = texto del botón, v = 'q:' + la frase que entiende Lucas)
   B.AYUDA_BTNS = [
+    { t:'↩️ Deshacer cambios',            v:'q:deshacer' },
     { t:'📉 Contratos para dar de baja', v:'q:muestrame los contratos para dar de baja' },
     { t:'⏸️ Contratos para pausar',      v:'q:muestrame los contratos para pausar' },
     { t:'📊 ¿Cómo vamos este mes?',      v:'q:como vamos este mes' },
