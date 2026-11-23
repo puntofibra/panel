@@ -54,6 +54,7 @@
     ['TEST3', 'PRUEBA EL FICHAJE DE ENTRADA DE LA TARDE (17:30) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-E', 'ENTRADA DE LA TARDE', say); }],
     ['TEST4', 'PRUEBA EL FICHAJE DE SALIDA DE LA TARDE (19:28) EN 1 MINUTO · NO SE GUARDA', function(a, say){ fichTest('T-S', 'SALIDA DE LA TARDE', say); }],
     ['FICHAJES', 'HISTORIAL DE ENTRADAS Y SALIDAS (SEBASTIAN, JORGE, MAICOL O TODOS)', function(a, say){ fichMenuEmp(say); }],
+    ['HISTORIAL', 'TODOS LOS CAMBIOS HECHOS EN LOS CONTRATOS Y BORRADORES (HOY, AYER, ÚLTIMOS 7 DÍAS…)', function(a, say){ histMenu(say); }],
     ['PASSWORD', 'MUESTRA EL QR DE GOOGLE AUTHENTICATOR PARA VINCULAR OTRO MÓVIL', function(a, say){ pwComando(say); }],
     ['PIN', 'EMPLEADOS CON PIN DEL ASISTENTE: VER Y EDITAR SU NOMBRE Y SU PIN', function(a, say){ pinMenu(say); }],
     ['RECHARGE', 'RECARGA EL SALDO DEL ASISTENTE LUCAS (SE SUMA AL QUE YA HAY)', function(a, say){ recPaso1(say); }],
@@ -681,6 +682,47 @@
     return null;
   }
   var DIAS3 = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+  // ---------- HISTORIAL DE CAMBIOS (comando HISTORIAL) ----------
+  var HIST_OPC = [null, 'HOY', 'AYER', 'ÚLTIMOS 7 DÍAS', 'MES ACTUAL', 'MES PASADO'];
+  var HIST_NOM = { '1':'AVISO', '2':'COMPAÑÍA', '3':'💵 PAGA EL', '14':'SOLICITUD', '15':'INSTALACIÓN', '16':'FIBRA', '17':'LÍNEAS CLIENTE', '18':'LÍNEAS EXTRA', '19':'TIPO DOC', '20':'DOCUMENTO', '21':'NOMBRE', '22':'TELÉFONO', '23':'DIRECCIÓN', '24':'CUENTA', '28':'ACCESO', '29':'CICLO', '31':'NOTAS', '32':'ESTADO', '44':'ESTADO', '45':'INFO', '49':'FECHA NACIMIENTO', '50':'VIP', '51':'LEE BIEN', '52':'FECHA DOBLE PAUSA', '53':'FECHA PAUSA', '54':'VERDE FORZADO', '55':'📌 IMPORTANTE', '56':'💰 EXTRAS', '57':'🪳 DEUDAS', '58':'💀 SCORING', '59':'INFO DE EXTRAS' };
+  function histMenu(say){
+    CON.ask = 'hist';
+    say('>> HISTORIAL DE CAMBIOS 📜', 'g big', 20);
+    say('   ¿QUÉ CAMBIOS QUIERES VER?', 'w', 12);
+    for(var i=1;i<HIST_OPC.length;i++) say('   ' + i + ' - ' + HIST_OPC[i], 'y', 0, true);
+    say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
+  }
+  function histVal(id, v){
+    v = String(v == null ? '' : v).trim();
+    if(/^(3|5[0-1]|5[4-8])$/.test(id)){ var on = /^(1|SI|SÍ|TRUE)$/i.test(v); return on ? 'SÍ' : 'NO'; }
+    if(!v) return '(VACÍO)';
+    return v.length > 40 ? v.slice(0, 40) + '…' : v;
+  }
+  function histListar(n){
+    var r = fichRango(n); if(!r || n > 5){ say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 5.', 'r', 12); errTone(); CON.ask = 'hist'; return; }
+    say('>> HISTORIAL · ' + HIST_OPC[n] + ' · CONSULTANDO EL REGISTRO…', 'g', 16);
+    var pinta = function(items){
+      if(!items.length){ say('   NO HAY CAMBIOS EN ESTE PERIODO.', 'd', 10); return; }
+      var dia = '', p2 = function(v){ return ('0'+v).slice(-2); }, tot = 0;
+      items.forEach(function(x){
+        if(x.dia !== dia){ dia = x.dia; var dd = new Date(dia + 'T12:00:00'); say('', '', 0, true); say('══════  ' + DIAS3[dd.getDay()] + ' ' + p2(dd.getDate()) + '/' + p2(dd.getMonth()+1) + '/' + dd.getFullYear() + '  ══════', 'g', 0, true); }
+        tot++;
+        say(x.hora + '  ·  ' + U(x.d) + (x.n > 1 ? '  (' + x.n + ' CAMBIOS)' : '') + (x.deshecho ? '  ↩ DESHECHO' : ''), x.deshecho ? 'd' : 'y', 0, true);
+        var det = (x.det || []).filter(function(d){ return !d.del; });
+        var max = x.n > 6 ? 3 : 6;
+        det.slice(0, max).forEach(function(d){ say('        ' + (HIST_NOM[d.id] || ('CAMPO ' + d.id)) + ': ' + U(histVal(d.id, d.o)) + '  →  ' + U(histVal(d.id, d.n)) + (d.otra ? '  (OTRO CONTRATO DEL CLIENTE)' : ''), 'd', 0, true); });
+        if(x.n > max && det.length) say('        … Y ' + (x.n - Math.min(max, det.length)) + ' MÁS', 'd', 0, true);
+      });
+      say('', '', 0, true);
+      say('   TOTAL: ' + tot + ' ' + (tot === 1 ? 'MOVIMIENTO' : 'MOVIMIENTOS') + '. PARA DESHACER ALGO, PÍDESELO A LUCAS («DESHAZ LO ÚLTIMO»).', 'w', 0, true);
+    };
+    try{
+      RUN().withSuccessHandler(function(res){ if(res && res.ok) pinta(res.items || []); else { say('ERROR AL LEER EL HISTORIAL: ' + ((res && res.error) || 'SIN RESPUESTA'), 'r', 10); errTone(); } })
+        .withFailureHandler(function(e){ say('ERROR DE CONEXIÓN AL LEER EL HISTORIAL.', 'r', 10); errTone(); })
+        .apiHistorial(isoD(r[0]), isoD(r[1]));
+    }catch(e){ say('ERROR · ' + e.message, 'r', 10); errTone(); }
+  }
+
   var TURNOS = [ ['MAÑANA','ENTRADA','10:30'], ['MAÑANA','SALIDA','13:28'], ['TARDE','ENTRADA','17:30'], ['TARDE','SALIDA','19:28'] ];
   function minsOf(h){ var p = String(h||'').split(':'); return (+p[0])*60 + (+p[1]||0); }
   function fichListar(n, pre){
@@ -901,6 +943,7 @@ function openConsole(){
     if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }
     if(CON.ask === 'fichEmp'){ CON.ask = null; if(cmd === String(FICH_EMP.length+1) || cmd === 'TODOS'){ fichEmp = 'Todos'; fichMenu(say); return; } if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
     if(CON.ask === 'fich'){ CON.ask = null; if(/^[1-8]$/.test(cmd)){ fichListar(+cmd); return; } }
+    if(CON.ask === 'hist'){ CON.ask = null; if(/^[1-5]$/.test(cmd)){ histListar(+cmd); return; } var hm = { 'HOY':1, 'AYER':2, 'SEMANA':3, 'ULTIMA SEMANA':3, 'ULTIMOS 7 DIAS':3, '7 DIAS':3, 'MES':4, 'MES ACTUAL':4, 'ESTE MES':4, 'MES PASADO':5 }; if(hm[cmd]){ histListar(hm[cmd]); return; } }
     if(CON.ask === 'recarga'){ CON.ask = null;
       if(/^(CANCELAR|SALIR|NO|NADA)$/.test(cmd)){ say('   RECARGA CANCELADA.', 'd', 10); return; }
       var mR = cmd.replace(/\s|€|EUROS?/g, '').match(/^(\d{1,3})(?:[.,](\d{1,2}))?$/);
