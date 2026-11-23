@@ -900,7 +900,7 @@ var lastPicks = {};
 
   // ===== DESHACER cambios de contratos: «deshaz lo último», «me he equivocado», «revierte el cambio»… =====
   function esDeshacer(t){
-    return /\b(deshaz\w*|deshacer\w*|deshace\w*|deshag\w*|deshic\w*|desaz\w*|desacer\w*|desace|desaces|desago|desaga\w*|revierte\w*|revertir\w*|reviert\w*)\b/.test(t)
+    return /\b(deshaz\w*|deshacer\w*|deshace\w*|deshag\w*|deshic\w*|desaz\w*|desacer\w*|desace|desaces|desago|desaga\w*|desahcer\w*|desahce\w*|desahz\w*|deshcer\w*|deshce\w*|dehacer\w*|dehace\w*|dehaz\w*|deshaer\w*|deshazer\w*|desazer\w*|deshaser\w*|desaser\w*|desajer\w*|deshacr\w*|desacr\w*|revierte\w*|revertir\w*|reviert\w*)\b/.test(t)
       || /\b(me he equivocado|me equivoque|me he confundido|me confundi|la he liado|la lie|he metido la pata|meti la pata|lo he hecho mal|lo hice mal|he hecho algo mal|hice algo mal|la he cagado|la cague)\b/.test(t)
       || /\b(anula\w*|cancela\w*|quita\w*|borra\w*)\s+(el|lo|los|la)?\s*(ultimo|ultimos|ultima)\s+(cambio|cambios|que he hecho|que hice|que has hecho)\b/.test(t)
       || /\b(dejalo|dejalos|ponlo|ponlos|vuelve a ponerlo|vuelvelo)\s+(como|tal como)\s+estaba\w*\b/.test(t)
