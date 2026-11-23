@@ -898,20 +898,70 @@ var lastPicks = {};
     });
   }
 
+  // ===== DESHACER cambios de contratos: «deshaz lo último», «me he equivocado», «revierte el cambio»… =====
+  function esDeshacer(t){
+    return /\b(deshaz\w*|deshacer\w*|deshace\w*|deshag\w*|deshic\w*|desaz\w*|desacer\w*|desace|desaces|desago|desaga\w*|revierte\w*|revertir\w*|reviert\w*)\b/.test(t)
+      || /\b(me he equivocado|me equivoque|me he confundido|me confundi|la he liado|la lie|he metido la pata|meti la pata|lo he hecho mal|lo hice mal|he hecho algo mal|hice algo mal|la he cagado|la cague)\b/.test(t)
+      || /\b(anula\w*|cancela\w*|quita\w*|borra\w*)\s+(el|lo|los|la)?\s*(ultimo|ultimos|ultima)\s+(cambio|cambios|que he hecho|que hice|que has hecho)\b/.test(t)
+      || /\b(dejalo|dejalos|ponlo|ponlos|vuelve a ponerlo|vuelvelo)\s+(como|tal como)\s+estaba\w*\b/.test(t)
+      || /\b(ultimos|ultimo) cambios?\b.*\b(hecho|hemos|he|hice)\b|\bque cambios (hemos|he|has) hecho\b/.test(t);
+  }
+  B._deshD = {};
+  function haceTxt(ts){
+    var m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+    if(m < 1) return 'ahora mismo'; if(m < 60) return 'hace '+m+' min';
+    var h = Math.round(m / 60); if(h < 24) return 'hace '+h+' h';
+    var d = Math.round(h / 24); return 'hace '+d+' '+(d===1?'día':'días');
+  }
+  function deshacerLista(done){
+    try{
+      google.script.run
+        .withSuccessHandler(function(r){
+          if(!r || !r.ok) return done({ say:'No he podido leer los últimos cambios ahora mismo.' });
+          var l = r.items || [];
+          if(!l.length) return done({ say: pick('desh0',['No hay cambios recientes que deshacer.','No encuentro ningún cambio que se pueda deshacer.']) });
+          B._deshD = {};
+          var bts = l.map(function(x){ B._deshD[x.g] = x.d; var txt = x.d.length > 70 ? x.d.slice(0,70)+'…' : x.d; return { t:'↩️ '+txt+' · '+haceTxt(x.ts), v:'desh:'+x.g }; });
+          done({ say: pick('deshQ',['¿Qué quieres deshacer? Estos son los últimos cambios:','Sin problema. ¿Cuál de estos cambios deshago?','Tranquilo, se arregla. ¿Qué cambio quieres deshacer?']), buttons: bts });
+        })
+        .withFailureHandler(function(){ done({ say:'No he podido leer los últimos cambios. Revisa la conexión.' }); })
+        .apiDeshacerLista(5);
+    }catch(e){ done({ say:'No he podido leer los últimos cambios ahora mismo.' }); }
+  }
+  B._deshPedir = function(g, done){
+    var d = B._deshD[g] || 'este cambio';
+    done({ say: '¿Seguro que quieres deshacer este cambio?\n«'+d+'»', buttons:[{ t:'✅ Sí, deshacer', v:'deshOK:'+g },{ t:'❌ Cancelar', v:'deshNo' }] });
+  };
+  B._deshHacer = function(g, done){
+    try{
+      google.script.run
+        .withSuccessHandler(function(r){
+          if(!r || !r.ok) return done({ say:'No he podido deshacerlo: '+((r && r.error) || 'error')+'.' });
+          try{ if(typeof loadBorradores==='function' && !document.getElementById('view-borradores').classList.contains('hidden')) loadBorradores(); else if(typeof loadContratos==='function') loadContratos(); }catch(e){}
+          var extra = '';
+          if(r.conflictos) extra += ' '+r.conflictos+(r.conflictos===1?' dato no lo he tocado porque':' datos no los he tocado porque')+' se volvieron a cambiar después.';
+          if(r.perdidos) extra += ' '+r.perdidos+' ya no existían.';
+          if(!r.hechos && !r.conflictos) return done({ say:'Ya estaba como antes, no había nada que deshacer.' });
+          done({ say: fill(pick('deshOK',['Hecho, deshecho: «{d}».','Listo, he vuelto a dejarlo como estaba: «{d}».','Deshecho. Todo como antes: «{d}».']),{ d:r.d || B._deshD[g] || 'el cambio' }) + extra });
+        })
+        .withFailureHandler(function(){ done({ say:'No he podido deshacerlo. Revisa la conexión e inténtalo otra vez.' }); })
+        .apiDeshacer(g);
+    }catch(e){ done({ say:'No he podido deshacerlo ahora mismo.' }); }
+  };
   // «ponles la chincheta a estos», «quita la calavera a todos»… -> marca masiva sobre lo que hay en pantalla
   function esMarcaMasiva(t){
-    var m = t.match(/\b(chinchetas?|importantes?|extras?|bolsas?|bolsitas?|saquitos?|dinero|deudas?|cucarachas?|scoring|calaveras?)\b/);
+    var m = t.match(/\b(billetes?|paga el|pagael|chinchetas?|importantes?|extras?|bolsas?|bolsitas?|saquitos?|dinero|deudas?|cucarachas?|scoring|calaveras?)\b/);
     if(!m) return null;
     if(/\b(muestra\w*|ensena\w*|filtra\w*|busca\w*|saca\w*|cuant[oa]s|dime|lista\w*|ver)\b/.test(t)) return null;
     var quitar = /\b(quita\w*|desmarca\w*|borra\w*|elimina\w*)\b/.test(t);
     var poner = /\b(pon|ponle|ponles|ponlas|ponlos|poner|marca|marcale|marcales|marcalos|marcalas|marcar|anade\w*|agrega\w*|activa\w*|asigna\w*|mete\w*)\b/.test(t);
     if(!quitar && !poner) return null;
     if(!/\b(estos|estas|esos|esas|todos|todas|los de la pantalla|lo de la pantalla|la tabla|el filtro|filtrados|filtradas|que salen|que hay|que tengo|los \d+|las \d+|\d+)\b/.test(t)) return null;
-    var w = m[1], id = /^(chincheta|importante)/.test(w) ? '55' : /^(extra|bolsa|bolsita|saquito|dinero)/.test(w) ? '56' : /^(deuda|cucaracha)/.test(w) ? '57' : '58';
+    var w = m[1], id = /^(billete|paga)/.test(w) ? '3' : /^(chincheta|importante)/.test(w) ? '55' : /^(extra|bolsa|bolsita|saquito|dinero)/.test(w) ? '56' : /^(deuda|cucaracha)/.test(w) ? '57' : '58';
     return { id:id, on:!quitar };
   }
   function marcaMasiva(mm, done){
-    var ICO = { '55':'\u{1F4CC}', '56':'\u{1F4B0}', '57':'\u{1FAB3}', '58':'\u{1F480}' }[mm.id];
+    var ICO = { '3':'\u{1F4B5}', '55':'\u{1F4CC}', '56':'\u{1F4B0}', '57':'\u{1FAB3}', '58':'\u{1F480}' }[mm.id];
     ensureContratos(function(){
       var lista = (typeof FILTERED!=='undefined' && FILTERED) ? FILTERED.slice() : [];
       var total = contratos().length;
@@ -920,8 +970,9 @@ var lastPicks = {};
       var on = function(v){ var s=String(v==null?'':v).trim().toUpperCase(); return s==='1'||s==='SI'||s==='SÍ'||s==='TRUE'; };
       var pend = lista.filter(function(it){ return on(it[mm.id]) !== mm.on; });
       if(!pend.length) return done({ say: fill('Todos ya {e} la {i}. No he tocado nada.',{ e: mm.on?'tenían':'estaban sin', i:ICO }) });
-      var val = mm.on ? '1' : '', ok=0, fail=0, i=0, activos=0;
+      var val = mm.on ? (mm.id==='3' ? 'SI' : '1') : '', ok=0, fail=0, i=0, activos=0;
       var porFila = {}; contratos().forEach(function(c){ porFila[c.__row]=c; });
+      var grupo = { g:'lm'+Date.now(), d: ICO+(mm.on?' puesta':' quitada')+' a '+pend.length+' '+plural(pend.length,'contrato','contratos')+' (Lucas)' };
       function fin(){
         try{ renderContratosPage(); }catch(e){}
         done({ say: fill(mm.on ? 'Hecho: {i} puesta a {n} {c}.' : 'Hecho: {i} quitada a {n} {c}.', { i:ICO, n:String(ok), c:plural(ok,'contrato','contratos') }) + (fail ? ' '+fail+' no se pudieron guardar.' : '') });
@@ -933,8 +984,14 @@ var lastPicks = {};
         google.script.run
           .withSuccessHandler(function(r){ activos--; if(r && r.ok){ ok++; it[mm.id]=val; var c=porFila[it.__row]; if(c) c[mm.id]=val; } else fail++; sig(); })
           .withFailureHandler(function(){ activos--; fail++; sig(); })
-          .apiUpdateContrato(it.__row, patch, it.__uid || '');
+          .apiUpdateContrato(it.__row, patch, it.__uid || '', grupo);
       }
+      // aviso al empezar, para que no parezca colgado (tarda unos segundos por cada pocos contratos)
+      try{
+        var seg = Math.max(10, Math.round(pend.length * 1.3)), tiempo = seg < 60 ? 'menos de un minuto' : (seg < 120 ? 'un par de minutos' : 'unos '+Math.round(seg/60)+' minutos');
+        var msg = fill(pick('mmIni',['Marchando: voy a {a} la {i} a {n} {c}. Tardaré {t}; en cuanto termine te aviso.','Recibido. Estoy {g} la {i} en {n} {c}, me llevará {t}. Te aviso al acabar.','Manos a la obra: {n} {c} por actualizar con la {i}. Dame {t} y te confirmo.']),{ a: mm.on?'poner':'quitar', g: mm.on?'poniendo':'quitando', i:ICO, n:String(pend.length), c:plural(pend.length,'contrato','contratos'), t:tiempo });
+        if(window.__lucasSay) window.__lucasSay(msg);
+      }catch(eIni){}
       for(var k=0; k<4; k++) sig();
     });
   }
@@ -951,7 +1008,7 @@ var lastPicks = {};
   function extras(t, now, done){
     if(B.esGrafica(t)){ grafica(t, now, done); return true; }
     // volver atrás
-    if(/^(vuelve atras|volver atras|atras|lo de antes|lo anterior|la anterior|la busqueda anterior|busqueda anterior|deshaz|deshacer|vuelve a lo de antes|lo que tenia antes)$/.test(t)){
+    if(/^(vuelve atras|volver atras|atras|lo de antes|lo anterior|la anterior|la busqueda anterior|busqueda anterior|vuelve a lo de antes|lo que tenia antes)$/.test(t)){
       var h=B._hist; if(h.length<2) return done({ say: pick('atr0',['No tengo ninguna búsqueda anterior a la que volver.','Esta es la primera búsqueda que me has pedido, no hay nada antes.']) }), true;
       h.pop(); var prev=h.pop();
       B.handle(prev, function(r){ if(r && r.say) r.say = pick('atrP',['Vuelvo a lo de antes. ','Ahí tienes lo anterior. ','Deshecho. '])+r.say; done(r); });
@@ -1738,7 +1795,9 @@ var lastPicks = {};
     if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
     if(!t){ B._gratis=true; return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
-    var mmas = esMarcaMasiva(t); if(mmas) return marcaMasiva(mmas, done);   // «ponles la chincheta a estos»
+    if(esDeshacer(t)) return deshacerLista(done);   // «deshaz lo último», «me he equivocado»…
+    var tEmo = t + String(raw0).replace(/\u{1F4CC}/gu,' chincheta ').replace(/\u{1F4B5}/gu,' billete ').replace(/\u{1F4B0}/gu,' bolsa ').replace(/\u{1FAB3}/gu,' cucaracha ').replace(/\u{1F480}/gu,' calavera ').replace(/[^ a-z]/gi,' ').replace(/^.*$/, function(x){ return /chincheta|billete|bolsa|cucaracha|calavera/.test(x) ? ' '+x.match(/chincheta|billete|bolsa|cucaracha|calavera/g).join(' ') : ''; });
+    var mmas = esMarcaMasiva(tEmo); if(mmas) return marcaMasiva(mmas, done);   // «ponles la chincheta a estos»
     if(esUnoDoc(t)){ if(extras(t, now, done)) return; }   // «uno por documento» antes de reinterpretar la frase
     try{ var tN = entender(t); if(tN && tN!==t){ t = tN; raw = tN; } }catch(e){ console.warn('[Lucas] entender', e); }
     var greet = isGreeting(t) || /^lucas$/.test(t);
@@ -2235,6 +2294,9 @@ var lastPicks = {};
   B.pick = function(v, done){
     v = String(v||'');
     if(v==='clearF:si' || v==='clearF:no') return B._clearF(v==='clearF:si', done);
+    if(v.indexOf('deshOK:')===0) return B._deshHacer(v.slice(7), done);
+    if(v==='deshNo') return done({ say: pick('deshN',['Vale, no deshago nada.','De acuerdo, lo dejo como está.','Cancelado, no toco nada.']) });
+    if(v.indexOf('desh:')===0) return B._deshPedir(v.slice(5), done);
     if(v==='dp:ver') return B._dpVer(done);
     if(v==='fb:ver') return B._fbVer(done);
     if(v==='bv:ver') return B._bvVer(done);
