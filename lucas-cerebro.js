@@ -898,6 +898,16 @@ var lastPicks = {};
     });
   }
 
+  // «solo 1 por documento», «quita los repetidos», «sin duplicados», «agrupa por cliente»…
+  function esUnoDoc(t){
+    if(/\bcuant[oa]s\b/.test(t)) return false;
+    return /\b(repetid[oa]s?|duplicad[oa]s?|repit\w*|repeticion\w*)\b/.test(t)
+      || /\b(uno|una|un|1|solo uno|solo 1|una vez|un solo|una sola)\b(\s+\w+){0,3}\s+(por|de cada|cada|para cada)\s+(documento|documentos|dni|nie|doc|cliente|persona|titular)\b/.test(t)
+      || /\bagrup\w*\b.*\b(documento|dni|nie|cliente|clientes|persona)\b/.test(t)
+      || /\b(unicos|unicas|distintos|distintas|diferentes)\b.*\b(documentos?|dni|nie|clientes?|personas?)\b/.test(t)
+      || /\b(documentos?|dni|nie|clientes?|personas?)\s+(unicos|unicas|distintos|distintas|diferentes)\b/.test(t)
+      || /\b(cada|por)\s+(documento|dni|nie|cliente|persona)\s+(solo\s+)?(uno|una|1|una vez)\b/.test(t);
+  }
   function extras(t, now, done){
     if(B.esGrafica(t)){ grafica(t, now, done); return true; }
     // volver atrás
@@ -923,6 +933,27 @@ var lastPicks = {};
       ensureContratos(function(){
         try{ filtroIA(true); }catch(e){}
         try{ var base=(typeof FILTERED!=='undefined' && FILTERED && FILTERED.length) ? FILTERED : contratos(); FILTERED = base.filter(tieneFibra); PAGE=1; renderContratosPage(); var n=FILTERED.length; done({ say: fill(pick('solF',['De lo que tenías en pantalla, {n} {c} con fibra.','Listo, solo los de fibra: {n} {c}.','Filtrado: quedan {n} {c} con fibra.']),{n:numU(n),c:plural(n,'contrato','contratos')}) }); }catch(e){ done({ say:'No he podido filtrar la tabla ahora mismo.' }); }
+      });
+      return true;
+    }
+    // uno por documento: de lo que hay en pantalla, deja solo 1 contrato por cada documento (quita los repetidos)
+    var UNODOC = esUnoDoc(t);
+    if(UNODOC){
+      ensureContratos(function(){
+        try{ filtroIA(true); }catch(e){}
+        try{
+          var base=(typeof FILTERED!=='undefined' && FILTERED && FILTERED.length) ? FILTERED : contratos();
+          var visto={}, out=[];
+          base.forEach(function(it){
+            var d=String(it['20']==null?'':it['20']).toUpperCase().replace(/[^A-Z0-9]/g,'');
+            if(!d){ out.push(it); return; }
+            if(visto[d]) return; visto[d]=1; out.push(it);
+          });
+          var quitados=base.length-out.length;
+          if(!quitados) return done({ say: pick('unoD0',['No hay documentos repetidos en lo que tienes en pantalla.','Aquí ya sale cada cliente una sola vez, no hay repetidos.','Nada que quitar: ningún documento sale repetido.']) });
+          FILTERED = out; PAGE=1; renderContratosPage();
+          done({ say: fill(pick('unoD',['Listo: dejo 1 contrato por documento. Quedan {N} de {b} (he ocultado {q} repetidos).','Hecho, sin repetidos: {n} {c}, uno por cliente.','Ahí tienes uno por documento: {N} {c}. He quitado {q} repetidos del filtro.']),{n:numU(out.length),N:String(out.length),b:String(base.length),q:String(quitados),c:plural(out.length,'contrato','contratos')}) });
+        }catch(e){ done({ say:'No he podido quitar los repetidos ahora mismo.' }); }
       });
       return true;
     }
@@ -1667,6 +1698,7 @@ var lastPicks = {};
     if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
     if(!t){ B._gratis=true; return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
+    if(esUnoDoc(t)){ if(extras(t, now, done)) return; }   // «uno por documento» antes de reinterpretar la frase
     try{ var tN = entender(t); if(tN && tN!==t){ t = tN; raw = tN; } }catch(e){ console.warn('[Lucas] entender', e); }
     var greet = isGreeting(t) || /^lucas$/.test(t);
     var rest = t.replace(/^(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|ey|saludos|buen dia)( lucas)?\s*/,'').trim();
