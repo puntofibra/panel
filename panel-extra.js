@@ -426,7 +426,7 @@
       say('   3 - ' + (aqui ? 'QUITAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' DE ESTE ORDENADOR' : 'INSTALAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' EN ESTE ORDENADOR'), 'y', 0, true);
       say('   4 - RECARGAR EL SALDO DE LUCAS DE ESTE PANEL (SE DESCUENTA DE TU SALDO)', 'y', 0, true);
       say('   5 - PONER O CAMBIAR EL PIN DE SUS TARJETAS', 'y', 0, true);
-      say('   6 - ' + (x.lic ? 'LICENCIA MENSUAL (VER ESTADO O CAMBIAR PRECIO)' : 'CREAR SU LICENCIA MENSUAL (SUSCRIPCIÓN)'), 'y', 0, true);
+      say('   6 - ' + (x.lic ? 'SU LICENCIA (VER ESTADO, CAMBIAR PRECIO, MENSUAL O VITALICIA)' : 'CREAR SU LICENCIA (MENSUAL O VITALICIA)'), 'y', 0, true);
       say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
       CON.ask = 'pan2';
     });
@@ -465,14 +465,14 @@
       say('>> PANEL ' + r.item.nombre.toUpperCase() + ' CREADO ✅', 'g big', 22);
       say('   PESTAÑA ' + r.item.hoja + ' CREADA EN EL SHEET CON LAS MISMAS COLUMNAS QUE LA TUYA, VACÍA.', '', 10);
       tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
-      PAN.sel = r.item; setTimeout(function(){ say('   AHORA VAMOS CON SU LICENCIA MENSUAL (SE GUARDA EN TU PROGRAMA DE LICENCIAS, EN APLICACIONES).', 'w', 10); licEmpezar(r.item); }, 400);
+      PAN.sel = r.item; setTimeout(function(){ say('   AHORA VAMOS CON SU LICENCIA (SE GUARDA EN TU PROGRAMA DE LICENCIAS, EN APLICACIONES).', 'w', 10); licEmpezar(r.item); }, 400);
     });
   }
   // ---------- LICENCIA MENSUAL DE UN SUBPANEL (programa de Licencias) ----------
   var LIC = {};
   function fEs(f){ return String(f || '').split('-').reverse().join('/'); }
   function eu(n){ n = Math.round(Number(n || 0) * 100) / 100; return (n % 1 ? n.toFixed(2) : String(n)).replace('.', ',') + ' €'; }
-  function licEstTxt(L){ if(!L) return 'SIN DATOS (NO SE HA PODIDO CONSULTAR)'; var e = L.estado === 'vencida' ? 'VENCIDA · PANEL BLOQUEADO' : L.estado === 'bloqueada' ? 'BLOQUEADA A MANO · PANEL BLOQUEADO' : L.enGracia ? 'VENCIDA · EN DÍAS DE GRACIA' : 'ACTIVA';
+  function licEstTxt(L){ if(!L) return 'SIN DATOS (NO SE HA PODIDO CONSULTAR)'; if(L.tipo === 'vitalicia') return L.estado === 'bloqueada' ? 'VITALICIA · BLOQUEADA A MANO · PANEL BLOQUEADO' : 'VITALICIA · NO PAGA MENSUALIDADES ♾️'; var e = L.estado === 'vencida' ? 'VENCIDA · PANEL BLOQUEADO' : L.estado === 'bloqueada' ? 'BLOQUEADA A MANO · PANEL BLOQUEADO' : L.enGracia ? 'VENCIDA · EN DÍAS DE GRACIA' : 'ACTIVA';
     return e + (L.vence ? ' · ' + (L.dias < 0 ? 'VENCIÓ EL ' : 'PAGADA HASTA EL ') + fEs(L.vence) : ''); }
   function licVer(x){
     if(!x.lic){ licEmpezar(x); return; }
@@ -481,22 +481,48 @@
       PAN.sel = r.item; var L = r.item.licInfo;
       say('>> LICENCIA DE ' + x.nombre.toUpperCase() + ' 🔑', 'g big', 20);
       say('   CÓDIGO: ' + r.item.lic + ' · ' + licEstTxt(L), L && (L.estado === 'vencida' || L.estado === 'bloqueada') ? 'r' : 'w', 10);
-      if(L) say('   CUOTA: ' + eu(L.precio) + '/MES' + (L.descuento ? ' (PRECIO ' + eu(L.precio + L.descuento) + ' CON ' + eu(L.descuento) + ' DE DESCUENTO)' : ''), 'y', 0, true);
+      var vit = !!(L && L.tipo === 'vitalicia'); PAN.licVit = vit;
+      if(L && !vit) say('   CUOTA: ' + eu(L.precio) + '/MES' + (L.descuento ? ' (PRECIO ' + eu(L.precio + L.descuento) + ' CON ' + eu(L.descuento) + ' DE DESCUENTO)' : ''), 'y', 0, true);
       say('   PARA RENOVAR, BLOQUEAR O VER SUS PAGOS USA TU PROGRAMA DE LICENCIAS (APLICACIONES › PANEL DE CONTRATOS).', 'd', 0, true);
-      say('   1 - CAMBIAR PRECIO, DESCUENTO, TELÉFONO O CORREO', 'y', 0, true);
-      say('   2 - VOLVER', 'y', 0, true);
+      say('   1 - ' + (vit ? 'CAMBIAR TELÉFONO O CORREO' : 'CAMBIAR PRECIO, DESCUENTO, TELÉFONO O CORREO'), 'y', 0, true);
+      say('   2 - ' + (vit ? 'PASARLA A MENSUAL (EMPIEZA A PAGAR CADA MES)' : 'HACERLA VITALICIA ♾️ (DEJA DE PAGAR, NO CADUCA NUNCA)'), 'y', 0, true);
+      say('   3 - VOLVER', 'y', 0, true);
       CON.ask = 'licMenu';
     });
   }
-  function licEmpezar(x){ LIC = { id:x.id, nombre:x.nombre, edita:!!x.lic };
-    say('>> ' + (x.lic ? 'CAMBIAR LICENCIA DE ' : 'LICENCIA MENSUAL DE ') + x.nombre.toUpperCase() + ' 🔑', 'g big', 20);
+  // modo: sin licencia → pregunta mensual o vitalicia · 'datos' → cambia sus datos · 'mensual' → pasa de vitalicia a mensual
+  function licEmpezar(x, modo){ LIC = { id:x.id, nombre:x.nombre, edita:!!x.lic && modo === 'datos', tipo:'' };
+    if(!x.lic){
+      say('>> LICENCIA DE ' + x.nombre.toUpperCase() + ' 🔑', 'g big', 20);
+      say('   ¿QUÉ TIPO DE LICENCIA LE PONES?', 'y', 10);
+      say('   1 - MENSUAL (PAGA CADA MES; SI NO PAGA, SU PANEL SE BLOQUEA)', 'y', 0, true);
+      say('   2 - VITALICIA ♾️ (NO PAGA NUNCA; PODRÁS PASARLA A MENSUAL CUANDO QUIERAS)', 'y', 0, true);
+      say('   ESCRIBE CANCELAR PARA NO CREARLA AHORA (LUEGO PUEDES HACERLO CON LA OPCIÓN 6 DE SU PANEL).', 'd', 0, true);
+      CON.ask = 'licTipo'; return; }
+    if(modo === 'datos' && PAN.licVit){ LIC.tipo = ''; say('>> CAMBIAR DATOS DE ' + x.nombre.toUpperCase() + ' 🔑', 'g big', 20); say('   TELÉFONO DEL CLIENTE. ENTER PARA NO CAMBIARLO.', 'y', 10); CON.ask = 'licTel'; return; }
+    if(modo === 'mensual'){ LIC.tipo = 'mensual'; LIC.pideVence = true; }
+    say('>> ' + (modo === 'mensual' ? 'PASAR A MENSUAL: ' : 'CAMBIAR LICENCIA DE ') + x.nombre.toUpperCase() + ' 🔑', 'g big', 20);
+    licPreguntaPrecio(); }
+  function licPreguntaPrecio(){
     say('   ¿CUÁNTO PAGA AL MES? (PRECIO EN €, POR EJEMPLO 30 O 29,90). SI QUIERES DARLE UN DESCUENTO, AQUÍ PON EL PRECIO SIN DESCONTAR.', 'y', 10);
-    say('   ESCRIBE CANCELAR PARA NO CREARLA AHORA (LUEGO PUEDES HACERLO CON LA OPCIÓN 6 DE SU PANEL).', 'd', 0, true);
+    say('   ESCRIBE CANCELAR PARA DEJARLO COMO ESTÁ.', 'd', 0, true);
     CON.ask = 'licPrecio'; }
+  function licVitalicia(){
+    var x = PAN.sel; say('   PASANDO LA LICENCIA DE ' + x.nombre.toUpperCase() + ' A VITALICIA…', 'd', 10);
+    panApi('licencia', { id:x.id, cliente:x.nombre, tipo:'vitalicia' }, function(r){
+      PAN.sel = r.item; PAN.licVit = true;
+      say('>> LICENCIA VITALICIA ♾️ ✅', 'g big', 22);
+      say('   ' + x.nombre.toUpperCase() + ' YA NO PAGA MENSUALIDADES Y SU PANEL NO CADUCA. SI ALGÚN DÍA QUIERES COBRARLE, ENTRA AQUÍ Y PÁSALA A MENSUAL.', 'y', 10);
+      tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
+    }); }
   function numEu(cmd){ var m = String(cmd).replace(/\s|€|EUROS?/g, '').match(/^(\d{1,4})(?:[.,](\d{1,2}))?$/); return m ? parseFloat(m[1] + '.' + (m[2] || '0')) : null; }
   function licPaso(paso, raw, cmd){
     var vacio = !cmd || cmd === '-' || cmd === 'NO' || cmd === 'NADA' || cmd === 'NINGUNO';
     if(/^(CANCELAR|SALIR)$/.test(cmd)){ say('   LICENCIA NO CREADA. PUEDES HACERLO LUEGO CON LA OPCIÓN 6 DEL PANEL ' + String(LIC.nombre || '').toUpperCase() + '.', 'd', 10); return; }
+    if(paso === 'licTipo'){
+      if(cmd === '1' || cmd === 'MENSUAL'){ LIC.tipo = 'mensual'; LIC.pideVence = true; licPreguntaPrecio(); return; }
+      if(cmd === '2' || cmd === 'VITALICIA'){ LIC.tipo = 'vitalicia'; LIC.precio = null; say('   TELÉFONO DEL CLIENTE. ENTER PARA DEJARLO VACÍO.', 'y', 10); CON.ask = 'licTel'; return; }
+      say('ESCRIBE 1 (MENSUAL) O 2 (VITALICIA).', 'r', 12); errTone(); CON.ask = 'licTipo'; return; }
     if(paso === 'licPrecio'){ var p = numEu(cmd); if(!(p > 0)){ say('PRECIO NO VÁLIDO · ESCRIBE UNA CANTIDAD (POR EJEMPLO 30 O 29,90).', 'r', 12); errTone(); CON.ask = 'licPrecio'; return; }
       LIC.precio = p; say('   ¿DESCUENTO EN € AL MES? (POR EJEMPLO 10). SI NO HAY DESCUENTO, PULSA ENTER. EL CLIENTE VERÁ EL PRECIO TACHADO Y LO QUE PAGA.', 'y', 10); CON.ask = 'licDto'; return; }
     if(paso === 'licDto'){ var d = vacio ? 0 : numEu(cmd); if(d == null || d < 0 || d >= LIC.precio){ say('DESCUENTO NO VÁLIDO · TIENE QUE SER MENOR QUE ' + eu(LIC.precio) + ', O PULSA ENTER PARA NINGUNO.', 'r', 12); errTone(); CON.ask = 'licDto'; return; }
@@ -504,7 +530,7 @@
     if(paso === 'licTel'){ LIC.telefono = vacio ? '' : String(raw).trim(); say('   CORREO DEL CLIENTE. ENTER PARA DEJARLO VACÍO.', 'y', 10); CON.ask = 'licMail'; return; }
     if(paso === 'licMail'){ var em = vacio ? '' : String(raw).trim(); if(em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ say('CORREO NO VÁLIDO · ESCRÍBELO BIEN O PULSA ENTER PARA DEJARLO VACÍO.', 'r', 12); errTone(); CON.ask = 'licMail'; return; }
       LIC.email = em;
-      if(LIC.edita){ licGuardar(); return; }
+      if(LIC.tipo === 'vitalicia' || !LIC.pideVence){ licGuardar(); return; }
       say('   ¿HASTA QUÉ DÍA TIENE PAGADO? (DD/MM/AAAA). ENTER = DENTRO DE UN MES DESDE HOY.', 'y', 10); CON.ask = 'licVence'; return; }
     if(paso === 'licVence'){
       if(vacio){ LIC.vence = ''; licGuardar(); return; }
@@ -514,14 +540,17 @@
       LIC.vence = an + '-' + ('0' + mv[2]).slice(-2) + '-' + ('0' + mv[1]).slice(-2); licGuardar(); return; }
   }
   function licGuardar(){
-    var paga = Math.round((LIC.precio - (LIC.descuento || 0)) * 100) / 100;
+    var conPrecio = LIC.precio != null, paga = conPrecio ? Math.round((LIC.precio - (LIC.descuento || 0)) * 100) / 100 : 0;
     say('   GUARDANDO LA LICENCIA EN EL PROGRAMA DE LICENCIAS…', 'd', 10);
-    panApi('licencia', { id:LIC.id, cliente:LIC.nombre, precio:LIC.precio, descuento:LIC.descuento || '', telefono:LIC.telefono || '', email:LIC.email || '', vence:LIC.vence || '' }, function(r){
-      PAN.sel = r.item; var L = r.item.licInfo;
+    var dat = { id:LIC.id, cliente:LIC.nombre, telefono:LIC.telefono || '', email:LIC.email || '', vence:LIC.vence || '', tipo:LIC.tipo || '' };
+    if(conPrecio){ dat.precio = LIC.precio; dat.descuento = LIC.descuento || ''; }
+    panApi('licencia', dat, function(r){
+      PAN.sel = r.item; var L = r.item.licInfo; PAN.licVit = !!(L && L.tipo === 'vitalicia');
       say('>> LICENCIA ' + (r.item.nueva ? 'CREADA' : 'ACTUALIZADA') + ' ✅', 'g big', 22);
-      say('   CÓDIGO: ' + r.item.lic + ' · PAGA ' + eu(paga) + '/MES' + (LIC.descuento ? ' (VERÁ ' + eu(LIC.precio) + ' TACHADO)' : ''), 'y', 10);
+      say('   CÓDIGO: ' + r.item.lic + (PAN.licVit ? ' · VITALICIA ♾️ (NO PAGA MENSUALIDADES)' : conPrecio ? ' · PAGA ' + eu(paga) + '/MES' + (LIC.descuento ? ' (VERÁ ' + eu(LIC.precio) + ' TACHADO)' : '') : ''), 'y', 10);
       if(L) say('   ' + licEstTxt(L), 'w', 0, true);
-      say('   LA TIENES EN TU PROGRAMA DE LICENCIAS › APLICACIONES › PANEL DE CONTRATOS. SI NO PAGA, PASADOS LOS DÍAS DE GRACIA SU PANEL SE BLOQUEA CON UNA PANTALLA DE PAGO; AL PAGAR CON SU CÓDIGO EN EL MOTIVO SE DESBLOQUEA SOLO.', 'd', 0, true);
+      say(PAN.licVit ? '   LA TIENES EN TU PROGRAMA DE LICENCIAS › APLICACIONES › PANEL DE CONTRATOS. PUEDES PASARLA A MENSUAL CUANDO QUIERAS (AQUÍ, OPCIÓN 6, O DESDE EL PROGRAMA DE LICENCIAS).'
+        : '   LA TIENES EN TU PROGRAMA DE LICENCIAS › APLICACIONES › PANEL DE CONTRATOS. SI NO PAGA, PASADOS LOS DÍAS DE GRACIA SU PANEL SE BLOQUEA CON UNA PANTALLA DE PAGO; AL PAGAR CON SU CÓDIGO EN EL MOTIVO SE DESBLOQUEA SOLO.', 'd', 0, true);
       tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
     });
   }
@@ -866,8 +895,8 @@ function openConsole(){
     if(CON.ask === 'panPass'){ CON.ask = null; panPass(raw); return; }
     if(CON.ask === 'panPin'){ CON.ask = null; panPin(raw); return; }
     if(CON.ask === 'panNuevo'){ CON.ask = null; if(/^(CANCELAR|SALIR)$/.test(cmd)){ say('   CANCELADO.', 'd', 10); return; } panNuevo(raw); return; }
-    if(CON.ask && /^lic(Precio|Dto|Tel|Mail|Vence)$/.test(CON.ask)){ var la = CON.ask; CON.ask = null; licPaso(la, raw, cmd); return; }
-    if(CON.ask === 'licMenu'){ CON.ask = null; if(cmd === '1'){ licEmpezar(PAN.sel); return; } if(cmd === '2' || !cmd){ panSubMenu(PAN.sel); return; } }
+    if(CON.ask && /^lic(Tipo|Precio|Dto|Tel|Mail|Vence)$/.test(CON.ask)){ var la = CON.ask; CON.ask = null; licPaso(la, raw, cmd); return; }
+    if(CON.ask === 'licMenu'){ CON.ask = null; if(cmd === '1'){ licEmpezar(PAN.sel, 'datos'); return; } if(cmd === '2'){ if(PAN.licVit) licEmpezar(PAN.sel, 'mensual'); else licVitalicia(); return; } if(cmd === '3' || !cmd){ panSubMenu(PAN.sel); return; } }
     if(!cmd){ say('', '', 0, true); return; }
     if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }
     if(CON.ask === 'fichEmp'){ CON.ask = null; if(cmd === String(FICH_EMP.length+1) || cmd === 'TODOS'){ fichEmp = 'Todos'; fichMenu(say); return; } if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
