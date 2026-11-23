@@ -950,14 +950,14 @@ var lastPicks = {};
   };
   // «ponles la chincheta a estos», «quita la calavera a todos»… -> marca masiva sobre lo que hay en pantalla
   function esMarcaMasiva(t){
-    var m = t.match(/\b(billetes?|paga el|pagael|chinchetas?|importantes?|extras?|bolsas?|bolsitas?|saquitos?|dinero|deudas?|cucarachas?|scoring|calaveras?)\b/);
+    var m = t.match(/\b(billetes?|paga el|pagael|chinchetas?|chinchetitas?|pinchos?|importantes?|extras?|bolsas?|bolsitas?|sacos?|saquitos?|dinero|deudas?|cucarachas?|cucharachas?|bichos?|scoring|scorin|escoring|escorin|calaveras?|calaberas?)\b/);
     if(!m) return null;
     if(/\b(muestra\w*|ensena\w*|filtra\w*|busca\w*|saca\w*|cuant[oa]s|dime|lista\w*|ver)\b/.test(t)) return null;
     var quitar = /\b(quita\w*|desmarca\w*|borra\w*|elimina\w*)\b/.test(t);
     var poner = /\b(pon|ponle|ponles|ponlas|ponlos|poner|marca|marcale|marcales|marcalos|marcalas|marcar|anade\w*|agrega\w*|activa\w*|asigna\w*|mete\w*)\b/.test(t);
     if(!quitar && !poner) return null;
     if(!/\b(estos|estas|esos|esas|todos|todas|los de la pantalla|lo de la pantalla|la tabla|el filtro|filtrados|filtradas|que salen|que hay|que tengo|los \d+|las \d+|\d+)\b/.test(t)) return null;
-    var w = m[1], id = /^(billete|paga)/.test(w) ? '3' : /^(chincheta|importante)/.test(w) ? '55' : /^(extra|bolsa|bolsita|saquito|dinero)/.test(w) ? '56' : /^(deuda|cucaracha)/.test(w) ? '57' : '58';
+    var w = m[1], id = /^(billete|paga)/.test(w) ? '3' : /^(chincheta|pincho|importante)/.test(w) ? '55' : /^(extra|bolsa|bolsita|saco|saquito|dinero)/.test(w) ? '56' : /^(deuda|cucaracha|cucharacha|bicho)/.test(w) ? '57' : '58';
     return { id:id, on:!quitar };
   }
   function marcaMasiva(mm, done){
