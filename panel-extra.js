@@ -402,7 +402,7 @@
         if(!PAN.lista.length) say('   TODAVÍA NO HAY SUBPANELES.', 'd', 0, true);
         PAN.lista.forEach(function(x, i){
           var aqui = cur && cur.id === x.id;
-          say('   ' + (i+1) + ' - ' + x.nombre.toUpperCase() + '   · PESTAÑA ' + x.hoja + ' · CONTRASEÑA: ' + (x.conPass ? 'SÍ' : 'NO') + ' · SALDO LUCAS: ' + eurTxt(x.saldo) + ' €' + (aqui ? '   🌱 SEMILLA EN ESTE PC' : ''), aqui ? 'g' : 'y', 0, true);
+          say('   ' + (i+1) + ' - ' + x.nombre.toUpperCase() + '   · PESTAÑA ' + x.hoja + ' · CONTRASEÑA: ' + (x.conPass ? 'SÍ' : 'NO') + ' · LICENCIA: ' + (x.lic ? 'SÍ' : 'NO') + ' · SALDO LUCAS: ' + eurTxt(x.saldo) + ' €' + (aqui ? '   🌱 SEMILLA EN ESTE PC' : ''), aqui ? 'g' : 'y', 0, true);
         });
         say('   ' + (PAN.lista.length + 1) + ' - ➕ NUEVO PANEL', 'y', 0, true);
         say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
@@ -426,6 +426,7 @@
       say('   3 - ' + (aqui ? 'QUITAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' DE ESTE ORDENADOR' : 'INSTALAR LA SEMILLA DE ' + x.nombre.toUpperCase() + ' EN ESTE ORDENADOR'), 'y', 0, true);
       say('   4 - RECARGAR EL SALDO DE LUCAS DE ESTE PANEL (SE DESCUENTA DE TU SALDO)', 'y', 0, true);
       say('   5 - PONER O CAMBIAR EL PIN DE SUS TARJETAS', 'y', 0, true);
+      say('   6 - ' + (x.lic ? 'LICENCIA MENSUAL (VER ESTADO O CAMBIAR PRECIO)' : 'CREAR SU LICENCIA MENSUAL (SUSCRIPCIÓN)'), 'y', 0, true);
       say('   ESCRIBE EL NÚMERO Y PULSA ENTER.', 'd', 0, true);
       CON.ask = 'pan2';
     });
@@ -453,7 +454,8 @@
     }
     if(n === 4){ say('   SALDO ACTUAL DE ' + x.nombre.toUpperCase() + ': ' + eurTxt(x.saldo) + ' €. ¿CUÁNTO QUIERES RECARGAR? FORMATO XXX,XX Y ENTER.', 'y', 10); CON.ask = 'panSaldo'; return; }
     if(n === 5){ say('   ESCRIBE EL PIN DE TARJETAS DE ' + x.nombre.toUpperCase() + ' (MÍNIMO 4 CARACTERES) Y PULSA ENTER.', 'y', 10); CON.ask = 'panPin'; return; }
-    say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 5.', 'r', 12); errTone(); CON.ask = 'pan2';
+    if(n === 6){ licVer(x); return; }
+    say('OPCIÓN NO VÁLIDA · ESCRIBE UN NÚMERO DEL 1 AL 6.', 'r', 12); errTone(); CON.ask = 'pan2';
   }
   function panNuevo(nombre){
     nombre = String(nombre || '').trim();
@@ -463,7 +465,64 @@
       say('>> PANEL ' + r.item.nombre.toUpperCase() + ' CREADO ✅', 'g big', 22);
       say('   PESTAÑA ' + r.item.hoja + ' CREADA EN EL SHEET CON LAS MISMAS COLUMNAS QUE LA TUYA, VACÍA.', '', 10);
       tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
-      PAN.sel = r.item; setTimeout(function(){ panSubMenu(r.item); }, 400);
+      PAN.sel = r.item; setTimeout(function(){ say('   AHORA VAMOS CON SU LICENCIA MENSUAL (SE GUARDA EN TU PROGRAMA DE LICENCIAS, EN APLICACIONES).', 'w', 10); licEmpezar(r.item); }, 400);
+    });
+  }
+  // ---------- LICENCIA MENSUAL DE UN SUBPANEL (programa de Licencias) ----------
+  var LIC = {};
+  function fEs(f){ return String(f || '').split('-').reverse().join('/'); }
+  function eu(n){ n = Math.round(Number(n || 0) * 100) / 100; return (n % 1 ? n.toFixed(2) : String(n)).replace('.', ',') + ' €'; }
+  function licEstTxt(L){ if(!L) return 'SIN DATOS (NO SE HA PODIDO CONSULTAR)'; var e = L.estado === 'vencida' ? 'VENCIDA · PANEL BLOQUEADO' : L.estado === 'bloqueada' ? 'BLOQUEADA A MANO · PANEL BLOQUEADO' : L.enGracia ? 'VENCIDA · EN DÍAS DE GRACIA' : 'ACTIVA';
+    return e + (L.vence ? ' · ' + (L.dias < 0 ? 'VENCIÓ EL ' : 'PAGADA HASTA EL ') + fEs(L.vence) : ''); }
+  function licVer(x){
+    if(!x.lic){ licEmpezar(x); return; }
+    say('   CONSULTANDO SU LICENCIA…', 'd', 0, true);
+    panApi('licInfo', { id:x.id }, function(r){
+      PAN.sel = r.item; var L = r.item.licInfo;
+      say('>> LICENCIA DE ' + x.nombre.toUpperCase() + ' 🔑', 'g big', 20);
+      say('   CÓDIGO: ' + r.item.lic + ' · ' + licEstTxt(L), L && (L.estado === 'vencida' || L.estado === 'bloqueada') ? 'r' : 'w', 10);
+      if(L) say('   CUOTA: ' + eu(L.precio) + '/MES' + (L.descuento ? ' (PRECIO ' + eu(L.precio + L.descuento) + ' CON ' + eu(L.descuento) + ' DE DESCUENTO)' : ''), 'y', 0, true);
+      say('   PARA RENOVAR, BLOQUEAR O VER SUS PAGOS USA TU PROGRAMA DE LICENCIAS (APLICACIONES › PANEL DE CONTRATOS).', 'd', 0, true);
+      say('   1 - CAMBIAR PRECIO, DESCUENTO, TELÉFONO O CORREO', 'y', 0, true);
+      say('   2 - VOLVER', 'y', 0, true);
+      CON.ask = 'licMenu';
+    });
+  }
+  function licEmpezar(x){ LIC = { id:x.id, nombre:x.nombre, edita:!!x.lic };
+    say('>> ' + (x.lic ? 'CAMBIAR LICENCIA DE ' : 'LICENCIA MENSUAL DE ') + x.nombre.toUpperCase() + ' 🔑', 'g big', 20);
+    say('   ¿CUÁNTO PAGA AL MES? (PRECIO EN €, POR EJEMPLO 30 O 29,90). SI QUIERES DARLE UN DESCUENTO, AQUÍ PON EL PRECIO SIN DESCONTAR.', 'y', 10);
+    say('   ESCRIBE CANCELAR PARA NO CREARLA AHORA (LUEGO PUEDES HACERLO CON LA OPCIÓN 6 DE SU PANEL).', 'd', 0, true);
+    CON.ask = 'licPrecio'; }
+  function numEu(cmd){ var m = String(cmd).replace(/\s|€|EUROS?/g, '').match(/^(\d{1,4})(?:[.,](\d{1,2}))?$/); return m ? parseFloat(m[1] + '.' + (m[2] || '0')) : null; }
+  function licPaso(paso, raw, cmd){
+    var vacio = !cmd || cmd === '-' || cmd === 'NO' || cmd === 'NADA' || cmd === 'NINGUNO';
+    if(/^(CANCELAR|SALIR)$/.test(cmd)){ say('   LICENCIA NO CREADA. PUEDES HACERLO LUEGO CON LA OPCIÓN 6 DEL PANEL ' + String(LIC.nombre || '').toUpperCase() + '.', 'd', 10); return; }
+    if(paso === 'licPrecio'){ var p = numEu(cmd); if(!(p > 0)){ say('PRECIO NO VÁLIDO · ESCRIBE UNA CANTIDAD (POR EJEMPLO 30 O 29,90).', 'r', 12); errTone(); CON.ask = 'licPrecio'; return; }
+      LIC.precio = p; say('   ¿DESCUENTO EN € AL MES? (POR EJEMPLO 10). SI NO HAY DESCUENTO, PULSA ENTER. EL CLIENTE VERÁ EL PRECIO TACHADO Y LO QUE PAGA.', 'y', 10); CON.ask = 'licDto'; return; }
+    if(paso === 'licDto'){ var d = vacio ? 0 : numEu(cmd); if(d == null || d < 0 || d >= LIC.precio){ say('DESCUENTO NO VÁLIDO · TIENE QUE SER MENOR QUE ' + eu(LIC.precio) + ', O PULSA ENTER PARA NINGUNO.', 'r', 12); errTone(); CON.ask = 'licDto'; return; }
+      LIC.descuento = d; say('   TELÉFONO DEL CLIENTE (PARA ENVIARLE EL COBRO POR WHATSAPP). ENTER PARA DEJARLO VACÍO.', 'y', 10); CON.ask = 'licTel'; return; }
+    if(paso === 'licTel'){ LIC.telefono = vacio ? '' : String(raw).trim(); say('   CORREO DEL CLIENTE. ENTER PARA DEJARLO VACÍO.', 'y', 10); CON.ask = 'licMail'; return; }
+    if(paso === 'licMail'){ var em = vacio ? '' : String(raw).trim(); if(em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ say('CORREO NO VÁLIDO · ESCRÍBELO BIEN O PULSA ENTER PARA DEJARLO VACÍO.', 'r', 12); errTone(); CON.ask = 'licMail'; return; }
+      LIC.email = em;
+      if(LIC.edita){ licGuardar(); return; }
+      say('   ¿HASTA QUÉ DÍA TIENE PAGADO? (DD/MM/AAAA). ENTER = DENTRO DE UN MES DESDE HOY.', 'y', 10); CON.ask = 'licVence'; return; }
+    if(paso === 'licVence'){
+      if(vacio){ LIC.vence = ''; licGuardar(); return; }
+      var mv = String(raw).trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if(!mv){ say('FECHA NO VÁLIDA · FORMATO DD/MM/AAAA (POR EJEMPLO 23/12/2026) O ENTER.', 'r', 12); errTone(); CON.ask = 'licVence'; return; }
+      var an = mv[3].length === 2 ? '20' + mv[3] : mv[3];
+      LIC.vence = an + '-' + ('0' + mv[2]).slice(-2) + '-' + ('0' + mv[1]).slice(-2); licGuardar(); return; }
+  }
+  function licGuardar(){
+    var paga = Math.round((LIC.precio - (LIC.descuento || 0)) * 100) / 100;
+    say('   GUARDANDO LA LICENCIA EN EL PROGRAMA DE LICENCIAS…', 'd', 10);
+    panApi('licencia', { id:LIC.id, cliente:LIC.nombre, precio:LIC.precio, descuento:LIC.descuento || '', telefono:LIC.telefono || '', email:LIC.email || '', vence:LIC.vence || '' }, function(r){
+      PAN.sel = r.item; var L = r.item.licInfo;
+      say('>> LICENCIA ' + (r.item.nueva ? 'CREADA' : 'ACTUALIZADA') + ' ✅', 'g big', 22);
+      say('   CÓDIGO: ' + r.item.lic + ' · PAGA ' + eu(paga) + '/MES' + (LIC.descuento ? ' (VERÁ ' + eu(LIC.precio) + ' TACHADO)' : ''), 'y', 10);
+      if(L) say('   ' + licEstTxt(L), 'w', 0, true);
+      say('   LA TIENES EN TU PROGRAMA DE LICENCIAS › APLICACIONES › PANEL DE CONTRATOS. SI NO PAGA, PASADOS LOS DÍAS DE GRACIA SU PANEL SE BLOQUEA CON UNA PANTALLA DE PAGO; AL PAGAR CON SU CÓDIGO EN EL MOTIVO SE DESBLOQUEA SOLO.', 'd', 0, true);
+      tone(1200, 1800, 0.12, 'square', 0.05); tone(1800, 2400, 0.12, 'square', 0.05, 0.13);
     });
   }
   function panPass(raw){
@@ -807,6 +866,8 @@ function openConsole(){
     if(CON.ask === 'panPass'){ CON.ask = null; panPass(raw); return; }
     if(CON.ask === 'panPin'){ CON.ask = null; panPin(raw); return; }
     if(CON.ask === 'panNuevo'){ CON.ask = null; if(/^(CANCELAR|SALIR)$/.test(cmd)){ say('   CANCELADO.', 'd', 10); return; } panNuevo(raw); return; }
+    if(CON.ask && /^lic(Precio|Dto|Tel|Mail|Vence)$/.test(CON.ask)){ var la = CON.ask; CON.ask = null; licPaso(la, raw, cmd); return; }
+    if(CON.ask === 'licMenu'){ CON.ask = null; if(cmd === '1'){ licEmpezar(PAN.sel); return; } if(cmd === '2' || !cmd){ panSubMenu(PAN.sel); return; } }
     if(!cmd){ say('', '', 0, true); return; }
     if(CON.ask === 'script'){ CON.ask = null; if(/^\d+$/.test(cmd)){ scrCopia(+cmd); return; } }
     if(CON.ask === 'fichEmp'){ CON.ask = null; if(cmd === String(FICH_EMP.length+1) || cmd === 'TODOS'){ fichEmp = 'Todos'; fichMenu(say); return; } if(/^[1-3]$/.test(cmd)){ fichEmp = FICH_EMP[+cmd - 1]; fichMenu(say); return; } for(var fe=0; fe<FICH_EMP.length; fe++){ if(cmd === U(FICH_EMP[fe])){ fichEmp = FICH_EMP[fe]; fichMenu(say); return; } } }
@@ -1004,4 +1065,82 @@ function openConsole(){
     nav.appendChild(b);
   }
   poner();
+})();
+
+
+/* ===== LICENCIA MENSUAL DEL SUBPANEL: aviso de vencimiento y pantalla de pago ===== */
+(function(){
+  if (window.__PF_SUBLIC) return; window.__PF_SUBLIC = 1;
+  var L = null, cerradoAviso = false, tReloj = null;
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+  function eu(n){ n = Math.round(Number(n || 0) * 100) / 100; return (n % 1 ? n.toFixed(2) : String(n)).replace('.', ',') + ' €'; }
+  function fEs(f){ return String(f || '').split('-').reverse().join('/'); }
+  function bloq(x){ return !!(x && x.existe && (x.estado === 'vencida' || x.estado === 'bloqueada')); }
+  function css(){
+    if (document.getElementById('pfLicCss')) return;
+    var st = document.createElement('style'); st.id = 'pfLicCss';
+    st.textContent = '#pfLicOv{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(6,10,18,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-family:inherit;animation:pfLicIn .35s ease}'
+      + '@keyframes pfLicIn{from{opacity:0}to{opacity:1}}@keyframes pfLicUp{from{transform:translateY(18px) scale(.97);opacity:0}to{transform:none;opacity:1}}'
+      + '#pfLicOv .cj{position:relative;width:min(460px,100%);max-height:94vh;overflow:auto;background:linear-gradient(160deg,#ffffff,#f3f7f5);color:#14201a;border-radius:22px;padding:26px 24px 20px;box-shadow:0 30px 80px rgba(0,0,0,.45),0 0 0 1px rgba(40,180,110,.25);animation:pfLicUp .45s cubic-bezier(.2,.9,.3,1.2)}'
+      + '#pfLicOv .x{position:absolute;top:12px;right:14px;border:0;background:none;font-size:20px;cursor:pointer;color:#7a8a82}'
+      + '#pfLicOv .ic{width:62px;height:62px;border-radius:18px;margin:0 auto 12px;display:grid;place-items:center;font-size:30px;background:linear-gradient(135deg,#21c47a,#0f8f55);box-shadow:0 10px 26px rgba(33,196,122,.35)}'
+      + '#pfLicOv .ic.mal{background:linear-gradient(135deg,#ff6b6b,#d63a4a);box-shadow:0 10px 26px rgba(214,58,74,.35)}'
+      + '#pfLicOv h2{margin:0 0 6px;text-align:center;font-size:21px;letter-spacing:.2px}#pfLicOv p{margin:0 0 14px;text-align:center;color:#4c5c54;font-size:14px;line-height:1.45}'
+      + '#pfLicOv .dto{display:block;width:max-content;margin:0 auto 12px;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(90deg,#21c47a,#0f8f55)}'
+      + '#pfLicOv .pl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 14px}'
+      + '#pfLicOv .pl a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 4px;border-radius:14px;border:1px solid #d7e3dc;background:#fff;color:inherit;text-decoration:none;transition:transform .15s,box-shadow .2s,border-color .2s}'
+      + '#pfLicOv .pl a:hover{transform:translateY(-2px);border-color:#21c47a;box-shadow:0 8px 20px rgba(33,196,122,.18)}#pfLicOv .pl a.top{border-color:#21c47a;background:#f0fbf5}'
+      + '#pfLicOv .pl span{font-size:12px;color:#6b7b73}#pfLicOv .pl s{font-size:11px;color:#9aa8a1}#pfLicOv .pl b{font-size:19px}#pfLicOv .pl small{font-size:11px;font-weight:700;color:#0f8f55}'
+      + '#pfLicOv .mo{font-size:13px;color:#4c5c54;text-align:center;line-height:1.5;margin-bottom:14px}#pfLicOv .cod{display:inline-flex;align-items:center;gap:6px;padding:3px 6px 3px 10px;margin:2px;border-radius:9px;background:#14201a;color:#7dffb8;font-family:monospace;font-size:14px;letter-spacing:1px}'
+      + '#pfLicOv .cod button{border:0;border-radius:6px;padding:3px 8px;background:#21c47a;color:#fff;font-size:11px;font-weight:700;cursor:pointer}'
+      + '#pfLicOv .bt{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}#pfLicOv .bt a,#pfLicOv .bt button{border:0;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none}'
+      + '#pfLicOv .wa{background:#25d366;color:#fff}#pfLicOv .ok{background:#14201a;color:#fff}#pfLicOv .ok[disabled]{opacity:.6;cursor:wait}'
+      + '#pfLicBar{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:2147482000;display:flex;align-items:center;gap:10px;max-width:calc(100% - 20px);padding:9px 10px 9px 14px;border-radius:14px;background:#fff8e6;color:#5a4300;border:1px solid #f3d27a;box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:13px;font-weight:600;animation:pfLicUp .4s ease}'
+      + '#pfLicBar.mal{background:#fff0f0;color:#7a1c26;border-color:#f2a3ab}#pfLicBar button{border:0;border-radius:9px;padding:6px 11px;font-weight:700;cursor:pointer;background:#14201a;color:#fff}#pfLicBar .c{background:none;color:inherit;padding:4px 6px;font-size:15px}';
+    document.head.appendChild(st);
+  }
+  function quitar(id){ var e = document.getElementById(id); if (e) e.remove(); }
+  function pantalla(cerrable){
+    css(); quitar('pfLicOv'); if (!L) return;
+    var b = bloq(L), d = L.dias;
+    var tit = b ? (L.estado === 'bloqueada' ? 'Panel suspendido' : 'Licencia pendiente de pago') : 'Tu licencia del panel';
+    var txt = b ? (L.estado === 'bloqueada' ? 'Tu panel está suspendido temporalmente. Contacta con FuturMovil para reactivarlo.' : 'La suscripción mensual de tu panel venció el ' + fEs(L.vence) + '. Renuévala para seguir usándolo: en cuanto llegue el pago se desbloquea solo.')
+      : L.enGracia ? 'Tu suscripción venció el ' + fEs(L.vence) + '. Renuévala ya para que el panel no se bloquee.'
+      : 'Pagada hasta el ' + fEs(L.vence) + (d != null ? ' · ' + (d === 0 ? 'vence hoy' : d === 1 ? 'queda 1 día' : 'quedan ' + d + ' días') : '') + '. Puedes adelantar pagos: se suman a tu fecha.';
+    var wa = L.soporte ? 'https://wa.me/' + String(L.soporte).replace(/\D/g, '') + '?text=' + encodeURIComponent('Hola, soy ' + (L.cliente || '') + '. Te escribo por la licencia de mi panel (' + L.codigo + ').') : '';
+    var o = document.createElement('div'); o.id = 'pfLicOv';
+    o.innerHTML = '<div class="cj">' + (cerrable ? '<button class="x" title="Cerrar">✕</button>' : '')
+      + '<div class="ic' + (b ? ' mal' : '') + '">🔑</div><h2>' + esc(tit) + '</h2><p>' + esc(txt) + '</p>'
+      + (L.estado !== 'bloqueada' && L.pagos && L.pagos.length ? (L.descuento > 0 ? '<span class="dto">Descuento aplicado: ' + eu(L.descuento) + ' menos cada mes</span>' : '')
+        + '<div class="pl">' + L.pagos.map(function(p){ return '<a href="' + esc(p.url) + '" target="_blank" rel="noopener"' + (p.meses === 3 ? ' class="top"' : '') + '><span>' + (p.meses === 12 ? '1 año' : p.meses === 1 ? '1 mes' : p.meses + ' meses') + '</span>'
+          + (L.descuento > 0 ? '<s>' + eu((L.precio + L.descuento) * p.meses) + '</s>' : '') + '<b>' + eu(p.importe) + '</b><small>Pagar</small></a>'; }).join('') + '</div>'
+        + '<div class="mo">Al pagar, escribe en el <b>motivo del pago</b> tu código<br><span class="cod">' + esc(L.codigo) + '<button class="cp">Copiar</button></span><br>y tu panel se renovará solo en unos minutos.</div>' : '')
+      + '<div class="bt">' + (wa ? '<a class="wa" href="' + esc(wa) + '" target="_blank" rel="noopener">WhatsApp soporte</a>' : '') + (b ? '<button class="ok">Ya he pagado · comprobar</button>' : '') + '</div></div>';
+    document.body.appendChild(o);
+    var x = o.querySelector('.x'); if (x) x.onclick = function(){ quitar('pfLicOv'); };
+    var cp = o.querySelector('.cp'); if (cp) cp.onclick = function(){ try{ navigator.clipboard.writeText(L.codigo); cp.textContent = '¡Copiado!'; setTimeout(function(){ cp.textContent = 'Copiar'; }, 1500); }catch(e){} };
+    var ok = o.querySelector('.ok'); if (ok) ok.onclick = function(){ ok.disabled = true; ok.textContent = 'Comprobando…'; pedir(true, function(){ if (bloq(L)){ ok.disabled = false; ok.textContent = 'Todavía no ha llegado · reintentar'; } }); };
+  }
+  function aviso(){
+    css(); quitar('pfLicBar'); if (!L || cerradoAviso || bloq(L)) return;
+    var d = L.dias; if (!(L.enGracia || (d != null && d <= 5))) return;
+    var bar = document.createElement('div'); bar.id = 'pfLicBar'; if (L.enGracia) bar.className = 'mal';
+    bar.innerHTML = '<span>🔑 ' + esc(L.enGracia ? 'La licencia de tu panel venció el ' + fEs(L.vence) + '. Renuévala para que no se bloquee.' : d === 0 ? 'La licencia de tu panel vence hoy.' : 'La licencia de tu panel vence el ' + fEs(L.vence) + '.') + '</span><button class="p">Renovar</button><button class="c" title="Cerrar">✕</button>';
+    document.body.appendChild(bar);
+    bar.querySelector('.p').onclick = function(){ pantalla(true); };
+    bar.querySelector('.c').onclick = function(){ cerradoAviso = true; quitar('pfLicBar'); };
+  }
+  function pinta(){
+    if (bloq(L)){ quitar('pfLicBar'); var ov = document.getElementById('pfLicOv'); if (!ov || ov.querySelector('.x')) pantalla(false); }
+    else { var o2 = document.getElementById('pfLicOv'); if (o2 && !o2.querySelector('.x')) { quitar('pfLicOv'); try{ location.reload(); }catch(e){} return; } aviso(); }
+    clearTimeout(tReloj); tReloj = setTimeout(function(){ pedir(bloq(L)); }, bloq(L) ? 60000 : 600000);
+  }
+  function pedir(fresco, cb){
+    try{
+      google.script.run.withSuccessHandler(function(r){ if (r && r.ok){ L = r.lic && r.lic.existe ? r.lic : null; pinta(); } if (cb) cb(); })
+        .withFailureHandler(function(){ if (cb) cb(); }).apiSubLicencia(!!fresco);
+    }catch(e){ if (cb) cb(); }
+  }
+  // solo en los subpaneles (Fede, Wil…), cuando ya han entrado
+  var n = 0; (function esperar(){ if (window.PF_SUB){ setTimeout(function(){ pedir(false); }, 1500); return; } if (++n < 2000) setTimeout(esperar, 1500); })();
 })();
