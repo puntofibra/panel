@@ -898,6 +898,46 @@ var lastPicks = {};
     });
   }
 
+  // «ponles la chincheta a estos», «quita la calavera a todos»… -> marca masiva sobre lo que hay en pantalla
+  function esMarcaMasiva(t){
+    var m = t.match(/\b(chinchetas?|importantes?|extras?|bolsas?|bolsitas?|saquitos?|dinero|deudas?|cucarachas?|scoring|calaveras?)\b/);
+    if(!m) return null;
+    if(/\b(muestra\w*|ensena\w*|filtra\w*|busca\w*|saca\w*|cuant[oa]s|dime|lista\w*|ver)\b/.test(t)) return null;
+    var quitar = /\b(quita\w*|desmarca\w*|borra\w*|elimina\w*)\b/.test(t);
+    var poner = /\b(pon|ponle|ponles|ponlas|ponlos|poner|marca|marcale|marcales|marcalos|marcalas|marcar|anade\w*|agrega\w*|activa\w*|asigna\w*|mete\w*)\b/.test(t);
+    if(!quitar && !poner) return null;
+    if(!/\b(estos|estas|esos|esas|todos|todas|los de la pantalla|lo de la pantalla|la tabla|el filtro|filtrados|filtradas|que salen|que hay|que tengo|los \d+|las \d+|\d+)\b/.test(t)) return null;
+    var w = m[1], id = /^(chincheta|importante)/.test(w) ? '55' : /^(extra|bolsa|bolsita|saquito|dinero)/.test(w) ? '56' : /^(deuda|cucaracha)/.test(w) ? '57' : '58';
+    return { id:id, on:!quitar };
+  }
+  function marcaMasiva(mm, done){
+    var ICO = { '55':'\u{1F4CC}', '56':'\u{1F4B0}', '57':'\u{1FAB3}', '58':'\u{1F480}' }[mm.id];
+    ensureContratos(function(){
+      var lista = (typeof FILTERED!=='undefined' && FILTERED) ? FILTERED.slice() : [];
+      var total = contratos().length;
+      if(!lista.length) return done({ say:'No hay contratos en pantalla a los que marcar.' });
+      if(lista.length >= total) return done({ say:'Primero filtra la tabla: no voy a cambiar todos los contratos de golpe.' });
+      var on = function(v){ var s=String(v==null?'':v).trim().toUpperCase(); return s==='1'||s==='SI'||s==='SÍ'||s==='TRUE'; };
+      var pend = lista.filter(function(it){ return on(it[mm.id]) !== mm.on; });
+      if(!pend.length) return done({ say: fill('Todos ya {e} la {i}. No he tocado nada.',{ e: mm.on?'tenían':'estaban sin', i:ICO }) });
+      var val = mm.on ? '1' : '', ok=0, fail=0, i=0, activos=0;
+      var porFila = {}; contratos().forEach(function(c){ porFila[c.__row]=c; });
+      function fin(){
+        try{ renderContratosPage(); }catch(e){}
+        done({ say: fill(mm.on ? 'Hecho: {i} puesta a {n} {c}.' : 'Hecho: {i} quitada a {n} {c}.', { i:ICO, n:String(ok), c:plural(ok,'contrato','contratos') }) + (fail ? ' '+fail+' no se pudieron guardar.' : '') });
+      }
+      function sig(){
+        if(i >= pend.length){ if(!activos) fin(); return; }
+        var it = pend[i++]; activos++;
+        var patch = {}; patch[mm.id] = val;
+        google.script.run
+          .withSuccessHandler(function(r){ activos--; if(r && r.ok){ ok++; it[mm.id]=val; var c=porFila[it.__row]; if(c) c[mm.id]=val; } else fail++; sig(); })
+          .withFailureHandler(function(){ activos--; fail++; sig(); })
+          .apiUpdateContrato(it.__row, patch, it.__uid || '');
+      }
+      for(var k=0; k<4; k++) sig();
+    });
+  }
   // «solo 1 por documento», «quita los repetidos», «sin duplicados», «agrupa por cliente»…
   function esUnoDoc(t){
     if(/\bcuant[oa]s\b/.test(t)) return false;
@@ -1698,6 +1738,7 @@ var lastPicks = {};
     if(B._bajaAsk){ if(Date.now()-B._bajaAsk.t > 5*60000) B._bajaAsk=null; else { var yn=fold(raw).trim(); if(/^(si|sip|vale|ok|claro|venga|dale|quitalos|hazlo)\b/.test(yn)) return B._baja2P(true, done); if(/^(no|nop|dejalos|deja)\b/.test(yn)) return B._baja2P(false, done); B._bajaAsk=null; } }   // fichaje manual (Jorge / Maicol)
     if(!t){ B._gratis=true; return done({ say: pick('vacio',['Dime algo y lo busco.','¿Sí? Te escucho.']) }); }
     t = t.replace(/^(oye |eh |lucas |hey lucas |hola lucas |oye lucas )+/,'').trim();
+    var mmas = esMarcaMasiva(t); if(mmas) return marcaMasiva(mmas, done);   // «ponles la chincheta a estos»
     if(esUnoDoc(t)){ if(extras(t, now, done)) return; }   // «uno por documento» antes de reinterpretar la frase
     try{ var tN = entender(t); if(tN && tN!==t){ t = tN; raw = tN; } }catch(e){ console.warn('[Lucas] entender', e); }
     var greet = isGreeting(t) || /^lucas$/.test(t);
