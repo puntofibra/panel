@@ -3758,6 +3758,8 @@ var lastPicks = {};
      ===================================================================== */
   (function(){
     var URL0='https://puntofibra.github.io/panel/lucas-cerebro.js', firma=null, ultimoUso=Date.now();
+    var huella=null, yendo=false;
+    function contenido(){ return fetch(URL0+'?c='+Date.now(), { cache:'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).then(function(t){ if(!t) return null; var h=0; for(var i=0;i<t.length;i++){ h=(h*31+t.charCodeAt(i))|0; } return h+':'+t.length; }).catch(function(){ return null; }); }
     ['mousedown','keydown','touchstart','wheel'].forEach(function(ev){ window.addEventListener(ev, function(){ ultimoUso=Date.now(); }, true); });
     function firmaDe(r){ return r.headers.get('etag') || r.headers.get('last-modified') || ''; }
     function ocupado(){
@@ -3772,14 +3774,22 @@ var lastPicks = {};
       try{
         fetch(URL0+'?chk='+Date.now(), { method:'HEAD', cache:'no-store' }).then(function(r){
           var f=firmaDe(r); if(!f) return;
-          if(firma===null){ firma=f; return; }
-          if(f!==firma){
+          if(firma===null){ firma=f; contenido().then(function(h){ if(h) huella=h; }); return; }
+          if(f===firma || yendo) return;
+          // la fecha del archivo cambia cada vez que se publica CUALQUIER cosa del panel en GitHub (o según el servidor que conteste):
+          // solo se recarga si el contenido de Lucas ha cambiado de verdad
+          contenido().then(function(h){
+            if(!h) return;
+            if(!huella){ huella=h; firma=f; return; }
+            if(h===huella){ firma=f; return; }
+            yendo=true;
             var intento=function(){
               if(ocupado()) return setTimeout(intento, 30000);
+              try{ var lg=JSON.parse(localStorage.getItem('pfRecargas')||'[]'); lg.push({ t:new Date().toISOString(), motivo:'lucas nuevo' }); localStorage.setItem('pfRecargas', JSON.stringify(lg.slice(-20))); }catch(e){}
               try{ window.top.postMessage({ pf:'recargar' }, '*'); }catch(e){}
             };
             intento();
-          }
+          });
         }).catch(function(){});
       }catch(e){}
     }
