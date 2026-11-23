@@ -1,4 +1,5 @@
-/* ===== TUTORIAL PUNTOFIBRA · edicion 6 · 20-11-2026 · panel v537 =====
+/* ===== TUTORIAL PUNTOFIBRA · edicion 7 · 23-11-2026 · panel v547 =====
+   Edicion 7: en Nuevo contrato y edicion, el titular de la cuenta (se guarda por cuenta y sale en todos sus contratos).
    Edicion 6: en Agenda, el robot que marca las notas que ya estan en recordatorios.
    Edicion 5: en Agenda, boton derecho sobre una nota para enviarsela a Lucas como recordatorio.
    Edicion 4: en Contratos, dos paginas nuevas del QR de bonificacion (enviarlo y lo que ve el cliente).
@@ -12,7 +13,7 @@
 (function(){
 'use strict';
 if (window.PFTutorial) return;
-var EDICION = 6, FECHA = '20-11-2026';
+var EDICION = 7, FECHA = '23-11-2026';
 var PW = 720, PH = 880;
 var D = document;
 var CSS = (function(){/*
@@ -320,6 +321,19 @@ function mFiltros(){
   var m = '<div class="m-card">' + '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">' + H(1, 'm-i', '🔍 <span class="tt-type" style="--c:9">Ana López</span>', 'div', 'flex:1;min-height:24px') + '</div>' + H(2, '', ic, 'div', 'margin-bottom:2px') + '<div style="margin-bottom:6px"><span class="m-btn">♾️1</span> <span class="m-btn">♾️20</span> <span class="m-btn">VIP</span> <span class="m-btn">🛜✅</span> <span class="m-btn">🛜❌</span></div>' + H(3, '', '<span class="cp sy">SIMYO</span> <span class="cp mm">MÁSMÓVIL</span> <span class="cp pp">PEPEPHONE</span> <span class="cp jz">JAZZTEL</span>', 'div', 'margin-bottom:6px') + '<div style="display:flex;gap:8px;align-items:flex-end">' + H(4, 'm-r', fld('DESDE', '01-10-2026') + fld('HASTA', '19-11-2026'), 'div', 'flex:1;margin:0') + H(5, 'm-btn g m-blink', '🧹 LIMPIAR FILTROS', 'span') + '</div></div>' + '<div class="m-card">' + tbl({ n: 2 }) + '</div>';
   return shot(app(m, 'con'), 372);
 }
+function mTitular(){
+  var campo = 'border:1.5px solid #111;border-radius:8px;padding:6px 8px;font-size:8.5px;background:#fff';
+  var m = '<div class="m-card" style="max-width:300px;margin:6px auto 0;box-shadow:0 10px 30px rgba(15,23,42,.18)">' +
+    '<b style="font-size:11px">Editar Cuenta</b><div style="border-top:1px solid #eee;margin:7px 0"></div>' +
+    '<div style="font-size:7.5px;color:#64748b;margin-bottom:4px">Escribe el nuevo valor:</div>' +
+    H(1, '', 'ES20 0182 5319 7402 0103 0079', 'div', campo + ';font-family:ui-monospace,Menlo,Consolas,monospace;height:26px') +
+    '<div style="font-size:7.5px;color:#64748b;margin:8px 0 4px">Titular de esta cuenta</div>' +
+    H(2, '', 'Enrique Martín Alda', 'div', campo) +
+    '<div style="font-size:6.5px;color:#94a3b8;margin-top:5px">El titular se guarda para esta cuenta y saldrá en todos los contratos que la tengan.</div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px"><span style="font-size:8px;padding:4px 9px;border:1px solid #ccc;border-radius:8px;background:#f5f5f5">Cancelar</span><span style="font-size:8px;padding:4px 9px;border-radius:8px;background:#22c55e;color:#fff;font-weight:800">Guardar</span></div></div>' +
+    '<div style="display:flex;justify-content:center;margin-top:12px">' + H(3, '', '<div style="font-size:8px;border:1px solid #e2e8f0;border-radius:8px;padding:5px 8px;background:#fff">ES20 0182 5319 7402 … 📋</div><div style="margin-top:4px;font-size:7.5px;line-height:1.35;background:#111;color:#fff;border-radius:6px;padding:4px 7px;white-space:nowrap">ES20 0182 5319 7402 0103 0079<br>Titular: Enrique Martín Alda</div>', 'div', 'display:flex;flex-direction:column;align-items:flex-start') + '</div>';
+  return shot(app(m, 'con'), 300);
+}
 function mQr(){
   var fila = 'display:flex;align-items:center;gap:7px;border:1px solid #e2e8f0;background:#f8fafc;border-radius:9px;padding:6px 8px;margin-bottom:5px';
   var txt = function(t, d){ return '<b style="display:block;font-size:9px">' + t + '</b><small style="display:block;font-size:7px;color:#64748b">' + d + '</small>'; };
@@ -443,7 +457,8 @@ function addAll(){
   ]; });
   chapter('pc', '➕', 'Nuevo contrato y edición', function(n, c){ return [
     pg(n, c, 'Dar de alta un contrato', 'Pulsa ➕ NUEVO CONTRATO y rellena la ficha. Los datos se guardan primero como borrador.', shot2(mNuevo()), ['Elige la <b>compañía</b> y marca <b>PAGA EL SI</b> si el cliente paga el recibo.', 'Selecciona el tipo de <b>documento</b> (DNI, NIE o pasaporte) y escribe su número.', 'Rellena el <b>teléfono, la dirección y la cuenta</b>, además del nombre.', 'Indica la fecha de nacimiento y las <b>líneas, líneas extra y fibra</b> con los desplegables.', 'Pulsa <b>💾 GUARDAR BORRADOR</b>. Con <b>🧽 LIMPIAR</b> vacías todos los campos para empezar de cero.'], 'Los campos Avisos y Notas son libres: úsalos para recordar cualquier detalle del cliente.'),
-    pg(n, c, 'Editar un contrato', 'Cuando necesites cambiar algo, abre la ficha del contrato desde la tabla.', shot2(mEditar()), ['<span data-voz="El botón de editar, al final de la fila, abre la edición. El botón de ver solo enseña la ficha.">El botón <b>✏️</b> del final de la fila abre la edición (👀 solo enseña la ficha).</span>', 'El campo de <b>compañía</b> toma el color de su operadora.', 'Cambia lo que necesites y pulsa <b>💾 Guardar</b>; con <b>Cancelar</b> sales sin tocar nada.'], 'Si cambias el documento, la fecha de nacimiento se toma de otros contratos de ese documento; si hay fechas distintas, el panel te pregunta cuál es la correcta.')
+    pg(n, c, 'Editar un contrato', 'Cuando necesites cambiar algo, abre la ficha del contrato desde la tabla.', shot2(mEditar()), ['<span data-voz="El botón de editar, al final de la fila, abre la edición. El botón de ver solo enseña la ficha.">El botón <b>✏️</b> del final de la fila abre la edición (👀 solo enseña la ficha).</span>', 'El campo de <b>compañía</b> toma el color de su operadora.', 'Cambia lo que necesites y pulsa <b>💾 Guardar</b>; con <b>Cancelar</b> sales sin tocar nada.'], 'Si cambias el documento, la fecha de nacimiento se toma de otros contratos de ese documento; si hay fechas distintas, el panel te pregunta cuál es la correcta.'),
+    pg(n, c, 'El titular de la cuenta', 'A veces el contrato va a nombre de un cliente pero con la cuenta de otra persona. Guarda el titular de cada cuenta y sabrás siempre de quién es.', shot2(mTitular()), ['Pulsa con el <b>botón derecho</b> sobre la cuenta de un contrato (en el móvil, mantenla pulsada) y se abre <b>Editar Cuenta</b>.', 'Debajo del número tienes <b>Titular de esta cuenta</b>: escribe el nombre y pulsa <b>Guardar</b>.', '<b>El titular va con la cuenta:</b> sale en todos los contratos que tengan ese número, en los que ya tienes y en los que hagas después.', 'Si cambias el titular, cambia en todos; si lo borras, se quita de todos. Si cambias la cuenta de un contrato por otra, verás el titular de la nueva (o ninguno, si no tiene).', '<b>Pon el ratón encima</b> de la cuenta y verás el número completo y, si lo tiene guardado, su titular.'], 'El titular se guarda aparte: no cambia el nombre del cliente del contrato.')
   ]; });
   chapter('pc', '🏷️', 'Estados e iconos', function(n, c){ return [
     pg(n, c, 'Estados e iconos', 'Cada contrato lleva dos marcas: el <b>Estado</b> y la <b>Info</b>. Sirven para saber de un vistazo cómo va cada cliente.', shot2(mEstados()), ['Pulsa el icono de la fila y elige uno de la lista.', '<span data-voz="El icono de pausa marca una línea en pausa, y la equis roja marca una baja."><b>⏸️</b> marca una línea en pausa y <b>❌</b> una baja.</span>', '<span data-voz="La marca de la calavera significa que el cliente tiene scoring en esa compañía, es decir, que no lo aceptan como cliente. Pinta la fila entera de rojo claro.">La marca <b>💀</b> significa que el cliente tiene <b>scoring</b> en esa compañía (no lo aceptan como cliente) y pinta la fila entera de rojo claro.</span>', '<span data-voz="La marca del bicho significa que el cliente tiene deudas en esa compañía. Si las paga, puede que lo vuelvan a aceptar como cliente.">La marca <b>🪳</b> significa que el cliente tiene <b>deudas</b> en esa compañía; si las paga, puede que lo acepten de nuevo como cliente.</span>', 'Después puedes filtrar la tabla por cualquier icono (capítulo anterior).'], 'Usad las marcas con un criterio común en todo el equipo, para que todos lean la tabla igual.')
