@@ -1,4 +1,5 @@
-/* ===== TUTORIAL PUNTOFIBRA · edicion 8 · 23-11-2026 · panel v560 =====
+/* ===== TUTORIAL PUNTOFIBRA · edicion 9 · 23-11-2026 · panel v561 =====
+   Edicion 9: pagina propia «Deshacer un cambio» con Lucas (lista de cambios, confirmacion, boton de ayuda).
    Edicion 8: marcas del cliente con casillas (💵 📌 🪳 💀 💰 con texto), Info solo «-» y 🆗, filtros 💵 y «-»,
    Lucas: uno por documento, poner/quitar marcas a lo filtrado y deshacer cambios.
    Edicion 7: en Nuevo contrato y edicion, el titular de la cuenta (se guarda por cuenta y sale en todos sus contratos).
@@ -15,7 +16,7 @@
 (function(){
 'use strict';
 if (window.PFTutorial) return;
-var EDICION = 8, FECHA = '23-11-2026';
+var EDICION = 9, FECHA = '23-11-2026';
 var PW = 720, PH = 880;
 var D = document;
 var CSS = (function(){/*
@@ -323,6 +324,20 @@ function mMarcas(){
   var pill = '<div style="display:flex;justify-content:center;margin-top:16px">' + H(2, '', '<span style="background:#ffb000;color:#111;font-weight:900;font-size:9px;border-radius:999px;padding:4px 12px">SIMYO 💵📌💰</span><div style="margin-top:5px;font-size:7.5px;background:#111;color:#fff;border-radius:6px;padding:4px 7px;white-space:nowrap">Extras: Router pendiente de entregar</div>', 'div', 'display:flex;flex-direction:column;align-items:center') + '</div>';
   return modal + pill;
 }
+function mDeshacer(){
+  var btn = function(t, st){ return '<span style="display:inline-block;border:1px solid #17ff5f;background:#0f1512;color:#d9ffe6;border-radius:999px;padding:4px 9px;font-size:7.5px;font-weight:800;margin:0 4px 4px 0;' + (st || '') + '">' + t + '</span>'; };
+  var chat = '<div style="width:330px;margin:4px auto 0;background:#fff;border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.35);overflow:hidden">' +
+    '<div style="background:#05070c;color:#fff;padding:8px 10px;font-weight:800;font-size:9.5px;display:flex;gap:8px"><span style="flex:1">🤖 Asistente Lucas IA</span><span style="font-size:8.5px;color:#17ff5f">Saldo: 5,00 €</span><span>✕</span></div>' +
+    '<div style="padding:9px;background:#f4f7fb">' +
+    H(1, 'm-bub me', '<span class="tt-type" style="--c:20">me he equivocado</span>', 'div', 'margin-bottom:6px') +
+    '<div class="m-bub ot" style="margin-bottom:6px">Tranquilo, se arregla. ¿Qué cambio quieres deshacer?</div>' +
+    H(2, '', btn('↩️ Ana López Ruiz — 💰 puesta · hace 2 min', 'outline:2px solid #ffb000') + btn('↩️ 📌 puesta a 87 contratos (Lucas) · hace 15 min') + btn('↩️ Pedro Gil — Teléfono: 600 111 222 · hace 1 h'), 'div', 'margin-bottom:6px') +
+    '<div class="m-bub ot" style="margin-bottom:6px">¿Seguro que quieres deshacer este cambio?<br>«Ana López Ruiz — 💰 puesta»</div>' +
+    H(3, '', btn('✅ Sí, deshacer') + btn('❌ Cancelar'), 'div', 'margin-bottom:6px') +
+    H(4, 'm-bub ot', 'Hecho, deshecho: «Ana López Ruiz — 💰 puesta».', 'div', '') +
+    '</div></div>';
+  return chat;
+}
 function mEstados(){
   var m = '<div class="m-card">' + tbl({ n: 5, est: 0, estN: 1, inf: 3 }) + '</div><div class="m-card" style="margin-top:96px"><div style="font-size:8px;font-weight:800;color:#64748b;margin-bottom:4px">ESTADO</div><span class="m-ic">😓</span><span class="m-ic">🪙</span><span class="m-ic">🤑</span><span class="m-ic">❓</span><span class="m-ic">⏸️</span><span class="m-ic">❌</span><div style="font-size:8px;font-weight:800;color:#64748b;margin:3px 0 4px">INFO</div><span class="m-ic">-</span><span class="m-ic">🆗</span></div>' +
     H(2, 'm-pop', '<span>-</span><span>😓</span><span>🪙</span><span>🤑</span><span>❓</span><span class="on">⏸️</span><span>❌</span>', 'div', 'left:322px;top:68px');
@@ -493,7 +508,8 @@ function addAll(){
   ]; });
   chapter('pc', '🤖', 'Asistente Lucas', function(n, c){ return [
     pg(n, c, 'Lucas, tu asistente', 'Lucas entiende frases normales: no tienes que aprender comandos.', shot2(mLucas()), ['Pulsa a <b>Lucas</b> en la franja negra de abajo para abrir su chat; pulsa su cara para cerrarlo.', 'Escribe en la <b>caja de texto</b> lo que necesitas: «sácame los contratos de enero» filtra la tabla al instante. También puedes <b>pasarle imágenes</b> (por ejemplo, una captura de pantalla que hayas copiado: pégala y envíala) y pedirle <b>gráficas</b> y estadísticas (púlsalas para verlas en grande).', 'Arriba ves tu <b>saldo</b>. Algunas peticiones gastan crédito y otras no; las que lo gastan cuestan <b>menos de 2 céntimos</b> cada una.', 'El <b>altavoz</b> activa o silencia su voz.', '<span data-voz="El botón de dormir, que aparece con el chat cerrado, lo duerme.">El botón <b>Zzz</b> (con el chat cerrado) lo duerme.</span>'], 'Lo que Lucas puede hacer depende de lo que tenga activado tu panel.'),
-    pg(n, c, 'Lucas trabaja por ti', 'Además de buscar, Lucas puede ordenar lo que tienes en pantalla, marcar muchos contratos de golpe y deshacer cambios.', cards([['👤','Uno por documento','Con un filtro puesto, dile «uno por documento» o «quita los repetidos»: deja un solo contrato por cliente.'],['📌','Marcar lo filtrado','«Ponles la chincheta a estos», «quita el bicho a todos»… Pone o quita 💵 📌 💰 🪳 💀 a todos los contratos de la tabla. También entiende el dibujo: «ponles la 📌».'],['⏳','Te avisa','Si son muchos, te dice cuánto va a tardar y te avisa al terminar. Solo funciona con la tabla filtrada.'],['↩️','Deshacer','«Deshaz lo último», «me he equivocado»… Te enseña los últimos cambios para que elijas cuál deshacer y te pide confirmación.']]), ['Primero filtra la tabla (buscador, iconos, compañías o fechas) o pídele a Lucas que te saque los contratos.', 'Después pídele lo que quieras hacer con ellos, con tus palabras.', 'Para volver atrás, pulsa en el cambio que quieras deshacer y confirma con <b>✅ Sí, deshacer</b>.'], 'Si un dato se ha vuelto a cambiar después, Lucas no lo toca al deshacer, para no pisar algo más nuevo.')
+    pg(n, c, 'Lucas trabaja por ti', 'Además de buscar, Lucas puede ordenar lo que tienes en pantalla, marcar muchos contratos de golpe y deshacer cambios.', cards([['👤','Uno por documento','Con un filtro puesto, dile «uno por documento» o «quita los repetidos»: deja un solo contrato por cliente.'],['📌','Marcar lo filtrado','«Ponles la chincheta a estos», «quita el bicho a todos»… Pone o quita 💵 📌 💰 🪳 💀 a todos los contratos de la tabla. También entiende el dibujo: «ponles la 📌».'],['⏳','Te avisa','Si son muchos, te dice cuánto va a tardar y te avisa al terminar. Solo funciona con la tabla filtrada.'],['↩️','Deshacer','«Deshaz lo último», «me he equivocado»… Te enseña los últimos cambios para que elijas cuál deshacer y te pide confirmación.']]), ['Primero filtra la tabla (buscador, iconos, compañías o fechas) o pídele a Lucas que te saque los contratos.', 'Después pídele lo que quieras hacer con ellos, con tus palabras.', 'Para volver atrás, pulsa en el cambio que quieras deshacer y confirma con <b>✅ Sí, deshacer</b>.'], 'Si un dato se ha vuelto a cambiar después, Lucas no lo toca al deshacer, para no pisar algo más nuevo.'),
+    pg(n, c, 'Deshacer un cambio', '¿Has tocado algo que no era? Lucas puede dejarlo como estaba en dos clics.', shot2(mDeshacer()), ['Dile <b>«deshaz lo último»</b>, <b>«deshacer»</b>, <b>«me he equivocado»</b> o <b>«déjalo como estaba»</b>. Te entiende aunque lo escribas un poco mal.', 'Te enseña los <b>últimos 5 cambios</b> con quién, qué y cuándo. Pulsa el que quieras deshacer.', 'Te pregunta <b>«¿Seguro que quieres deshacer este cambio?»</b>: pulsa <b>✅ Sí, deshacer</b> o <b>❌ Cancelar</b>.', 'Al confirmar, vuelve a poner los datos como estaban y la tabla se actualiza. Si el cambio tocó otros contratos del mismo cliente (💰 🪳 💀, fecha de nacimiento…), los deshace todos juntos.', 'También tienes el botón <b>↩️ Deshacer cambios</b> en la <b>ayuda</b> de Lucas.'], 'Sirve para lo que cambias en contratos y borradores, a mano o con Lucas, y también para recuperar un contrato borrado por error.')
   ]; });
   chapter('pc', '⚡', 'Trucos y atajos', function(n, c){ return [
     pg(n, c, 'Trucos y atajos', 'Pequeños detalles que te ahorran tiempo.', cards([['🔄','Actualizar','Trae los datos más recientes sin recargar toda la página.'],['🚪','SALIR','Cierra tu sesión. Si no lo haces, se cierra sola a las 00:00.'],['🏷️','Versión','Justo encima de Actualizar y SALIR, en pequeño, ves la versión publicada con su fecha y hora.'],['🖼️','Logo','Triple clic sobre el logo para cambiarlo por el tuyo (PNG con fondo transparente, 1000 × 400).'],['🔎','Filtros rápidos','Combina buscador, iconos, compañías y fechas para llegar a un contrato en segundos.'],['📱','Móvil','La web también funciona en el móvil: los últimos capítulos te lo explican.'],['📖','Tutorial','Vuelve cuando quieras desde el botón TUTORIAL del menú.']]), null, null)
