@@ -1852,6 +1852,66 @@ var lastPicks = {};
     { t:'⏰ Mis recordatorios',           v:'q:que recordatorios tengo' },
     { t:'🧹 Quitar filtros',              v:'q:quita los filtros' }
   ];
+  // ---------- «Más trucos»: tras el saludo sale un botón; cada pulsación enseña otra cosa que sabe hacer Lucas ----------
+  // (añadir aquí más trucos; no se repiten hasta haberlos enseñado todos)
+  B.TRUCOS = [
+    "Pídeme los contratos por fechas: «muéstrame los contratos de enero», «contratos de marzo de 2025» o «contratos desde hace 4 meses».",
+    "Pregúntame «¿cómo vamos este mes?» y te hago el resumen del mes.",
+    "¿Quieres compararte? Prueba con «¿este mes llevo más que el pasado?».",
+    "Con «¿qué compañía vende más?» te saco el ranking de compañías.",
+    "«Contratos pendientes de instalar» te enseña los que tienen fibra y todavía no tienen fecha de instalación.",
+    "Pídeme una gráfica: «gráfica de contratos de este año» o «gráfica de los últimos 6 meses». Y si pulsas la gráfica, la ves en grande.",
+    "Puedo contar por compañía: «¿cuántos contratos llevo este mes de Simyo?».",
+    "«Contratos con fibra este mes» te deja en pantalla solo los que llevan fibra.",
+    "¿Curiosidad? Pregúntame «¿qué día se hicieron más contratos este mes?».",
+    "Si te equivocas al cambiar un contrato, escribe «deshacer»: te enseño los últimos cambios, eliges uno y lo dejo como estaba.",
+    "Con la tabla filtrada, dime «uno por documento» y te quito los clientes repetidos.",
+    "«Ponles la chincheta a estos» marca de golpe todos los contratos que tengas en pantalla.",
+    "También quito marcas a muchos contratos a la vez: «quita el bicho a todos» o «quítales la chincheta a estos».",
+    "Soy tu agenda: «recuérdame mañana a las 10 llamar a un cliente». Te pregunto cuándo avisarte y te aviso a la hora.",
+    "Con «¿qué recordatorios tengo?» ves los pendientes; cada uno con su ojo para leerlo entero y su papelera para borrarlo.",
+    "En la Agenda, botón derecho sobre una nota y me la envías como recordatorio.",
+    "Escribe «borradores» y te digo los que tienes pendientes de pasar a contrato.",
+    "Cuando acabes de buscar, «quita los filtros» y vuelves a ver todos los contratos.",
+    "«Clientes VIP» te saca tus clientes VIP, un contrato por cada uno.",
+    "«Contratos para cambiar este mes» te prepara la lista de los que toca cambiar.",
+    "«Muéstrame los contratos para dar de baja» o «para pausar» y te los dejo en pantalla.",
+    "Puedes seguir la conversación: después de pedirme los contratos de un mes, pregunta «¿y en noviembre?» y lo entiendo.",
+    "¿Te has pasado de filtro? Dime «vuelve atrás» y recupero la búsqueda anterior.",
+    "Busco clientes por nombre, documento, teléfono o cuenta: escríbeme el dato y te saco sus contratos.",
+    "Escribe «cls» y dejo el chat limpio.",
+    "Con «ayuda» tienes a mano los accesos directos más usados, a un clic.",
+    "Si quieres que no moleste, pulsa el botón Zzz y me quedo dormido; vuelve a pulsarlo y despierto."
+  ];
+  B._trucos = function(done){
+    B._gratis = true;
+    var L = B.TRUCOS, h = [];
+    try{ h = JSON.parse(localStorage.getItem('pfTrucosVistos') || '[]'); }catch(e){ h = []; }
+    if(!Array.isArray(h)) h = [];
+    var libres = []; for(var i=0;i<L.length;i++) if(h.indexOf(i) < 0) libres.push(i);
+    if(!libres.length){ h = h.slice(-1); for(var j=0;j<L.length;j++) if(h.indexOf(j) < 0) libres.push(j); }
+    var k = libres[Math.floor(Math.random()*libres.length)];
+    h.push(k); try{ localStorage.setItem('pfTrucosVistos', JSON.stringify(h.slice(-L.length))); }catch(e){}
+    done({ say: '\uD83D\uDCA1 ' + L[k], buttons: [{ t: pick('trucoBtn', ['\u2728 Más trucos','\u2728 Otro truco','\u2728 Enséñame otro','\u2728 Muéstrame más trucos']), v:'trucos' }] });
+  };
+  (function(){
+    var armado = false, g0 = B.greet;
+    B.greet = function(){ var r = g0.apply(this, arguments); if(!armado){ armado = true; try{ esperar(); }catch(e){} } return r; };
+    // espera a que Lucas termine de saludar (y de avisar de la carga): 3 s sin mensajes nuevos en el chat
+    function esperar(){
+      var t0 = Date.now(), n = -1, ult = Date.now();
+      var iv = setInterval(function(){
+        var box = document.getElementById('iaChatMsgs'), ahora = Date.now();
+        if(!box){ if(ahora - t0 > 60000) clearInterval(iv); return; }
+        var c = box.childNodes.length; if(c !== n){ n = c; ult = ahora; }
+        var carg = !!(document.body && document.body.classList.contains('pfCargando'));
+        if((c > 0 && ahora - t0 > 3500 && ahora - ult > 3000 && !(carg && ahora - t0 < 8000)) || ahora - t0 > 30000){
+          clearInterval(iv);
+          try{ B.renderButtons([{ t:'\u2728 Muéstrame más trucos', v:'trucos' }], { suave:true }); }catch(e){}
+        }
+      }, 500);
+    }
+  })();
   // respuesta a «¿solo con fibra o todos?»
   B._fibAsk = null; B._fibChoice = null;
   B._fibAnswer = function(ch, done){
@@ -1972,7 +2032,7 @@ var lastPicks = {};
   var fichBtns = [];
   // ---------- botones del asistente: se ponen en GRIS cuando ya no se pueden usar ----------
   var GRUPOS = [];
-  function btnTipo(v){ v=String(v||''); if(v.indexOf('q:')===0) return 'q'; if(v.indexOf('pinf:')===0) return 'pinf'; if(v.indexOf('rec:ok:')===0) return 'recok'; if(v.indexOf('rec:ver:')===0) return 'recver'; if(v.indexOf('rec:del:')===0) return 'recdel'; if(v==='fichOK') return 'fich'; return 'temp'; }
+  function btnTipo(v){ v=String(v||''); if(v==='trucos') return 'truco'; if(v.indexOf('q:')===0) return 'q'; if(v.indexOf('pinf:')===0) return 'pinf'; if(v.indexOf('rec:ok:')===0) return 'recok'; if(v.indexOf('rec:ver:')===0) return 'recver'; if(v.indexOf('rec:del:')===0) return 'recdel'; if(v==='fichOK') return 'fich'; return 'temp'; }
   function apagarBtn(b, elegido){
     if(b._apagado) return; b._apagado=true; b.disabled=true;
     b.style.background='#e9ebef'; b.style.color='#9aa1ab'; b.style.borderColor='#d5d9df'; b.style.boxShadow='none';
@@ -2000,7 +2060,7 @@ var lastPicks = {};
   B.renderButtons = function(list, opc){
     var box = document.getElementById('iaChatMsgs'); if(!box || !list || !list.length) return;
     // un grupo nuevo deja sin efecto los botones temporales anteriores
-    caducarTemporales();
+    if(!(opc && opc.suave)) caducarTemporales(); // «más trucos» no apaga las preguntas que estén abiertas
     var bx = document.createElement('div'); bx.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;max-width:90%;';
     var g = { el:bx, bts:[] }, par = null;
     list.forEach(function(o, oi){
@@ -2014,7 +2074,7 @@ var lastPicks = {};
         if(t==='recdel') apagarBtn(b, true);   // al borrar un recordatorio solo se apaga el suyo: los demás siguen activos
         else if(t!=='q' && t!=='pinf' && t!=='recver') g.bts.forEach(function(x){ apagarBtn(x, x===b); });   // los de ayuda, PIN y «ver» se pueden volver a usar
         if(opc && opc.eco && t!=='recver'){ try{ if(typeof addMsg==='function') addMsg(String(o.t).replace(/^\S+\s/,''), 'user'); }catch(e){} }
-        B.pick(o.v, function(rr){ if(rr && rr.say && window.__lucasSay) window.__lucasSay(rr.say); if(rr && rr.buttons) B.renderButtons(rr.buttons); });
+        B.pick(o.v, function(rr){ if(rr && rr.say && window.__lucasSay) window.__lucasSay(rr.say); if(rr && rr.buttons) B.renderButtons(rr.buttons, t==='truco' ? { suave:true } : undefined); });
       };
       if(o.tip) b.title = o.tip;
       if(o.junto && par){ b.style.padding = '9px 13px'; b.style.flex = '0 0 auto'; par.appendChild(b); par = null; }   // cápsula pegada a la anterior (misma línea)
@@ -2296,6 +2356,7 @@ var lastPicks = {};
   // botones del chat
   B.pick = function(v, done){
     v = String(v||'');
+    if(v==='trucos') return B._trucos(done);
     if(v==='clearF:si' || v==='clearF:no') return B._clearF(v==='clearF:si', done);
     if(v.indexOf('deshOK:')===0) return B._deshHacer(v.slice(7), done);
     if(v==='deshNo') return done({ say: pick('deshN',['Vale, no deshago nada.','De acuerdo, lo dejo como está.','Cancelado, no toco nada.']) });
