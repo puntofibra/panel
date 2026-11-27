@@ -2549,7 +2549,22 @@ var lastPicks = {};
   function firmaB(it){ return [String(it['14']||'').trim(), String(it['20']||'').trim().toUpperCase(), fold(it['21']), String(it['2']||'').trim().toUpperCase(), String(it['22']||'').replace(/\D/g,'')].join('|'); }
   var knownB = null, avisadosB = {}, sigB = null;   // sigB: «foto» de los borradores del servidor en la última comprobación
   function localB(){ try{ return (typeof BORRADORES!=='undefined' && BORRADORES) ? BORRADORES : []; }catch(e){ return []; } }
+  // OPT 28-11-2026: antes de pedir la lista de borradores (el servidor tiene que leer la hoja entera) se pregunta por la
+// marca de ultimo cambio, que no lee la hoja. Solo se pide la lista si la marca ha cambiado, y cada 5 minutos por si acaso
+// (cambios hechos a mano en el Sheet). Tras un cambio se comprueba 3 vueltas seguidas, por si pilla una ficha abierta.
+  var __vbMarca = null, __vbUlt = 0, __vbPend = 0;
   function vigilaBorradores(){
+    try{
+      if(Date.now() - __vbUlt > 300000){ __vbUlt = Date.now(); return vigilaBorradores0(); }
+      if(__vbPend > 0){ __vbPend--; return vigilaBorradores0(); }
+      google.script.run.withSuccessHandler(function(r){
+        if(!r || !r.ok){ __vbUlt = Date.now(); return vigilaBorradores0(); }
+        if(__vbMarca === null){ __vbMarca = r.m; return; }
+        if(r.m !== __vbMarca){ __vbMarca = r.m; __vbPend = 2; vigilaBorradores0(); }
+      }).withFailureHandler(function(){ __vbUlt = Date.now(); vigilaBorradores0(); }).apiCambioMarca();
+    }catch(e){ vigilaBorradores0(); }
+  }
+  function vigilaBorradores0(){
     try{
       var app=document.getElementById('app'); if(!app || app.classList.contains('hidden')) return;
       google.script.run.withSuccessHandler(function(res){
@@ -2972,7 +2987,8 @@ var lastPicks = {};
       msg+='\n'+l.slice(0,6).map(function(x){ var it=x.it; return '• '+(x.tipo==='pausa' ? '⏸️ Pausar' : '❌ Dar de baja')+': '+(titleCase(String(it['21']||'').trim())||'sin nombre')+' ('+compName(it['2'])+'), instalada el '+fmtD(new Date(x.inst))+'.'; }).join('\n');
       if(l.length>6) msg+='\n…y '+(l.length-6)+' más.';
       msg+='\nCuando lo hagas, ponle su estado al contrato y dejo de avisarte.';
-      B.duckSay(msg, [{ t:'👀 Ver contratos', v:'fb:ver' }]);
+      try{ var __ssF = window.speechSynthesis; if(__ssF && !__ssF.__pfFibraCorta){ var __spF = __ssF.speak; __ssF.speak = function(u){ try{ var tx = u && u.text; if(tx && /^\s*Aviso de fibra/i.test(tx)){ var cF = tx.search(/\n|\u2022|Pausar:|Dar de baja:/); if(cF > 0) u.text = tx.slice(0, cF).trim(); } }catch(e){} return __spF.call(__ssF, u); }; __ssF.__pfFibraCorta = true; } }catch(e){}   // 28-11-2026: el aviso de fibra se muestra entero pero en voz alta solo se dice la primera frase
+        B.duckSay(msg, [{ t:'👀 Ver contratos', v:'fb:ver' }]);
     }catch(e){}
   }
   setInterval(vigilaFibra, 60000);
