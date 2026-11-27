@@ -2778,6 +2778,22 @@ var lastPicks = {};
   setInterval(vigilaInactividad, 60000);
   // en el ordenador de Manu: Lucas hace la pregunta con dos botones
   function inactPreguntar(m){
+  // FIX 27-11-2026: antes de preguntar se mira el contador de verdad. Si ya esta parado, o se volvio a poner en marcha
+  // despues de este aviso, el aviso es viejo: se marca como leido en silencio y no se ensena (antes salia en cada recarga).
+  if(!m.__okInact){
+    var __pI = String(m.texto||'').replace(/^\[\[INACT\]\]/, '').split('|'), __fidI = String(__pI[0]||''), __tI = Number(String(m.id||'').slice(1,14)) || 0;
+    var __sigueI = function(){ m.__okInact = 1; inactPreguntar(m); };
+    try{
+      google.script.run.withSuccessHandler(function(r){
+        if(!r || !r.ok || !r.items) return __sigueI();
+        var it = null; r.items.forEach(function(x){ if(String(x.id) === __fidI) it = x; });
+        var viejo = !it || it.estado !== 'RUNNING' || (__tI && (Number(it.startTs)||0) > __tI);
+        if(viejo){ try{ google.script.run.withFailureHandler(function(){}).apiChatLeido([m.id]); }catch(e){} return; }
+        __sigueI();
+      }).withFailureHandler(__sigueI).apiGetFichajes();
+    }catch(e){ __sigueI(); }
+    return;
+  }
     var p = String(m.texto||'').replace(/^\[\[INACT\]\]/, '').split('|'), fid = p[0] || '', nom = p[1] || 'Un empleado', min = Math.max(INACT_MIN, parseInt(p[2], 10) || INACT_MIN);
     var msg = fill(pick('inactQ',[
       '⏱️ Control horario: {n} tiene el contador de fichaje en marcha, pero su ordenador lleva más de {m} minutos sin actividad. ¿Sigo contando su tiempo de trabajo?',
