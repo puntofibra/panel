@@ -2752,6 +2752,8 @@ var lastPicks = {};
   function vigilaInactividad(){
     try{
       if(window.PF_SUB) return;
+      // el cambio de día pone los contadores a cero y en pausa: una marca de play de un día anterior ya no vale, así no se avisa de contadores que ya se resetearon
+      (function(){ var o = inactMarcas(), hoy = new Date().toDateString(), ch = false; Object.keys(o).forEach(function(id){ var d = new Date(Number(o[id]) || 0); if(d.toDateString() !== hoy){ delete o[id]; delete inactAvisado[id]; ch = true; } }); if(ch) inactGuardar(o); })();
       var ids = Object.keys(inactMarcas()); if(!ids.length) return;
       var parado = Date.now() - novActT;
       if(parado < INACT_MIN*60000){ inactAvisado = {}; return; }        // ha vuelto la actividad: se rearma el aviso
