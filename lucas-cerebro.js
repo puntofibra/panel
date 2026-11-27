@@ -1780,6 +1780,49 @@ var lastPicks = {};
   }
 
   // ---------- entrada principal ----------
+  /* ---------- MEDIA DE LÍNEAS POR FIBRA (líneas de cliente + extra ÷ fibras; solo contratos, nunca borradores) ---------- */
+  // «¿cuál es la media de líneas por cliente?», «líneas por fibra de este mes», «a cuántas líneas sale cada contrato»…
+  function esMediaLineas(t){
+    t = String(t||'');
+    if(!/\blineas?\b/.test(t)) return false;
+    var media = /\b(media|medias|promedio\w*|medi[ao]s?|por termino medio|de media|de promedio|ratio)\b/.test(t);
+    var porUnidad = /\b(por|entre|cada|por cada) (cada )?(cliente|clientes|fibra|fibras|contrato|contratos)\b/.test(t)
+                 || /\blineas?\b[\s\S]*\b(por|entre|cada) (cada )?(cliente|fibra|contrato)/.test(t);
+    var cadaCuantas = /\b(cuantas|a cuantas) lineas?\b[\s\S]*\b(cada|por|sale|salen|toca\w*|corresponde\w*|lleva\w*|tiene\w*|hay)\b[\s\S]*\b(cliente|fibra|contrato)/.test(t)
+                 || /\ba cuantas lineas?\b[\s\S]*\b(sale|salen|toca\w*|corresponde\w*)\b/.test(t);
+    return media || porUnidad || cadaCuantas;
+  }
+  function numFmt(n){ n = Math.round(n*100)/100; return String(n).replace('.',','); }
+  function mediaLineas(t, now, done){
+    ensureContratos(function(){
+      var r = rangoODefecto(t, now);
+      var l = porCodigo(enRango(r), t);
+      var comps = findCompanies(t);
+      if(comps.length){ var cu = comps.map(function(c){ return c.toUpperCase().trim(); }); l = l.filter(function(it){ return cu.indexOf(String(it['2']||'').toUpperCase().trim())>=0; }); }
+      var S = sumar(l);
+      // numerador según lo que pida: solo extra, solo de cliente, o todas las líneas (por defecto)
+      var md = medida(t), num, nomNum;
+      if(md.k==='lext'){ num=S.le; nomNum='líneas extra'; }
+      else if(md.k==='lcli'){ num=S.lc; nomNum='líneas de cliente'; }
+      else { num=S.l; nomNum='líneas'; }
+      var compTxt = comps.length ? ' de '+comps.map(compName).join(' y ') : '';
+      if(!S.f){
+        return done({ say: fill(pick('mlSinFib',[
+          'No tengo ninguna fibra apuntada {d}{c}, así que no puedo sacar la media de líneas por fibra.',
+          'No hay fibras {d}{c}: sin fibras no hay entre qué repartir las líneas.',
+          'No me salen fibras {d}{c}, no puedo calcular las líneas por fibra.'
+        ]),{d:r.label,c:compTxt}) });
+      }
+      var media = num / S.f, mTxt = numFmt(media);
+      return done({ say: fill(pick('mlOK',[
+        'De media salen {m} {nw} por fibra {d}{c}: {num} {nn} entre {f} {fw} (cuento contratos, nunca borradores).',
+        'La media es de {m} {nw} por fibra {d}{c} — {num} {nn} repartidas en {f} {fw}, solo contratos.',
+        'Te sale a {m} {nw} por fibra {d}{c}: {num} {nn} ÷ {f} {fw}. Solo cuento contratos, no borradores.'
+      ]),{m:mTxt, nw:(media===1?'línea':'líneas'), nn:nomNum, num:numFmt(num), f:S.f, fw:nomMedida('fibras',S.f), d:r.label, c:compTxt}) });
+    });
+  }
+  B._esMediaLineas = esMediaLineas; B._mediaLineas = mediaLineas;
+
   B.handle = function(raw, done){
     var now = new Date();
     var raw0 = String(raw||'');
@@ -1810,6 +1853,8 @@ var lastPicks = {};
     if(st==='__CLEAR__'){ ensureContratos(function(){ try{ clearSearch(); }catch(e){ render(contratos(),null); } done({ say: pick('clear',['Filtros quitados. Ya ves todos los contratos.','Listo, tabla limpia.','Hecho, sin filtros.']) }); }); return; }
     if(st && typeof st==='string' && st==='__AYUDA__'){ B._gratis=true; return done({ say: pick('ayudaQ',['Aquí tienes los accesos rápidos. Pulsa uno y te lo saco:','Atajos rápidos, pulsa el que quieras:','Toma, accesos directos. Dale a uno:']), buttons: B.AYUDA_BTNS }); }
     if(st){ B._gratis=true; return done({ say: st }); }
+
+    if(esMediaLineas(rest||t)) return mediaLineas(rest||t, now, done);   // «media de líneas por fibra/cliente»
 
     if(/\bborrador/.test(rest||t)) return borradores(rest||t, done);
     if(extras(rest||t, now, done)) return;
@@ -1846,6 +1891,7 @@ var lastPicks = {};
     { t:'🔢 Contratos de este mes',       v:'q:cuantos contratos hay este mes' },
     { t:'🟠 Simyo este mes',              v:'q:cuantos contratos llevo este mes de simyo' },
     { t:'🛜 Contratos con fibra',         v:'q:contratos con fibra este mes' },
+    { t:'➗ Media de líneas por fibra',    v:'q:cual es la media de lineas por fibra este mes' },
     { t:'📅 Mejor día del mes',           v:'q:que dia se hicieron mas contratos este mes' },
     { t:'📉 Gráfica de 6 meses',          v:'q:grafica de contratos de los ultimos 6 meses' },
     { t:'🗒️ Borradores',                  v:'q:borradores' },
@@ -1863,6 +1909,7 @@ var lastPicks = {};
     "Pídeme una gráfica: «gráfica de contratos de este año» o «gráfica de los últimos 6 meses». Y si pulsas la gráfica, la ves en grande.",
     "Puedo contar por compañía: «¿cuántos contratos llevo este mes de Simyo?».",
     "«Contratos con fibra este mes» te deja en pantalla solo los que llevan fibra.",
+    "Pregúntame «¿cuál es la media de líneas por fibra?» y te digo cuántas líneas (de cliente y extra) sale de media por cada fibra del mes. Puedes decir un mes o una compañía: «media de líneas por fibra de Simyo en octubre».",
     "¿Curiosidad? Pregúntame «¿qué día se hicieron más contratos este mes?».",
     "Si te equivocas al cambiar un contrato, escribe «deshacer»: te enseño los últimos cambios, eliges uno y lo dejo como estaba.",
     "Con la tabla filtrada, dime «uno por documento» y te quito los clientes repetidos.",
