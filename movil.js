@@ -430,14 +430,14 @@
     });
     if(!n){ toast('No has cambiado nada'); ST.edit = false; pintarFicha(); return; }
     var b = $('pfmGuardar'); b.disabled = true; carga(true);
-    run('apiUpdateContrato', it.__row, patch).then(function(r){
+    run('apiUpdateContrato', it.__row, patch, it.__uid || '').then(function(r){
       carga(false);
       if(!r || r.ok === false){ b.disabled = false; toast('❌ ' + ((r && r.error) || 'No se ha podido guardar'), 'err'); return; }
       for(var k in patch) it[k] = patch[k];
       it.__txt = fold(ST.ids.map(function(id){ return it[id]; }).join(' | '));
       vib([30,40,30]); toast('✅ Guardado (' + n + (n === 1 ? ' cambio' : ' cambios') + ')', 'ok');
       ST.edit = false; pintarFicha(); pintarLista(true);
-      try{ if(typeof loadContratos === 'function') setTimeout(function(){ loadContratos(); }, 500); }catch(e){}
+      try{ var __loc = false; try{ if(typeof pfGuardadoLocal_ === 'function') __loc = pfGuardadoLocal_(it.__row, it.__uid || '', patch, { ok:true, row: it.__row }); }catch(e2){} if(!__loc && typeof loadContratos === 'function') setTimeout(function(){ loadContratos(); }, 500); }catch(e){}   // OPT 28-11-2026: con cambios sencillos no se vuelve a pedir toda la lista
     }).catch(function(e){ carga(false); b.disabled = false; toast('❌ ' + (e.message || e), 'err'); });
   }
 
